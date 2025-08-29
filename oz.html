@@ -719,7 +719,7 @@
 
         /* Active video state */
         .video-item.active {
-            box-shadow: 0 0 20px rgba(0, 143, 103, 0.4);
+            /* Removed glow effect */
         }
 
         .video-item.active .thumbnail {
@@ -898,6 +898,80 @@
             border-radius: 3px;
             font-family: monospace;
             font-size: 10px;
+        }
+
+        /* Featured video indicator */
+        .video-item.featured {
+            position: relative;
+        }
+
+        .video-item.featured::after {
+            content: 'Featured';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: #ff9500;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            z-index: 25;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Featured controls in edit mode */
+        .edit-mode .video-item .featured-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 25;
+        }
+
+        .featured-btn {
+            background: rgba(255, 149, 0, 0.9);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .featured-btn:hover {
+            background: rgba(255, 149, 0, 1);
+            transform: translateY(-1px);
+        }
+
+        .featured-btn.active {
+            background: #ff9500;
+        }
+
+        /* Featured image placeholder */
+        .featured-image-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .featured-image-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
         .edit-mode .add-category-btn {
@@ -1086,6 +1160,7 @@
             </div>
             <div class="admin-banner-buttons">
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
+                <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
             </div>
         </div>
@@ -1352,6 +1427,9 @@
                         <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                         <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
                         <div class="thumbnail-play-button"></div>
+                        <div class="featured-controls">
+                            <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
+                        </div>
                         <div class="video-edit-overlay">
                             <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                         </div>
@@ -1371,7 +1449,7 @@
             });
             
             if (videos.length > 0) {
-                loadWistiaVideo(videos[0].wistiaId, videos[0].title);
+                loadInitialContent();
             }
         }
 
@@ -1602,6 +1680,9 @@
             
             // Add video button listener
             document.getElementById('adminAddVideoBtn').addEventListener('click', openAddVideoPopup);
+            
+            // Set featured button listener
+            document.getElementById('adminSetFeaturedBtn').addEventListener('click', openSetFeaturedDialog);
             
             console.log('Edit mode enabled');
         }
@@ -2155,6 +2236,227 @@
             }, 1000); // Simulate network delay
         }
 
+        // Featured Video System
+        let featuredContent = {
+            type: 'video', // 'video' or 'image'
+            videoId: null,
+            imageUrl: null,
+            title: 'Featured Content'
+        };
+
+        function setFeaturedVideo(wistiaId) {
+            // Remove featured class from all videos
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('featured');
+            });
+            
+            // Add featured class to selected video
+            const videoItem = document.querySelector(`[data-wistia="${wistiaId}"]`);
+            if (videoItem) {
+                videoItem.classList.add('featured');
+                featuredContent.type = 'video';
+                featuredContent.videoId = wistiaId;
+                featuredContent.title = videoItem.dataset.title;
+                
+                // Load as default video
+                loadWistiaVideo(wistiaId, featuredContent.title);
+                
+                markUnsavedChanges();
+                console.log('Featured video set:', wistiaId);
+            }
+        }
+
+        function openSetFeaturedDialog() {
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 1001; backdrop-filter: blur(4px);
+            `;
+            
+            dialog.innerHTML = `
+                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 500px; width: 90%;">
+                    <h3 style="color: white; margin: 0 0 20px 0;">Set Featured Content</h3>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: white; margin-bottom: 12px; cursor: pointer;">
+                            <input type="radio" name="featuredType" value="video" ${featuredContent.type === 'video' ? 'checked' : ''}>
+                            <span>Featured Video</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: white; cursor: pointer;">
+                            <input type="radio" name="featuredType" value="image" ${featuredContent.type === 'image' ? 'checked' : ''}>
+                            <span>Featured Image</span>
+                        </label>
+                    </div>
+                    
+                    <div id="videoOptions" style="margin-bottom: 20px; ${featuredContent.type === 'video' ? '' : 'display: none;'}">
+                        <label style="color: white; display: block; margin-bottom: 8px;">Select Video:</label>
+                        <select id="featuredVideoSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white;">
+                            <option value="">Choose a video...</option>
+                        </select>
+                    </div>
+                    
+                    <div id="imageOptions" style="margin-bottom: 20px; ${featuredContent.type === 'image' ? '' : 'display: none;'}">
+                        <label style="color: white; display: block; margin-bottom: 8px;">Image URL:</label>
+                        <input type="url" id="featuredImageUrl" placeholder="https://example.com/image.jpg" 
+                               value="${featuredContent.imageUrl || ''}"
+                               style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; box-sizing: border-box;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px;">
+                        <button id="setFeaturedConfirm" style="flex: 1; padding: 12px 20px; background: #ff9500; color: white; border: none; border-radius: 6px; cursor: pointer;">Set Featured</button>
+                        <button id="clearFeatured" style="flex: 1; padding: 12px 20px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Featured</button>
+                        <button id="cancelFeatured" style="flex: 1; padding: 12px 20px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            // Populate video dropdown
+            const videoSelect = dialog.querySelector('#featuredVideoSelect');
+            const videos = Array.from(document.querySelectorAll('.video-item')).map(item => ({
+                id: item.dataset.wistia,
+                title: item.dataset.title
+            }));
+            
+            videos.forEach(video => {
+                const option = document.createElement('option');
+                option.value = video.id;
+                option.textContent = video.title;
+                option.selected = video.id === featuredContent.videoId;
+                videoSelect.appendChild(option);
+            });
+            
+            // Handle radio button changes
+            dialog.querySelectorAll('input[name="featuredType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const videoOptions = dialog.querySelector('#videoOptions');
+                    const imageOptions = dialog.querySelector('#imageOptions');
+                    
+                    if (this.value === 'video') {
+                        videoOptions.style.display = 'block';
+                        imageOptions.style.display = 'none';
+                    } else {
+                        videoOptions.style.display = 'none';
+                        imageOptions.style.display = 'block';
+                    }
+                });
+            });
+            
+            // Handle buttons
+            dialog.querySelector('#setFeaturedConfirm').addEventListener('click', function() {
+                const type = dialog.querySelector('input[name="featuredType"]:checked').value;
+                
+                if (type === 'video') {
+                    const selectedVideoId = videoSelect.value;
+                    if (selectedVideoId) {
+                        setFeaturedVideo(selectedVideoId);
+                    }
+                } else {
+                    const imageUrl = dialog.querySelector('#featuredImageUrl').value.trim();
+                    if (imageUrl) {
+                        setFeaturedImage(imageUrl);
+                    }
+                }
+                
+                document.body.removeChild(dialog);
+            });
+            
+            dialog.querySelector('#clearFeatured').addEventListener('click', function() {
+                clearFeaturedContent();
+                document.body.removeChild(dialog);
+            });
+            
+            dialog.querySelector('#cancelFeatured').addEventListener('click', function() {
+                document.body.removeChild(dialog);
+            });
+        }
+
+        function setFeaturedImage(imageUrl) {
+            // Remove featured class from all videos
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('featured');
+            });
+            
+            featuredContent.type = 'image';
+            featuredContent.imageUrl = imageUrl;
+            featuredContent.videoId = null;
+            
+            // Load image in main player
+            loadFeaturedImage(imageUrl);
+            
+            markUnsavedChanges();
+            console.log('Featured image set:', imageUrl);
+        }
+
+        function loadFeaturedImage(imageUrl) {
+            const videoContainer = document.getElementById('wistia-player');
+            videoContainer.innerHTML = `
+                <div class="featured-image-placeholder">
+                    <img src="${imageUrl}" alt="Featured Image" 
+                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                        <div class="icon">🖼️</div>
+                        <div>Featured Image</div>
+                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Image failed to load</div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear active video state
+            setActiveVideo(null);
+        }
+
+        function clearFeaturedContent() {
+            // Remove featured class from all videos
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('featured');
+            });
+            
+            featuredContent = {
+                type: 'video',
+                videoId: null,
+                imageUrl: null,
+                title: 'Featured Content'
+            };
+            
+            // Load first video as default
+            const videos = Array.from(document.querySelectorAll('.video-item'));
+            if (videos.length > 0) {
+                const firstVideo = videos[0];
+                loadWistiaVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
+            }
+            
+            markUnsavedChanges();
+            console.log('Featured content cleared');
+        }
+
+        // Update the initial video loading to check for featured content
+        function loadInitialContent() {
+            if (featuredContent.type === 'video' && featuredContent.videoId) {
+                // Load featured video
+                const featuredVideo = document.querySelector(`[data-wistia="${featuredContent.videoId}"]`);
+                if (featuredVideo) {
+                    featuredVideo.classList.add('featured');
+                    loadWistiaVideo(featuredContent.videoId, featuredContent.title);
+                    return;
+                }
+            } else if (featuredContent.type === 'image' && featuredContent.imageUrl) {
+                // Load featured image
+                loadFeaturedImage(featuredContent.imageUrl);
+                return;
+            }
+            
+            // Fallback to first video
+            const videos = Array.from(document.querySelectorAll('.video-item'));
+            if (videos.length > 0) {
+                const firstVideo = videos[0];
+                loadWistiaVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
+            }
+        }
+
         // Edit Video Popup Functions
         let currentEditingVideoId = null;
 
@@ -2429,6 +2731,9 @@
                     <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                     <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
                     <div class="thumbnail-play-button"></div>
+                    <div class="featured-controls">
+                        <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
+                    </div>
                     <div class="video-edit-overlay">
                         <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                     </div>
