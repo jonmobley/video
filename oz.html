@@ -33,6 +33,11 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             margin: 0 auto;
             box-sizing: border-box;
+            display: none;
+        }
+
+        .video-container.active {
+            display: block;
         }
 
         .video-title-overlay {
@@ -1406,6 +1411,10 @@
         function loadWistiaVideo(wistiaId, title) {
             console.log('Loading Wistia video:', wistiaId, title);
             
+            // Show video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.add('active');
+            
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
             
@@ -2532,17 +2541,15 @@
                     return;
                 }
             } else if (featuredContent.type === 'image' && featuredContent.imageUrl) {
-                // Load featured image
+                // Show video container and load featured image
+                const videoContainerElement = document.querySelector('.video-container');
+                videoContainerElement.classList.add('active');
                 loadFeaturedImage(featuredContent.imageUrl);
                 return;
             }
             
-            // Fallback to first video
-            const videos = Array.from(document.querySelectorAll('.video-item'));
-            if (videos.length > 0) {
-                const firstVideo = videos[0];
-                loadWistiaVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
-            }
+            // Don't load any video by default - just show the grid
+            console.log('No featured content set, showing grid only');
         }
 
         // Edit Video Popup Functions
