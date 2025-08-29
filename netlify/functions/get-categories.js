@@ -1,17 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { getStore } = require('@netlify/blobs');
 
-const DATA_FILE = path.join(__dirname, '../../data/categories.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
+// Initialize Netlify Blob store
+const store = getStore('vidshare-data');
 
 // Default categories for initial setup
 const defaultCategories = [
@@ -46,17 +36,22 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    await ensureDataDir();
-    
-    // Try to read existing categories
+    // Try to read existing categories from Netlify Blobs
     let categories;
     try {
-      const data = await fs.readFile(DATA_FILE, 'utf8');
-      categories = JSON.parse(data);
-    } catch {
-      // File doesn't exist, create with default categories
+      const categoriesData = await store.get('categories', { type: 'json' });
+      if (categoriesData) {
+        categories = categoriesData;
+        console.log('Loaded categories from Netlify Blobs:', categories.length, 'categories');
+      } else {
+        // No data exists, use defaults and save them
+        categories = defaultCategories;
+        await store.set('categories', JSON.stringify(categories));
+        console.log('Initialized with default categories in Netlify Blobs');
+      }
+    } catch (blobError) {
+      console.log('Blob storage error, using defaults:', blobError.message);
       categories = defaultCategories;
-      await fs.writeFile(DATA_FILE, JSON.stringify(categories, null, 2));
     }
 
     return {
@@ -65,10 +60,11 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(categories)
     };
   } catch (error) {
+    console.error('Error in get-categories function:', error);
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: 'Failed to load categories' })
+      body: JSON.stringify(defaultCategories)
     };
   }
 };

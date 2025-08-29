@@ -8,10 +8,18 @@
     "build": "echo 'No build step required'",
     "deploy": "netlify deploy --prod"
   },
-  "keywords": ["dance", "theater", "video", "wistia", "netlify"],
+  "keywords": [
+    "dance",
+    "theater",
+    "video",
+    "wistia",
+    "netlify"
+  ],
   "author": "Theater Group",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@netlify/blobs": "^10.0.10"
+  },
   "devDependencies": {
     "netlify-cli": "^17.0.0"
   }

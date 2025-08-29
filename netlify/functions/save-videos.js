@@ -1,17 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { getStore } = require('@netlify/blobs');
 
-const DATA_FILE = path.join(__dirname, '../../data/videos.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
+// Initialize Netlify Blob store
+const store = getStore('vidshare-data');
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -61,29 +51,25 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate video IDs found');
     }
 
+    // Save to Netlify Blobs
     try {
-      await ensureDataDir();
-      await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
-      console.log('Successfully saved videos to file');
+      await store.set('videos', JSON.stringify(videos));
+      console.log('Successfully saved videos to Netlify Blobs');
       
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({ success: true, count: videos.length, message: 'Videos saved successfully' })
       };
-    } catch (writeError) {
-      console.error('Could not write to filesystem:', writeError.message);
+    } catch (blobError) {
+      console.error('Could not save to Netlify Blobs:', blobError.message);
       
-      // In serverless environment, we can't persist to filesystem
-      // Return success but indicate it's temporary
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
         body: JSON.stringify({ 
-          success: true, 
-          count: videos.length, 
-          message: 'Videos validated but not persisted (serverless environment)',
-          temporary: true 
+          success: false, 
+          error: 'Failed to save videos to storage: ' + blobError.message
         })
       };
     }

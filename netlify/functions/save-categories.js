@@ -1,17 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { getStore } = require('@netlify/blobs');
 
-const DATA_FILE = path.join(__dirname, '../../data/categories.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
+// Initialize Netlify Blob store
+const store = getStore('vidshare-data');
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -66,8 +56,9 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate category IDs found');
     }
 
-    await ensureDataDir();
-    await fs.writeFile(DATA_FILE, JSON.stringify(categories, null, 2));
+    // Save to Netlify Blobs
+    await store.set('categories', JSON.stringify(categories));
+    console.log('Successfully saved categories to Netlify Blobs');
 
     return {
       statusCode: 200,

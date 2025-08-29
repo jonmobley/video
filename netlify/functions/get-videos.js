@@ -1,17 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
+const { getStore } = require('@netlify/blobs');
 
-const DATA_FILE = path.join(__dirname, '../../data/videos.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
+// Initialize Netlify Blob store
+const store = getStore('vidshare-data');
 
 // Default videos for initial setup
 const defaultVideos = [
@@ -72,26 +62,22 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Try to read existing videos from file
+    // Try to read existing videos from Netlify Blobs
     let videos;
     try {
-      await ensureDataDir();
-      const data = await fs.readFile(DATA_FILE, 'utf8');
-      videos = JSON.parse(data);
-      console.log('Loaded videos from file:', videos.length, 'videos');
-    } catch (fileError) {
-      // File doesn't exist or can't be read, use default videos
-      console.log('Using default videos, file error:', fileError.message);
-      videos = defaultVideos;
-      
-      // Try to create the file, but don't fail if we can't (serverless environment)
-      try {
-        await ensureDataDir();
-        await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
-        console.log('Created default videos file');
-      } catch (writeError) {
-        console.log('Could not write videos file (normal in serverless):', writeError.message);
+      const videosData = await store.get('videos', { type: 'json' });
+      if (videosData) {
+        videos = videosData;
+        console.log('Loaded videos from Netlify Blobs:', videos.length, 'videos');
+      } else {
+        // No data exists, use defaults and save them
+        videos = defaultVideos;
+        await store.set('videos', JSON.stringify(videos));
+        console.log('Initialized with default videos in Netlify Blobs');
       }
+    } catch (blobError) {
+      console.log('Blob storage error, using defaults:', blobError.message);
+      videos = defaultVideos;
     }
 
     return {
