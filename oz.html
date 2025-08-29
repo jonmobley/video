@@ -1427,6 +1427,8 @@
 
         // Track currently playing video
         let currentlyPlayingVideoId = null;
+        let originalVideoPosition = null;
+        let originalVideoElement = null;
 
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
@@ -1439,10 +1441,73 @@
                 const activeVideo = document.querySelector(`[data-wistia="${wistiaId}"]`);
                 if (activeVideo) {
                     activeVideo.classList.add('active');
+                    moveVideoToFirst(activeVideo);
                 }
                 currentlyPlayingVideoId = wistiaId;
             } else {
+                restoreVideoPosition();
                 currentlyPlayingVideoId = null;
+            }
+        }
+
+        function moveVideoToFirst(videoElement) {
+            const videoGrid = document.getElementById('videoGrid');
+            
+            // Store original position if not already stored
+            if (!originalVideoElement) {
+                originalVideoElement = videoElement.cloneNode(true);
+                originalVideoPosition = Array.from(videoGrid.children).indexOf(videoElement);
+                console.log('Stored original position:', originalVideoPosition);
+            }
+            
+            // Move video to first position
+            if (videoGrid.firstChild !== videoElement) {
+                videoGrid.insertBefore(videoElement, videoGrid.firstChild);
+                console.log('Moved video to first position');
+            }
+        }
+
+        function restoreVideoPosition() {
+            if (originalVideoElement && originalVideoPosition !== null) {
+                const videoGrid = document.getElementById('videoGrid');
+                const currentVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
+                
+                if (currentVideo) {
+                    // Get all current children
+                    const children = Array.from(videoGrid.children);
+                    
+                    // Remove the current video from its position
+                    currentVideo.remove();
+                    
+                    // Insert it back at the original position
+                    if (originalVideoPosition >= children.length - 1) {
+                        videoGrid.appendChild(currentVideo);
+                    } else {
+                        const referenceNode = children[originalVideoPosition];
+                        videoGrid.insertBefore(currentVideo, referenceNode);
+                    }
+                    
+                    console.log('Restored video to original position:', originalVideoPosition);
+                }
+                
+                // Clear stored position
+                originalVideoElement = null;
+                originalVideoPosition = null;
+            }
+        }
+
+        function moveVideoToFirstInFilteredView(videoElement) {
+            const videoGrid = document.getElementById('videoGrid');
+            const visibleVideos = Array.from(videoGrid.children).filter(child => 
+                !child.classList.contains('hidden')
+            );
+            
+            // If the video is not already first among visible videos, move it
+            if (visibleVideos.length > 0 && visibleVideos[0] !== videoElement) {
+                // Find the first visible video and insert before it
+                const firstVisible = visibleVideos[0];
+                videoGrid.insertBefore(videoElement, firstVisible);
+                console.log('Moved playing video to first position in filtered view');
             }
         }
 
@@ -1590,25 +1655,50 @@
                 return;
             }
             
-            videoGrid.innerHTML = videos.map(video => `
-                <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
-                    <div class="thumbnail" id="thumb-${video.wistiaId}">
-                        <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
-                        <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
-                        <div class="thumbnail-play-button"></div>
-                        <div class="featured-controls">
-                            <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
+            console.log('🎬 DEBUG: === RENDERING VIDEO GRID ===');
+            console.log('🎬 DEBUG: Videos to render:', videos.length);
+            
+            const videoHTML = videos.map((video, index) => {
+                console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videos.length}:`, video);
+                const html = `
+                    <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
+                        <div class="thumbnail" id="thumb-${video.wistiaId}">
+                            <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                            <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
+                            <div class="thumbnail-play-button"></div>
+                            <div class="featured-controls">
+                                <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
+                            </div>
+                            <div class="video-edit-overlay">
+                                <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                            </div>
                         </div>
-                        <div class="video-edit-overlay">
-                            <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                        <div class="item-info">
+                            <div class="item-title">${video.title}</div>
+                            <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
                         </div>
                     </div>
-                    <div class="item-info">
-                        <div class="item-title">${video.title}</div>
-                        <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
-                    </div>
-                </div>
-            `).join('');
+                `;
+                console.log(`🎬 DEBUG: Generated HTML for ${video.wistiaId}:`, html.substring(0, 200) + '...');
+                return html;
+            }).join('');
+            
+            videoGrid.innerHTML = videoHTML;
+            
+            console.log('🎬 DEBUG: Video grid HTML set, checking for duration elements...');
+            
+            // Verify duration elements were created
+            setTimeout(() => {
+                videos.forEach(video => {
+                    const durationEl = document.getElementById(`duration-${video.wistiaId}`);
+                    console.log(`🎬 DEBUG: Duration element for ${video.wistiaId}:`, {
+                        exists: !!durationEl,
+                        element: durationEl,
+                        parentElement: durationEl?.parentElement,
+                        styles: durationEl ? window.getComputedStyle(durationEl) : null
+                    });
+                });
+            }, 100);
             
             attachVideoListeners();
             
@@ -1624,14 +1714,29 @@
 
         // Load video duration from Wistia oEmbed API
         async function loadVideoDuration(wistiaId) {
+            console.log('🕐 DEBUG: === LOADING DURATION FOR:', wistiaId, '===');
+            
             const durationElement = document.getElementById(`duration-${wistiaId}`);
+            console.log('🕐 DEBUG: Duration element found:', durationElement);
+            console.log('🕐 DEBUG: Duration element ID:', `duration-${wistiaId}`);
+            
             if (!durationElement) {
-                console.log('Duration element not found for:', wistiaId);
+                console.error('🕐 ERROR: Duration element not found for:', wistiaId);
+                console.log('🕐 DEBUG: Available duration elements:', 
+                    Array.from(document.querySelectorAll('[id^="duration-"]')).map(el => el.id));
                 return;
             }
 
+            console.log('🕐 DEBUG: Initial element styles:', {
+                display: durationElement.style.display,
+                visibility: durationElement.style.visibility,
+                opacity: durationElement.style.opacity,
+                position: durationElement.style.position,
+                zIndex: durationElement.style.zIndex
+            });
+
             try {
-                console.log('Loading duration for:', wistiaId);
+                console.log('🕐 DEBUG: Starting API calls for:', wistiaId);
                 
                 // Try multiple API endpoints for better compatibility
                 const apiUrls = [
@@ -1642,51 +1747,101 @@
 
                 let durationFound = false;
                 
-                for (const apiUrl of apiUrls) {
+                for (let i = 0; i < apiUrls.length; i++) {
+                    const apiUrl = apiUrls[i];
                     try {
-                        console.log('Trying API URL:', apiUrl);
+                        console.log(`🕐 DEBUG: Trying API URL ${i + 1}/${apiUrls.length}:`, apiUrl);
                         const response = await fetch(apiUrl);
+                        console.log('🕐 DEBUG: Response status:', response.status, response.statusText);
                         
                         if (!response.ok) {
-                            console.log('API response not ok:', response.status, 'for', apiUrl);
+                            console.log('🕐 DEBUG: API response not ok:', response.status, 'for', apiUrl);
                             continue;
                         }
                         
                         const data = await response.json();
-                        console.log('Duration data for', wistiaId, ':', data);
+                        console.log('🕐 DEBUG: Full API response data for', wistiaId, ':', data);
+                        console.log('🕐 DEBUG: Duration value:', data.duration, 'Type:', typeof data.duration);
                         
                         if (data.duration && data.duration > 0) {
                             const minutes = Math.floor(data.duration / 60);
                             const seconds = Math.floor(data.duration % 60);
                             const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                            console.log('Setting duration to:', formattedDuration);
+                            console.log('🕐 SUCCESS: Setting duration to:', formattedDuration);
+                            
                             durationElement.textContent = formattedDuration;
                             durationElement.classList.remove('placeholder');
                             durationElement.style.display = 'block';
+                            durationElement.style.visibility = 'visible';
+                            durationElement.style.opacity = '1';
+                            
+                            console.log('🕐 DEBUG: After setting duration, element styles:', {
+                                display: durationElement.style.display,
+                                visibility: durationElement.style.visibility,
+                                opacity: durationElement.style.opacity,
+                                textContent: durationElement.textContent,
+                                classList: Array.from(durationElement.classList)
+                            });
+                            
                             durationFound = true;
                             break;
+                        } else {
+                            console.log('🕐 DEBUG: No valid duration in response for', wistiaId);
                         }
                     } catch (apiError) {
-                        console.log('API call failed for', apiUrl, ':', apiError);
+                        console.error('🕐 ERROR: API call failed for', apiUrl, ':', apiError);
                         continue;
                     }
                 }
                 
                 // If no duration found from API, show a placeholder
                 if (!durationFound) {
-                    console.log('No duration found via API for', wistiaId, ', showing placeholder');
+                    console.log('🕐 FALLBACK: No duration found via API for', wistiaId, ', showing placeholder');
                     durationElement.textContent = '--:--';
                     durationElement.classList.add('placeholder');
                     durationElement.style.display = 'block';
+                    durationElement.style.visibility = 'visible';
+                    durationElement.style.opacity = '0.7';
+                    
+                    console.log('🕐 DEBUG: After setting placeholder, element styles:', {
+                        display: durationElement.style.display,
+                        visibility: durationElement.style.visibility,
+                        opacity: durationElement.style.opacity,
+                        textContent: durationElement.textContent,
+                        classList: Array.from(durationElement.classList)
+                    });
                 }
                 
             } catch (error) {
-                console.log('Failed to load duration for', wistiaId, error);
+                console.error('🕐 ERROR: Failed to load duration for', wistiaId, error);
                 // Show placeholder on error
                 durationElement.textContent = '--:--';
                 durationElement.classList.add('placeholder');
                 durationElement.style.display = 'block';
+                durationElement.style.visibility = 'visible';
+                durationElement.style.opacity = '0.7';
+                
+                console.log('🕐 DEBUG: After error fallback, element styles:', {
+                    display: durationElement.style.display,
+                    visibility: durationElement.style.visibility,
+                    opacity: durationElement.style.opacity,
+                    textContent: durationElement.textContent,
+                    classList: Array.from(durationElement.classList)
+                });
             }
+            
+            // Final check
+            setTimeout(() => {
+                console.log('🕐 FINAL CHECK: Duration element for', wistiaId, 'after 1 second:', {
+                    exists: !!document.getElementById(`duration-${wistiaId}`),
+                    display: durationElement.style.display,
+                    visibility: durationElement.style.visibility,
+                    opacity: durationElement.style.opacity,
+                    textContent: durationElement.textContent,
+                    classList: Array.from(durationElement.classList),
+                    computedStyles: window.getComputedStyle(durationElement)
+                });
+            }, 1000);
         }
 
         // Load Wistia thumbnail using oEmbed API
@@ -1779,6 +1934,14 @@
                             item.classList.add('hidden');
                         }
                     });
+
+                    // If there's a currently playing video, move it to first position in the filtered view
+                    if (currentlyPlayingVideoId) {
+                        const playingVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
+                        if (playingVideo && !playingVideo.classList.contains('hidden')) {
+                            moveVideoToFirstInFilteredView(playingVideo);
+                        }
+                    }
                 });
             });
         }
