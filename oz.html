@@ -1341,7 +1341,7 @@
             
             /* Content area with proper padding */
             .content {
-                padding-top: 210px; /* Much closer to category navigation */
+                padding-top: 240px; /* Proper spacing for page title + tags */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
@@ -1349,16 +1349,17 @@
             }
             
             /* When video is active, adjust positioning */
-            .video-container.active ~ .mobile-video-title {
-                margin-top: 0; /* Keep mobile title close to video */
+            body.video-active .content {
+                padding-top: 360px; /* More space when video is playing */
             }
             
-            .video-container.active ~ .mobile-video-title ~ .tags-container {
-                margin-top: 0; /* Keep tags close to video title */
+            /* Keep mobile elements properly spaced when video is active */
+            body.video-active .mobile-video-title {
+                margin-top: 0;
             }
             
-            .video-container.active ~ .mobile-video-title ~ .tags-container ~ .content {
-                padding-top: 320px; /* More space when video is playing */
+            body.video-active .tags-container {
+                margin-top: 0;
             }
 
 
@@ -1690,9 +1691,13 @@
                     moveVideoToFirst(activeVideo);
                 }
                 currentlyPlayingVideoId = wistiaId;
+                // Add video-active class to body for mobile layout positioning
+                document.body.classList.add('video-active');
             } else {
                 restoreVideoPosition();
                 currentlyPlayingVideoId = null;
+                // Remove video-active class from body
+                document.body.classList.remove('video-active');
             }
         }
 
