@@ -717,6 +717,40 @@
             transform: translateY(0);
         }
 
+        /* Active video state */
+        .video-item.active {
+            border: 3px solid #008f67;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 143, 103, 0.4);
+        }
+
+        .video-item.active .thumbnail {
+            opacity: 0.6;
+            position: relative;
+        }
+
+        .video-item.active .thumbnail::before {
+            content: 'Now Playing';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 143, 103, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 15;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .video-item.active .item-title {
+            color: #008f67;
+            font-weight: 600;
+        }
+
         .edit-indicator {
             position: fixed;
             top: 20px;
@@ -1158,12 +1192,36 @@
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
+        // Track currently playing video
+        let currentlyPlayingVideoId = null;
+
+        function setActiveVideo(wistiaId) {
+            // Remove active class from all videos
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active class to current video
+            if (wistiaId) {
+                const activeVideo = document.querySelector(`[data-wistia="${wistiaId}"]`);
+                if (activeVideo) {
+                    activeVideo.classList.add('active');
+                }
+                currentlyPlayingVideoId = wistiaId;
+            } else {
+                currentlyPlayingVideoId = null;
+            }
+        }
+
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
             console.log('Loading Wistia video:', wistiaId, title);
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+            
+            // Set active video state
+            setActiveVideo(wistiaId);
             
             // Ensure Wistia script is loaded
             if (typeof window.Wistia === 'undefined') {
