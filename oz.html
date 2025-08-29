@@ -71,14 +71,13 @@
 
         .video-close-button {
             position: absolute;
-            top: 16px;
-            right: 16px;
+            top: 12px;
+            right: 12px;
             background: rgba(0, 0, 0, 0.7);
             color: white;
             border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            padding: 8px 16px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -86,14 +85,15 @@
             opacity: 0;
             transition: all 0.3s ease;
             z-index: 20;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
             backdrop-filter: blur(4px);
+            white-space: nowrap;
         }
 
         .video-close-button:hover {
-            background: rgba(0, 0, 0, 0.9);
-            transform: scale(1.1);
+            background: #008f67;
+            transform: scale(1.05);
         }
 
         /* Show close button on hover for desktop only */
@@ -1303,7 +1303,7 @@
                 </div>
             </div>
             <div class="video-title-overlay" id="current-video-title">Select a video to play</div>
-            <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()">×</button>
+            <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()">Close</button>
         </div>
         <div class="tags-container">
             <div class="tags">
