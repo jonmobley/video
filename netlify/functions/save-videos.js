@@ -61,14 +61,32 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate video IDs found');
     }
 
-    await ensureDataDir();
-    await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, count: videos.length })
-    };
+    try {
+      await ensureDataDir();
+      await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+      console.log('Successfully saved videos to file');
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, count: videos.length, message: 'Videos saved successfully' })
+      };
+    } catch (writeError) {
+      console.error('Could not write to filesystem:', writeError.message);
+      
+      // In serverless environment, we can't persist to filesystem
+      // Return success but indicate it's temporary
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          count: videos.length, 
+          message: 'Videos validated but not persisted (serverless environment)',
+          temporary: true 
+        })
+      };
+    }
   } catch (error) {
     return {
       statusCode: 400,

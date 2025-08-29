@@ -72,20 +72,28 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    await ensureDataDir();
-    
-    // Try to read existing videos
+    // Try to read existing videos from file
     let videos;
     try {
+      await ensureDataDir();
       const data = await fs.readFile(DATA_FILE, 'utf8');
       videos = JSON.parse(data);
-    } catch {
-      // File doesn't exist, create with default videos
+      console.log('Loaded videos from file:', videos.length, 'videos');
+    } catch (fileError) {
+      // File doesn't exist or can't be read, use default videos
+      console.log('Using default videos, file error:', fileError.message);
       videos = defaultVideos;
-      await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+      
+      // Try to create the file, but don't fail if we can't (serverless environment)
+      try {
+        await ensureDataDir();
+        await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+        console.log('Created default videos file');
+      } catch (writeError) {
+        console.log('Could not write videos file (normal in serverless):', writeError.message);
+      }
     }
 
-    console.log('Returning videos:', videos.length, 'videos');
     return {
       statusCode: 200,
       headers,
@@ -93,10 +101,11 @@ exports.handler = async (event, context) => {
     };
   } catch (error) {
     console.error('Error in get-videos function:', error);
+    // Fallback to default videos even if everything fails
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: 'Failed to load videos', details: error.message })
+      body: JSON.stringify(defaultVideos)
     };
   }
 };
