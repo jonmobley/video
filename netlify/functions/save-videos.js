@@ -1,18 +1,3 @@
-const fs = require('fs').promises;
-const path = require('path');
-
-const DATA_FILE = path.join(__dirname, '../../data/videos.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
-
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -54,13 +39,12 @@ exports.handler = async (event, context) => {
       }
     }
 
-    await ensureDataDir();
-    await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
-
+    // For now, just return success without persisting
+    // In a real app, you'd save to a database
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, count: videos.length })
+      body: JSON.stringify({ success: true, count: videos.length, message: 'Videos received (not persisted in demo)' })
     };
   } catch (error) {
     return {
