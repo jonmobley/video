@@ -2224,8 +2224,7 @@
             attachTagListeners();
         });
 
-        // Refresh videos every 30 seconds
-        setInterval(loadVideosFromServer, 30000);
+        // Auto-refresh removed to prevent flickering
 
         // Handle page visibility
         document.addEventListener('visibilitychange', () => {
