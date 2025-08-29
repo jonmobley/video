@@ -263,10 +263,36 @@
             top: 0;
             right: 0;
             bottom: 0;
-            width: 40px;
-            background: linear-gradient(to left, #0f0f0f 0%, rgba(15, 15, 15, 0.8) 50%, transparent 100%);
+            width: 60px;
+            background: linear-gradient(to left, 
+                #0f0f0f 0%, 
+                rgba(15, 15, 15, 0.95) 20%, 
+                rgba(15, 15, 15, 0.8) 40%, 
+                rgba(15, 15, 15, 0.5) 60%, 
+                rgba(15, 15, 15, 0.2) 80%, 
+                transparent 100%);
             pointer-events: none;
             z-index: 60;
+        }
+
+        .tags-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 60px;
+            background: linear-gradient(to right, 
+                #0f0f0f 0%, 
+                rgba(15, 15, 15, 0.95) 20%, 
+                rgba(15, 15, 15, 0.8) 40%, 
+                rgba(15, 15, 15, 0.5) 60%, 
+                rgba(15, 15, 15, 0.2) 80%, 
+                transparent 100%);
+            pointer-events: none;
+            z-index: 60;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .tag {
@@ -1309,16 +1335,30 @@
                     rgba(15, 15, 15, 0.3) 98%, 
                     rgba(15, 15, 15, 0.1) 100%);
                 margin: 0;
-                padding: 4px 16px 16px 16px;
+                padding: 4px 16px 8px 16px;
                 box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             }
             
             /* Content area with proper padding */
             .content {
-                padding-top: 260px; /* Reduced for tighter spacing */
+                padding-top: 210px; /* Much closer to category navigation */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
+                transition: padding-top 0.3s ease;
+            }
+            
+            /* When video is active, adjust positioning */
+            .video-container.active ~ .mobile-video-title {
+                margin-top: 0; /* Keep mobile title close to video */
+            }
+            
+            .video-container.active ~ .mobile-video-title ~ .tags-container {
+                margin-top: 0; /* Keep tags close to video title */
+            }
+            
+            .video-container.active ~ .mobile-video-title ~ .tags-container ~ .content {
+                padding-top: 320px; /* More space when video is playing */
             }
 
 
