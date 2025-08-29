@@ -172,23 +172,24 @@
         }
 
         .duration-overlay {
-            position: absolute;
-            bottom: 6px;
-            right: 6px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 3px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            backdrop-filter: blur(4px);
-            z-index: 20;
-            display: block;
-            line-height: 1;
-            min-width: 30px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: absolute !important;
+            bottom: 6px !important;
+            right: 6px !important;
+            background: rgba(0, 0, 0, 0.9) !important;
+            color: white !important;
+            padding: 3px 6px !important;
+            border-radius: 4px !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            backdrop-filter: blur(4px) !important;
+            z-index: 100 !important;
+            display: block !important;
+            line-height: 1 !important;
+            min-width: 30px !important;
+            text-align: center !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            pointer-events: none !important;
         }
 
         .item-info {
@@ -436,8 +437,8 @@
             videoGrid.innerHTML = videos.map(video => `
                 <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
                     <div class="thumbnail" id="thumb-${video.wistiaId}">
-                        <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
-                        <div class="duration-overlay" id="duration-${video.wistiaId}">--:--</div>
+                        <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                        <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30;">--:--</div>
                     </div>
                     <div class="item-info">
                         <div class="item-title">${video.title}</div>

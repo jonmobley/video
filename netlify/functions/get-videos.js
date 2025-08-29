@@ -27,6 +27,8 @@ const videos = [
 ];
 
 exports.handler = async (event, context) => {
+  console.log('get-videos function called with method:', event.httpMethod);
+  
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -37,6 +39,7 @@ exports.handler = async (event, context) => {
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers,
@@ -45,6 +48,7 @@ exports.handler = async (event, context) => {
   }
 
   if (event.httpMethod !== 'GET') {
+    console.log('Invalid method:', event.httpMethod);
     return {
       statusCode: 405,
       headers,
@@ -53,12 +57,14 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    console.log('Returning videos:', videos.length, 'videos');
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify(videos)
     };
   } catch (error) {
+    console.error('Error in get-videos function:', error);
     return {
       statusCode: 500,
       headers,
