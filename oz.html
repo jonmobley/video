@@ -390,6 +390,232 @@
             transform: translateY(0);
         }
 
+        .admin-banner-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .admin-add-video-btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-add-video-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .admin-add-video-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Add Video Popup Styles */
+        .add-video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-video-popup {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #333;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .add-video-popup h3 {
+            margin: 0 0 24px 0;
+            color: #ffffff;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #008f67;
+            box-shadow: 0 0 0 3px rgba(0, 143, 103, 0.2);
+        }
+
+        .form-group small {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .add-video-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-add-video, .btn-cancel-add {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-add-video {
+            background: #008f67;
+            color: white;
+        }
+
+        .btn-add-video:hover {
+            background: #007a5a;
+        }
+
+        .btn-cancel-add {
+            background: #333;
+            color: #ffffff;
+        }
+
+        .btn-cancel-add:hover {
+            background: #444;
+        }
+
+        .add-video-error {
+            color: #ff6b6b;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Edit Video Popup Styles */
+        .edit-video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .edit-video-popup {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #333;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .edit-video-popup h3 {
+            margin: 0 0 24px 0;
+            color: #ffffff;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .edit-video-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 24px;
+        }
+
+        .btn-save-video, .btn-delete-video, .btn-cancel-edit {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save-video {
+            background: #008f67;
+            color: white;
+        }
+
+        .btn-save-video:hover {
+            background: #007a5a;
+        }
+
+        .btn-delete-video {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .btn-delete-video:hover {
+            background: #d70015;
+        }
+
+        .btn-cancel-edit {
+            background: #333;
+            color: #ffffff;
+        }
+
+        .btn-cancel-edit:hover {
+            background: #444;
+        }
+
+        .edit-video-error {
+            color: #ff6b6b;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 12px;
+        }
+
         /* Adjust body padding when banner is visible */
         .edit-mode {
             padding-top: 60px;
@@ -439,6 +665,49 @@
         .edit-mode .video-item.dragging {
             opacity: 0.5;
             transform: rotate(2deg);
+        }
+
+        /* Edit Video Overlay */
+        .video-edit-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .edit-mode .video-item:hover .video-edit-overlay {
+            display: flex;
+        }
+
+        .video-edit-btn {
+            background: #008f67;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 143, 103, 0.3);
+        }
+
+        .video-edit-btn:hover {
+            background: #007a5a;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 143, 103, 0.4);
+        }
+
+        .video-edit-btn:active {
+            transform: translateY(0);
         }
 
         .edit-indicator {
@@ -643,7 +912,10 @@
                 <span class="admin-banner-title">Edit Mode</span>
                 <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
             </div>
-            <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
+            <div class="admin-banner-buttons">
+                <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
+                <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
+            </div>
         </div>
     </div>
 
@@ -698,6 +970,73 @@
                 </div>
             </form>
             <div class="login-error" id="loginError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Add Video Popup -->
+    <div class="add-video-overlay" id="addVideoOverlay" style="display: none;">
+        <div class="add-video-popup">
+            <h3>Add New Video</h3>
+            <form id="addVideoForm">
+                <div class="form-group">
+                    <label for="wistiaLink">Wistia Video Link</label>
+                    <input type="url" id="wistiaLink" placeholder="Paste Wistia video link here..." required>
+                    <small>Paste any Wistia video URL to auto-populate details</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="newVideoTitle">Video Title</label>
+                    <input type="text" id="newVideoTitle" placeholder="Video title will be loaded..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="newVideoCategory">Category</label>
+                    <select id="newVideoCategory" required>
+                        <option value="">Select Category</option>
+                        <!-- Categories will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <div class="add-video-buttons">
+                    <button type="submit" class="btn-add-video">Add Video</button>
+                    <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
+                </div>
+            </form>
+            <div class="add-video-error" id="addVideoError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Edit Video Popup -->
+    <div class="edit-video-overlay" id="editVideoOverlay" style="display: none;">
+        <div class="edit-video-popup">
+            <h3>Edit Video</h3>
+            <form id="editVideoForm">
+                <div class="form-group">
+                    <label for="editVideoTitle">Video Title</label>
+                    <input type="text" id="editVideoTitle" placeholder="Enter video title..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editVideoCategory">Category</label>
+                    <select id="editVideoCategory" required>
+                        <option value="">Select Category</option>
+                        <!-- Categories will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Wistia Video ID</label>
+                    <input type="text" id="editVideoId" readonly style="background: #333; color: #aaa;">
+                    <small>Video ID cannot be changed</small>
+                </div>
+                
+                <div class="edit-video-buttons">
+                    <button type="submit" class="btn-save-video">Save Changes</button>
+                    <button type="button" class="btn-delete-video" id="deleteVideoBtn">Delete Video</button>
+                    <button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button>
+                </div>
+            </form>
+            <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
         </div>
     </div>
 
@@ -805,6 +1144,9 @@
                     <div class="thumbnail" id="thumb-${video.wistiaId}">
                         <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                         <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
+                        <div class="video-edit-overlay">
+                            <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                        </div>
                     </div>
                     <div class="item-info">
                         <div class="item-title">${video.title}</div>
@@ -1321,6 +1663,102 @@
                 
             }, 1000); // Simulate network delay
         }
+
+        // Edit Video Popup Functions
+        let currentEditingVideoId = null;
+
+        function openEditVideoPopup(wistiaId, title, category) {
+            currentEditingVideoId = wistiaId;
+            
+            // Populate form with current values
+            document.getElementById('editVideoTitle').value = title;
+            document.getElementById('editVideoCategory').value = category;
+            document.getElementById('editVideoId').value = wistiaId;
+            
+            // Populate category dropdown
+            populateEditCategoryDropdown();
+            
+            // Show popup
+            document.getElementById('editVideoOverlay').style.display = 'flex';
+            document.getElementById('editVideoTitle').focus();
+        }
+
+        function populateEditCategoryDropdown() {
+            const select = document.getElementById('editVideoCategory');
+            const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
+                id: tag.dataset.category,
+                name: tag.textContent
+            }));
+            
+            select.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(cat => {
+                if (cat.id !== 'all') {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Edit Video Form Handlers
+        document.getElementById('cancelEditVideo').addEventListener('click', function() {
+            document.getElementById('editVideoOverlay').style.display = 'none';
+            document.getElementById('editVideoError').style.display = 'none';
+            currentEditingVideoId = null;
+        });
+
+        document.getElementById('editVideoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const newTitle = document.getElementById('editVideoTitle').value.trim();
+            const newCategory = document.getElementById('editVideoCategory').value;
+            
+            if (!newTitle || !newCategory) {
+                document.getElementById('editVideoError').textContent = 'Please fill in all fields';
+                document.getElementById('editVideoError').style.display = 'block';
+                return;
+            }
+            
+            // Update the video item in the DOM
+            const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
+            if (videoItem) {
+                videoItem.dataset.category = newCategory;
+                videoItem.dataset.title = newTitle;
+                videoItem.querySelector('.item-title').textContent = newTitle;
+                videoItem.querySelector('.item-tag').textContent = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+                
+                // Update the edit button onclick to reflect new values
+                const editBtn = videoItem.querySelector('.video-edit-btn');
+                editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${newTitle}', '${newCategory}')`);
+            }
+            
+            console.log('Video updated:', { id: currentEditingVideoId, title: newTitle, category: newCategory });
+            
+            // Close popup
+            document.getElementById('editVideoOverlay').style.display = 'none';
+            document.getElementById('editVideoError').style.display = 'none';
+            currentEditingVideoId = null;
+            
+            // Here you would save to server
+        });
+
+        document.getElementById('deleteVideoBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+                const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
+                if (videoItem) {
+                    videoItem.remove();
+                    console.log('Video deleted:', currentEditingVideoId);
+                    
+                    // Close popup
+                    document.getElementById('editVideoOverlay').style.display = 'none';
+                    document.getElementById('editVideoError').style.display = 'none';
+                    currentEditingVideoId = null;
+                    
+                    // Here you would delete from server
+                }
+            }
+        });
     </script>
 </body>
 </html>
