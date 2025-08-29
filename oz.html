@@ -53,24 +53,7 @@
             height: 100% !important;
         }
 
-        .video-info {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-            padding: 20px 16px 12px;
-            color: white;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        .video-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            line-height: 1.3;
-        }
+        /* Video info overlay removed to prevent interference with controls */
 
         .tags-container {
             padding: 12px 16px;
@@ -254,15 +237,6 @@
             .footer {
                 display: none;
             }
-
-            .video-info {
-                background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-                padding: 40px 20px 20px;
-            }
-
-            .video-title {
-                font-size: 18px;
-            }
         }
 
         /* Desktop responsiveness */
@@ -313,9 +287,6 @@
                     </div>
                 </div>
             </div>
-            <div class="video-info">
-                <div class="video-title" id="currentTitle">Loading videos...</div>
-            </div>
         </div>
         <div class="tags-container">
             <div class="tags">
@@ -346,7 +317,6 @@
     <script>
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
-        const currentTitle = document.getElementById('currentTitle');
 
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
@@ -354,7 +324,6 @@
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
-            currentTitle.textContent = title;
             
             // Ensure Wistia script is loaded
             if (typeof window.Wistia === 'undefined') {
