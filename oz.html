@@ -219,6 +219,173 @@
             font-size: 12px;
             border-top: 1px solid #333;
             margin-top: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .login-link {
+            color: #008f67;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 13px;
+        }
+
+        .login-link:hover {
+            color: #007a5a;
+        }
+
+        /* Login Popup Styles */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-popup {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid #333;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-popup h3 {
+            margin: 0 0 24px 0;
+            color: #ffffff;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .login-popup input {
+            width: 100%;
+            padding: 12px 16px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .login-popup input:focus {
+            outline: none;
+            border-color: #008f67;
+            box-shadow: 0 0 0 3px rgba(0, 143, 103, 0.2);
+        }
+
+        .login-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-login, .btn-cancel {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-login {
+            background: #008f67;
+            color: white;
+        }
+
+        .btn-login:hover {
+            background: #007a5a;
+        }
+
+        .btn-cancel {
+            background: #333;
+            color: #ffffff;
+        }
+
+        .btn-cancel:hover {
+            background: #444;
+        }
+
+        .login-error {
+            color: #ff6b6b;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Edit Mode Styles */
+        .edit-mode .item-title {
+            cursor: pointer;
+            border: 2px dashed transparent;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .edit-mode .item-title:hover {
+            border-color: #008f67;
+            background: rgba(0, 143, 103, 0.1);
+        }
+
+        .edit-mode .item-tag {
+            cursor: pointer;
+            border: 2px dashed transparent;
+            transition: all 0.2s ease;
+        }
+
+        .edit-mode .item-tag:hover {
+            border-color: #008f67;
+            background: rgba(0, 143, 103, 0.1);
+        }
+
+        .edit-mode .video-item {
+            cursor: move;
+            border: 2px dashed transparent;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .edit-mode .video-item:hover {
+            border-color: #008f67;
+            background: rgba(0, 143, 103, 0.05);
+        }
+
+        .edit-mode .video-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+
+        .edit-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #008f67;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 200;
+            display: none;
+        }
+
+        .edit-mode .edit-indicator {
+            display: block;
         }
 
         .hidden {
@@ -397,6 +564,25 @@
 
         <div class="footer">
             Powered by VidShare
+            <span class="login-link" id="loginLink">Login</span>
+        </div>
+    </div>
+
+    <!-- Edit Mode Indicator -->
+    <div class="edit-indicator" id="editIndicator">Edit Mode</div>
+
+    <!-- Login Popup -->
+    <div class="login-overlay" id="loginOverlay" style="display: none;">
+        <div class="login-popup">
+            <h3>Admin Login</h3>
+            <form id="loginForm">
+                <input type="password" id="loginPassword" placeholder="Enter admin password" required>
+                <div class="login-buttons">
+                    <button type="submit" class="btn-login">Login</button>
+                    <button type="button" class="btn-cancel" id="cancelLogin">Cancel</button>
+                </div>
+            </form>
+            <div class="login-error" id="loginError" style="display: none;"></div>
         </div>
     </div>
 
@@ -655,6 +841,217 @@
                 currentWistiaVideo.pause();
             }
         });
+
+        // Edit Mode and Login Functionality
+        let isEditMode = false;
+        const ADMIN_PASSWORD = 'admin123'; // In production, this should be more secure
+
+        // Login functionality
+        document.getElementById('loginLink').addEventListener('click', function() {
+            if (isEditMode) {
+                exitEditMode();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.getElementById('loginPassword').focus();
+            }
+        });
+
+        document.getElementById('cancelLogin').addEventListener('click', function() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                // Login successful
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginError').style.display = 'none';
+                enterEditMode();
+            } else {
+                // Login failed
+                document.getElementById('loginError').textContent = 'Incorrect password';
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPassword').focus();
+            }
+        });
+
+        // Edit Mode Functions
+        function enterEditMode() {
+            isEditMode = true;
+            document.body.classList.add('edit-mode');
+            document.getElementById('loginLink').textContent = 'Exit Edit';
+            
+            // Add edit functionality to existing videos
+            addEditListeners();
+            
+            console.log('Edit mode enabled');
+        }
+
+        function exitEditMode() {
+            isEditMode = false;
+            document.body.classList.remove('edit-mode');
+            document.getElementById('loginLink').textContent = 'Login';
+            
+            console.log('Edit mode disabled');
+        }
+
+        function addEditListeners() {
+            // Add click listeners to titles and categories for inline editing
+            document.querySelectorAll('.item-title').forEach(title => {
+                title.addEventListener('click', function(e) {
+                    if (!isEditMode) return;
+                    e.stopPropagation();
+                    editTitle(this);
+                });
+            });
+
+            document.querySelectorAll('.item-tag').forEach(tag => {
+                tag.addEventListener('click', function(e) {
+                    if (!isEditMode) return;
+                    e.stopPropagation();
+                    editCategory(this);
+                });
+            });
+
+            // Add drag and drop for reordering
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.draggable = true;
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+        }
+
+        function editTitle(titleElement) {
+            const currentTitle = titleElement.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.style.background = '#2a2a2a';
+            input.style.border = '1px solid #008f67';
+            input.style.borderRadius = '4px';
+            input.style.padding = '4px 8px';
+            input.style.color = '#ffffff';
+            input.style.fontSize = '14px';
+            input.style.width = '100%';
+            
+            titleElement.replaceWith(input);
+            input.focus();
+            input.select();
+            
+            function saveTitle() {
+                const newTitle = input.value.trim();
+                if (newTitle && newTitle !== currentTitle) {
+                    titleElement.textContent = newTitle;
+                    // Here you would save to server
+                    console.log('Title changed from', currentTitle, 'to', newTitle);
+                } else {
+                    titleElement.textContent = currentTitle;
+                }
+                input.replaceWith(titleElement);
+            }
+            
+            input.addEventListener('blur', saveTitle);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    saveTitle();
+                } else if (e.key === 'Escape') {
+                    titleElement.textContent = currentTitle;
+                    input.replaceWith(titleElement);
+                }
+            });
+        }
+
+        function editCategory(tagElement) {
+            const currentCategory = tagElement.textContent.toLowerCase();
+            const select = document.createElement('select');
+            select.style.background = '#2a2a2a';
+            select.style.border = '1px solid #008f67';
+            select.style.borderRadius = '4px';
+            select.style.padding = '4px 8px';
+            select.style.color = '#ffffff';
+            select.style.fontSize = '11px';
+            
+            // Add category options (you'd get these from your categories data)
+            const categories = ['ballet', 'jazz', 'contemporary', 'tap', 'hip hop'];
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+                option.selected = cat === currentCategory;
+                select.appendChild(option);
+            });
+            
+            tagElement.replaceWith(select);
+            select.focus();
+            
+            function saveCategory() {
+                const newCategory = select.value;
+                if (newCategory !== currentCategory) {
+                    tagElement.textContent = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+                    // Here you would save to server
+                    console.log('Category changed from', currentCategory, 'to', newCategory);
+                }
+                select.replaceWith(tagElement);
+            }
+            
+            select.addEventListener('blur', saveCategory);
+            select.addEventListener('change', saveCategory);
+            select.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    select.replaceWith(tagElement);
+                }
+            });
+        }
+
+        // Drag and Drop functionality
+        let draggedElement = null;
+
+        function handleDragStart(e) {
+            if (!isEditMode) return;
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (!isEditMode) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e) {
+            if (!isEditMode) return;
+            e.preventDefault();
+            
+            if (draggedElement !== this) {
+                const grid = document.getElementById('videoGrid');
+                const draggedIndex = Array.from(grid.children).indexOf(draggedElement);
+                const targetIndex = Array.from(grid.children).indexOf(this);
+                
+                if (draggedIndex < targetIndex) {
+                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedElement, this);
+                }
+                
+                console.log('Video reordered from position', draggedIndex, 'to', targetIndex);
+                // Here you would save the new order to server
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (!isEditMode) return;
+            this.classList.remove('dragging');
+            draggedElement = null;
+        }
     </script>
 </body>
 </html>
