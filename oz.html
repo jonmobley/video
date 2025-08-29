@@ -297,8 +297,8 @@
 
         .video-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
         }
 
         /* Ensure desktop never shows 1 column - minimum 2 columns */
@@ -306,7 +306,7 @@
         @media screen and (min-width: 768px) {
             .video-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
+                gap: 16px;
             }
         }
 
@@ -1383,7 +1383,7 @@
 
             .video-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
+                gap: 16px;
             }
 
             .item-title {
@@ -1422,7 +1422,7 @@
 
             .video-grid {
                 grid-template-columns: repeat(2, 1fr);
-                gap: 20px;
+                gap: 16px;
             }
 
             .item-title {
