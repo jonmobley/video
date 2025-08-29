@@ -306,7 +306,12 @@
     <div class="header">
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div id="wistia_current_video" class="wistia_embed wistia_async_ssgxvlsdmx" style="height:100%;width:100%">&nbsp;</div>
+                <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🎥</div>
+                        <div>Loading video player...</div>
+                    </div>
+                </div>
             </div>
             <div class="video-info">
                 <div class="video-title" id="currentTitle">Loading videos...</div>
@@ -345,6 +350,7 @@
 
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
+            // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
             currentTitle.textContent = title;
             
