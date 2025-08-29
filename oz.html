@@ -328,6 +328,77 @@
             margin-top: 12px;
         }
 
+        /* Admin Banner Styles */
+        .admin-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #008f67, #007a5a);
+            color: white;
+            z-index: 1001;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .admin-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-banner-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .admin-banner-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .admin-banner-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .admin-save-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-save-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .admin-save-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Adjust body padding when banner is visible */
+        .edit-mode {
+            padding-top: 60px;
+        }
+
+        .edit-mode .header {
+            top: 60px;
+        }
+
         /* Edit Mode Styles */
         .edit-mode .item-title {
             cursor: pointer;
@@ -386,6 +457,38 @@
 
         .edit-mode .edit-indicator {
             display: block;
+        }
+
+        .edit-mode .add-category-btn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            background: #008f67 !important;
+            color: white !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            min-width: 40px !important;
+        }
+
+        .edit-mode .add-category-btn:hover {
+            background: #007a5a !important;
+        }
+
+        .edit-mode .tag:not(.add-category-btn) {
+            cursor: move;
+            border: 2px dashed transparent;
+            transition: all 0.2s ease;
+        }
+
+        .edit-mode .tag:not(.add-category-btn):hover {
+            border-color: #008f67;
+            background: rgba(0, 143, 103, 0.1);
+        }
+
+        .edit-mode .tag.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
         }
 
         .hidden {
@@ -533,6 +636,17 @@
     </style>
 </head>
 <body>
+    <!-- Admin Banner -->
+    <div class="admin-banner" id="adminBanner" style="display: none;">
+        <div class="admin-banner-content">
+            <div class="admin-banner-text">
+                <span class="admin-banner-title">Edit Mode</span>
+                <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
+            </div>
+            <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
+        </div>
+    </div>
+
     <div class="header">
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
@@ -547,6 +661,7 @@
         <div class="tags-container">
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
+                <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
                 <div class="tag" data-category="ballet">Ballet</div>
                 <div class="tag" data-category="jazz">Jazz</div>
                 <div class="tag" data-category="contemporary">Contemporary</div>
@@ -886,9 +1001,13 @@
             isEditMode = true;
             document.body.classList.add('edit-mode');
             document.getElementById('loginLink').textContent = 'Exit Edit';
+            document.getElementById('adminBanner').style.display = 'block';
             
             // Add edit functionality to existing videos
             addEditListeners();
+            
+            // Add save button listener
+            document.getElementById('adminSaveBtn').addEventListener('click', saveAllChanges);
             
             console.log('Edit mode enabled');
         }
@@ -897,6 +1016,7 @@
             isEditMode = false;
             document.body.classList.remove('edit-mode');
             document.getElementById('loginLink').textContent = 'Login';
+            document.getElementById('adminBanner').style.display = 'none';
             
             console.log('Edit mode disabled');
         }
@@ -919,13 +1039,25 @@
                 });
             });
 
-            // Add drag and drop for reordering
+            // Add drag and drop for video reordering
             document.querySelectorAll('.video-item').forEach(item => {
                 item.draggable = true;
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('drop', handleDrop);
-                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('dragstart', handleVideoDragStart);
+                item.addEventListener('dragover', handleVideoDragOver);
+                item.addEventListener('drop', handleVideoDrop);
+                item.addEventListener('dragend', handleVideoDragEnd);
+            });
+
+            // Add category management
+            document.getElementById('addCategoryBtn').addEventListener('click', createNewCategory);
+            
+            // Add drag and drop for category reordering
+            document.querySelectorAll('.tag:not(.add-category-btn)').forEach(tag => {
+                tag.draggable = true;
+                tag.addEventListener('dragstart', handleCategoryDragStart);
+                tag.addEventListener('dragover', handleCategoryDragOver);
+                tag.addEventListener('drop', handleCategoryDrop);
+                tag.addEventListener('dragend', handleCategoryDragEnd);
             });
         }
 
@@ -1011,35 +1143,35 @@
             });
         }
 
-        // Drag and Drop functionality
-        let draggedElement = null;
+        // Video Drag and Drop functionality
+        let draggedVideoElement = null;
 
-        function handleDragStart(e) {
+        function handleVideoDragStart(e) {
             if (!isEditMode) return;
-            draggedElement = this;
+            draggedVideoElement = this;
             this.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
         }
 
-        function handleDragOver(e) {
+        function handleVideoDragOver(e) {
             if (!isEditMode) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
         }
 
-        function handleDrop(e) {
+        function handleVideoDrop(e) {
             if (!isEditMode) return;
             e.preventDefault();
             
-            if (draggedElement !== this) {
+            if (draggedVideoElement !== this) {
                 const grid = document.getElementById('videoGrid');
-                const draggedIndex = Array.from(grid.children).indexOf(draggedElement);
+                const draggedIndex = Array.from(grid.children).indexOf(draggedVideoElement);
                 const targetIndex = Array.from(grid.children).indexOf(this);
                 
                 if (draggedIndex < targetIndex) {
-                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                    this.parentNode.insertBefore(draggedVideoElement, this.nextSibling);
                 } else {
-                    this.parentNode.insertBefore(draggedElement, this);
+                    this.parentNode.insertBefore(draggedVideoElement, this);
                 }
                 
                 console.log('Video reordered from position', draggedIndex, 'to', targetIndex);
@@ -1047,10 +1179,147 @@
             }
         }
 
-        function handleDragEnd(e) {
+        function handleVideoDragEnd(e) {
             if (!isEditMode) return;
             this.classList.remove('dragging');
-            draggedElement = null;
+            draggedVideoElement = null;
+        }
+
+        // Category Drag and Drop functionality
+        let draggedCategoryElement = null;
+
+        function handleCategoryDragStart(e) {
+            if (!isEditMode) return;
+            draggedCategoryElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleCategoryDragOver(e) {
+            if (!isEditMode) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleCategoryDrop(e) {
+            if (!isEditMode) return;
+            e.preventDefault();
+            
+            if (draggedCategoryElement !== this && !this.classList.contains('add-category-btn')) {
+                const tagsContainer = document.querySelector('.tags');
+                const draggedIndex = Array.from(tagsContainer.children).indexOf(draggedCategoryElement);
+                const targetIndex = Array.from(tagsContainer.children).indexOf(this);
+                
+                if (draggedIndex < targetIndex) {
+                    this.parentNode.insertBefore(draggedCategoryElement, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedCategoryElement, this);
+                }
+                
+                console.log('Category reordered from position', draggedIndex, 'to', targetIndex);
+                // Here you would save the new category order to server
+            }
+        }
+
+        function handleCategoryDragEnd(e) {
+            if (!isEditMode) return;
+            this.classList.remove('dragging');
+            draggedCategoryElement = null;
+        }
+
+        // Create new category functionality
+        function createNewCategory() {
+            const categoryName = prompt('Enter new category name:');
+            if (categoryName && categoryName.trim()) {
+                const newTag = document.createElement('div');
+                newTag.className = 'tag';
+                newTag.setAttribute('data-category', categoryName.toLowerCase().replace(/\s+/g, '-'));
+                newTag.textContent = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+                
+                // Insert before the last category (or at the end)
+                const tagsContainer = document.querySelector('.tags');
+                const addBtn = document.getElementById('addCategoryBtn');
+                tagsContainer.insertBefore(newTag, addBtn.nextSibling);
+                
+                // Add drag functionality to new tag
+                newTag.draggable = true;
+                newTag.addEventListener('dragstart', handleCategoryDragStart);
+                newTag.addEventListener('dragover', handleCategoryDragOver);
+                newTag.addEventListener('drop', handleCategoryDrop);
+                newTag.addEventListener('dragend', handleCategoryDragEnd);
+                
+                // Add click functionality for filtering
+                newTag.addEventListener('click', () => {
+                    if (isEditMode) return; // Don't filter in edit mode
+                    document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+                    newTag.classList.add('active');
+
+                    const category = newTag.dataset.category;
+                    const videoItems = document.querySelectorAll('.video-item');
+                    
+                    videoItems.forEach(item => {
+                        if (category === 'all' || item.dataset.category === category) {
+                            item.classList.remove('hidden');
+                        } else {
+                            item.classList.add('hidden');
+                        }
+                    });
+                });
+                
+                console.log('New category created:', categoryName);
+                // Here you would save the new category to server
+            }
+        }
+
+        // Save all changes functionality
+        function saveAllChanges() {
+            const saveBtn = document.getElementById('adminSaveBtn');
+            const originalText = saveBtn.textContent;
+            
+            // Show saving state
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.7';
+            
+            // Simulate save process (in real app, this would make API calls)
+            setTimeout(() => {
+                // Collect all current data
+                const videos = Array.from(document.querySelectorAll('.video-item')).map((item, index) => ({
+                    id: item.dataset.wistia,
+                    title: item.querySelector('.item-title').textContent,
+                    category: item.dataset.category,
+                    order: index
+                }));
+                
+                const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map((tag, index) => ({
+                    id: tag.dataset.category,
+                    name: tag.textContent,
+                    order: index
+                }));
+                
+                console.log('Saving videos:', videos);
+                console.log('Saving categories:', categories);
+                
+                // Show success state
+                saveBtn.textContent = 'Saved!';
+                saveBtn.style.background = 'rgba(52, 199, 89, 0.3)';
+                saveBtn.style.borderColor = 'rgba(52, 199, 89, 0.5)';
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+                    saveBtn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                }, 2000);
+                
+                // Here you would make actual API calls to save the data
+                // Example:
+                // await fetch('/api/save-videos', { method: 'POST', body: JSON.stringify(videos) });
+                // await fetch('/api/save-categories', { method: 'POST', body: JSON.stringify(categories) });
+                
+            }, 1000); // Simulate network delay
         }
     </script>
 </body>
