@@ -391,6 +391,8 @@
             text-wrap: pretty;
             word-break: keep-all;
             hyphens: none;
+            orphans: 3;
+            widows: 3;
         }
 
         .item-duration {
@@ -1861,6 +1863,31 @@
             }
         }
 
+        // Fix orphaned words in video titles
+        function fixOrphanedWords() {
+            document.querySelectorAll('.item-title').forEach(titleElement => {
+                const originalText = titleElement.textContent.trim();
+                
+                // Split into words
+                const words = originalText.split(/\s+/);
+                
+                // If only 1-2 words, no need to fix
+                if (words.length <= 2) return;
+                
+                // Check if last word is 1-2 characters (orphaned)
+                const lastWord = words[words.length - 1];
+                if (lastWord.length <= 2) {
+                    // Move previous word with the orphaned word
+                    const newLastLine = words.slice(-2).join(' ');
+                    const firstLine = words.slice(0, -2).join(' ');
+                    
+                    // Replace with non-breaking space between the last two words
+                    const fixedText = firstLine + ' ' + newLastLine.replace(' ', '\u00A0');
+                    titleElement.innerHTML = fixedText;
+                }
+            });
+        }
+
         // Render video grid
         function renderVideoGrid(videos) {
             const videoGrid = document.getElementById('videoGrid');
@@ -1910,6 +1937,9 @@
             }).join('');
             
             videoGrid.innerHTML = videoHTML;
+            
+            // Fix orphaned words in titles
+            fixOrphanedWords();
             
             console.log('🎬 DEBUG: Video grid HTML set, checking for duration elements...');
             
