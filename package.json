@@ -1,0 +1,18 @@
+{
+  "name": "vidshare-dance-hub",
+  "version": "1.0.0",
+  "description": "Dance instruction video sharing platform for theater groups",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step required'",
+    "deploy": "netlify deploy --prod"
+  },
+  "keywords": ["dance", "theater", "video", "wistia", "netlify"],
+  "author": "Theater Group",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}

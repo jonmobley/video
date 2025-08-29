@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidShare Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0f0f0f;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #333;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #ff6b6b;
+        }
+
+        .header p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            background: #1a1a1a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            text-align: center;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .admin-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .form-section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-section h2 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #ddd;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 2px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+        }
+
+        .btn {
+            background: #ff6b6b;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #ff5252;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .video-list {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-list h2 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+
+        .video-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #2a2a2a;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .video-details {
+            flex: 1;
+        }
+
+        .video-details h3 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .video-details p {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .video-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+        }
+
+        .btn-danger:hover {
+            background: #ff2222;
+        }
+
+        .success-message {
+            background: #2d5a2d;
+            color: #90EE90;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error-message {
+            background: #5a2d2d;
+            color: #ff9999;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .main-page-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .main-page-link:hover {
+            background: #ff6b6b;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .video-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .video-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .main-page-link {
+                position: static;
+                display: block;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="main-page-link">← Back to Videos</a>
+
+    <div class="admin-container">
+        <div class="header">
+            <h1>VidShare Admin</h1>
+            <p>Add and manage dance instruction videos</p>
+        </div>
+
+        <div class="status-bar">
+            <span id="statusText">Loading...</span>
+        </div>
+
+        <div class="success-message" id="successMessage">
+            Video added successfully!
+        </div>
+
+        <div class="error-message" id="errorMessage">
+            <span id="errorText"></span>
+        </div>
+
+        <div class="form-section">
+            <h2>Add New Video</h2>
+            <form id="videoForm">
+                <div class="form-group">
+                    <label for="videoTitle">Video Title</label>
+                    <input type="text" id="videoTitle" placeholder="e.g., Basic Ballet Positions" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wistiaId">Wistia Video ID</label>
+                    <input type="text" id="wistiaId" placeholder="e.g., abc123def456" required>
+                    <small style="color: #aaa; font-size: 11px; margin-top: 4px; display: block;">
+                        Find this in your Wistia dashboard under Video Settings → Embed & Share
+                    </small>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" required>
+                            <option value="">Select Category</option>
+                            <option value="ballet">Ballet</option>
+                            <option value="jazz">Jazz</option>
+                            <option value="contemporary">Contemporary</option>
+                            <option value="tap">Tap</option>
+                            <option value="choreography">Choreography</option>
+                            <option value="warmup">Warm-up</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="submitBtn">Add Video</button>
+            </form>
+        </div>
+
+        <div class="video-list">
+            <h2>Current Videos (<span id="videoCount">0</span>)</h2>
+            <div id="videoList">
+                <!-- Videos will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let videos = [];
+
+        // Load videos from Netlify Function
+        async function loadVideosFromServer() {
+            try {
+                const response = await fetch('/.netlify/functions/get-videos');
+                if (response.ok) {
+                    videos = await response.json();
+                } else {
+                    throw new Error('Failed to load videos');
+                }
+            } catch (error) {
+                console.log('Server not available:', error);
+                showError('Failed to load videos. Please check your internet connection.');
+                videos = getDefaultVideos();
+            }
+            renderVideoList();
+            updateStatus();
+        }
+
+        // Save videos to Netlify Function
+        async function saveVideosToServer() {
+            try {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+                
+                const response = await fetch('/.netlify/functions/save-videos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(videos)
+                });
+                
+                if (response.ok) {
+                    updateStatus('saved-server');
+                    showSuccess('Video saved successfully!');
+                } else {
+                    throw new Error('Server save failed');
+                }
+            } catch (error) {
+                console.log('Server save failed:', error);
+                showError('Failed to save video. Please try again.');
+                updateStatus('save-failed');
+            } finally {
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Video';
+            }
+        }
+
+        // Default videos for testing
+        function getDefaultVideos() {
+            return [
+                {
+                    id: 'abc123def456',
+                    title: 'Basic Ballet Positions',
+                    category: 'ballet',
+                    wistiaId: 'abc123def456'
+                },
+                {
+                    id: 'def456ghi789',
+                    title: 'Jazz Square Tutorial',
+                    category: 'jazz',
+                    wistiaId: 'def456ghi789'
+                },
+                {
+                    id: 'ghi789jkl012',
+                    title: 'Floor Work Fundamentals',
+                    category: 'contemporary',
+                    wistiaId: 'ghi789jkl012'
+                },
+                {
+                    id: 'jkl012mno345',
+                    title: 'Basic Tap Steps',
+                    category: 'tap',
+                    wistiaId: 'jkl012mno345'
+                }
+            ];
+        }
+
+        // Update status bar
+        function updateStatus(type = 'loaded') {
+            const statusText = document.getElementById('statusText');
+            const count = videos.length;
+            const time = new Date().toLocaleTimeString();
+            
+            switch(type) {
+                case 'saved-server':
+                    statusText.innerHTML = `✅ ${count} videos • Saved to server: ${time} • Updates shared with all users`;
+                    break;
+                case 'save-failed':
+                    statusText.innerHTML = `❌ ${count} videos • Save failed: ${time} • Check internet connection`;
+                    break;
+                default:
+                    statusText.innerHTML = `📚 ${count} videos • Ready • Changes sync to all devices`;
+            }
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.textContent = message;
+            successMsg.style.display = 'block';
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 5000);
+        }
+
+        // Form handling
+        document.getElementById('videoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('videoTitle').value.trim();
+            const wistiaId = document.getElementById('wistiaId').value.trim();
+            const category = document.getElementById('category').value;
+            
+            // Validate inputs
+            if (!title || !wistiaId || !category) {
+                showError('Please fill in all fields');
+                return;
+            }
+
+            // Check for duplicate Wistia ID
+            if (videos.some(v => v.wistiaId === wistiaId)) {
+                showError('A video with this Wistia ID already exists!');
+                return;
+            }
+            
+            const newVideo = {
+                id: wistiaId,
+                title: title,
+                category: category,
+                wistiaId: wistiaId
+            };
+            
+            videos.push(newVideo);
+            await saveVideosToServer();
+            
+            // Clear form on success
+            this.reset();
+            
+            // Update video list
+            renderVideoList();
+        });
+
+        // Render video list
+        function renderVideoList() {
+            const videoList = document.getElementById('videoList');
+            const videoCount = document.getElementById('videoCount');
+            
+            videoCount.textContent = videos.length;
+            
+            if (videos.length === 0) {
+                videoList.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No videos added yet</p>';
+                return;
+            }
+            
+            videoList.innerHTML = videos.map((video, index) => `
+                <div class="video-row">
+                    <div class="video-details">
+                        <h3>${video.title}</h3>
+                        <p>Category: ${video.category.charAt(0).toUpperCase() + video.category.slice(1)} | Wistia ID: ${video.wistiaId}</p>
+                    </div>
+                    <div class="video-actions">
+                        <button class="btn btn-danger btn-small" onclick="deleteVideo(${index})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Delete video
+        async function deleteVideo(index) {
+            if (confirm('Are you sure you want to delete this video?')) {
+                videos.splice(index, 1);
+                await saveVideosToServer();
+                renderVideoList();
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadVideosFromServer();
+        });
+    </script>
+</body>
+</html>
