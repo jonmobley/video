@@ -423,8 +423,8 @@
             
             videoGrid.innerHTML = videos.map(video => `
                 <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
-                    <div class="thumbnail">
-                        <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.background='linear-gradient(135deg, #2a2a2a, #1a1a1a)';">
+                    <div class="thumbnail" id="thumb-${video.wistiaId}">
+                        <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                     </div>
                     <div class="item-info">
                         <div class="item-title">${video.title}</div>
@@ -437,6 +437,36 @@
             
             if (videos.length > 0) {
                 loadWistiaVideo(videos[0].wistiaId, videos[0].title);
+            }
+        }
+
+        // Load Wistia thumbnail using oEmbed API
+        async function loadWistiaThumbnail(wistiaId) {
+            try {
+                const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
+                const data = await response.json();
+                
+                if (data.thumbnail_url) {
+                    const thumbElement = document.getElementById(`thumb-${wistiaId}`);
+                    if (thumbElement) {
+                        thumbElement.innerHTML = `<img src="${data.thumbnail_url}" alt="${data.title || 'Video'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                    }
+                } else {
+                    // Fallback to gradient background
+                    const thumbElement = document.getElementById(`thumb-${wistiaId}`);
+                    if (thumbElement) {
+                        thumbElement.style.background = 'linear-gradient(135deg, #2a2a2a, #1a1a1a)';
+                        thumbElement.innerHTML = '';
+                    }
+                }
+            } catch (error) {
+                console.log('Failed to load thumbnail for', wistiaId, error);
+                // Fallback to gradient background
+                const thumbElement = document.getElementById(`thumb-${wistiaId}`);
+                if (thumbElement) {
+                    thumbElement.style.background = 'linear-gradient(135deg, #2a2a2a, #1a1a1a)';
+                    thumbElement.innerHTML = '';
+                }
             }
         }
 
