@@ -240,6 +240,16 @@
             gap: 16px;
         }
 
+        /* Ensure desktop never shows 1 column - minimum 2 columns */
+        @media screen and (min-width: 768px) {
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+
+
+
         .video-item {
             background: #1a1a1a;
             border-radius: 12px;
@@ -2298,9 +2308,15 @@
 
             document.querySelectorAll('.item-tag').forEach(tag => {
                 tag.addEventListener('click', function(e) {
-                    if (!isEditMode) return;
                     e.stopPropagation();
-                    editCategory(this);
+                    
+                    if (isEditMode) {
+                        editCategory(this);
+                    } else {
+                        // In non-edit mode, activate the category
+                        const categoryName = this.textContent.toLowerCase();
+                        activateCategory(categoryName);
+                    }
                 });
             });
 
@@ -3189,11 +3205,64 @@
             });
             
             tagElement.addEventListener('click', function(e) {
-                if (!isEditMode) return;
                 e.stopPropagation();
-                editCategory(this);
+                
+                if (isEditMode) {
+                    editCategory(this);
+                } else {
+                    // In non-edit mode, activate the category
+                    const categoryName = this.textContent.toLowerCase();
+                    activateCategory(categoryName);
+                }
             });
         }
+
+        // Function to activate a category and filter videos
+        function activateCategory(categoryName) {
+            // Remove active class from all navigation tags
+            document.querySelectorAll('.tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            
+            // Find and activate the corresponding navigation tag
+            const navTag = document.querySelector(`[data-category="${categoryName}"]`);
+            if (navTag) {
+                navTag.classList.add('active');
+            } else {
+                // If category not found in nav, activate "All"
+                document.querySelector('[data-category="all"]').classList.add('active');
+                categoryName = 'all';
+            }
+            
+            // Filter videos based on category
+            const videoItems = document.querySelectorAll('.video-item');
+            videoItems.forEach(item => {
+                if (categoryName === 'all' || item.dataset.category === categoryName) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // If there's a currently playing video, check if it should be moved to first position
+            if (currentlyPlayingVideoId) {
+                const activeVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
+                if (activeVideo && (categoryName === 'all' || activeVideo.dataset.category === categoryName)) {
+                    moveVideoToFirstInFilteredView(activeVideo);
+                }
+            }
+        }
+
+        // Initialize category navigation on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers to navigation tags
+            document.querySelectorAll('.tag[data-category]').forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const category = this.dataset.category;
+                    activateCategory(category);
+                });
+            });
+        });
     </script>
 </body>
 </html>
