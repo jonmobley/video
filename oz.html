@@ -175,15 +175,20 @@
             position: absolute;
             bottom: 6px;
             right: 6px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 2px 6px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
+            font-size: 12px;
+            font-weight: 600;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             backdrop-filter: blur(4px);
-            z-index: 10;
+            z-index: 20;
+            display: block;
+            line-height: 1;
+            min-width: 30px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .item-info {
@@ -456,21 +461,39 @@
         // Load video duration from Wistia oEmbed API
         async function loadVideoDuration(wistiaId) {
             try {
+                console.log('Loading duration for:', wistiaId);
                 const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
                 const data = await response.json();
+                console.log('Duration data for', wistiaId, ':', data);
                 
                 if (data.duration) {
                     const durationElement = document.getElementById(`duration-${wistiaId}`);
+                    console.log('Duration element found:', durationElement);
                     if (durationElement) {
                         const minutes = Math.floor(data.duration / 60);
                         const seconds = Math.floor(data.duration % 60);
                         const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        console.log('Setting duration to:', formattedDuration);
                         durationElement.textContent = formattedDuration;
+                        durationElement.style.display = 'block'; // Ensure it's visible
+                    }
+                } else {
+                    console.log('No duration found in data for', wistiaId);
+                    // Set a test duration to see if overlay is visible
+                    const durationElement = document.getElementById(`duration-${wistiaId}`);
+                    if (durationElement) {
+                        durationElement.textContent = '0:00';
+                        durationElement.style.display = 'block';
                     }
                 }
             } catch (error) {
                 console.log('Failed to load duration for', wistiaId, error);
-                // Keep default --:-- if duration fails to load
+                // Set a test duration to see if overlay is visible
+                const durationElement = document.getElementById(`duration-${wistiaId}`);
+                if (durationElement) {
+                    durationElement.textContent = 'ERR';
+                    durationElement.style.display = 'block';
+                }
             }
         }
 
