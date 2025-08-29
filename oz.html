@@ -940,7 +940,7 @@
 
         /* Active video state */
         .video-item.active {
-            /* Removed glow effect */
+            background: #008f67;
         }
 
         .video-item.active .thumbnail {
@@ -956,7 +956,7 @@
             transform: translate(-50%, -50%);
             background: rgba(0, 143, 103, 1.0);
             color: white;
-            padding: 8px 16px;
+            padding: 8px 20px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
@@ -964,10 +964,12 @@
             backdrop-filter: blur(4px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             opacity: 1.0;
+            white-space: nowrap;
+            min-width: 100px;
         }
 
         .video-item.active .item-title {
-            color: #008f67;
+            color: white;
             font-weight: 600;
         }
 
