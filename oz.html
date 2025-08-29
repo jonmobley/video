@@ -341,7 +341,7 @@
     </div>
 
     <!-- Wistia JavaScript API -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wistia/1.0.0/wistia.min.js"></script>
+    <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     
     <script>
         let currentWistiaVideo = null;
@@ -350,9 +350,18 @@
 
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
+            console.log('Loading Wistia video:', wistiaId, title);
+            
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
             currentTitle.textContent = title;
+            
+            // Ensure Wistia script is loaded
+            if (typeof window.Wistia === 'undefined') {
+                console.log('Wistia not loaded yet, waiting...');
+                setTimeout(() => loadWistiaVideo(wistiaId, title), 500);
+                return;
+            }
             
             window._wq = window._wq || [];
             _wq.push({
@@ -363,6 +372,7 @@
                     // autoPlay, controls, etc. will be based on Wistia dashboard settings
                 },
                 onReady: function(video) {
+                    console.log('Wistia video ready:', wistiaId);
                     currentWistiaVideo = video;
                     
                     if (window.innerWidth <= 768) {
@@ -374,6 +384,9 @@
                             }
                         });
                     }
+                },
+                onError: function(error) {
+                    console.error('Wistia video error:', error);
                 }
             });
         }
@@ -397,11 +410,14 @@
         // Load videos from Netlify Functions
         async function loadVideosFromServer() {
             try {
+                console.log('Loading videos from server...');
                 const response = await fetch('/.netlify/functions/get-videos');
                 if (response.ok) {
                     const videos = await response.json();
+                    console.log('Videos loaded:', videos);
                     renderVideoGrid(videos);
                 } else {
+                    console.error('Server response not ok:', response.status);
                     showError('Failed to load videos from server');
                 }
             } catch (error) {
