@@ -259,10 +259,10 @@
 
         /* Responsive desktop layouts */
         
-        /* Small desktop - 1 column (768px - 999px) */
+        /* Small desktop - 2 columns (768px - 999px) */
         @media screen and (min-width: 768px) and (max-width: 999px) {
             .video-container {
-                max-width: 600px;
+                max-width: 700px;
                 aspect-ratio: 16/9;
             }
 
@@ -272,23 +272,21 @@
             }
 
             .tags-container {
-                max-width: 600px;
+                max-width: 700px;
                 margin: 0 auto;
             }
 
             .content {
-                margin-top: calc(600px * 9/16 + 48px);
+                margin-top: calc(700px * 9/16 + 48px);
                 padding-top: 32px;
-                max-width: 600px;
+                max-width: 700px;
                 margin-left: auto;
                 margin-right: auto;
             }
 
             .video-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 20px;
-                max-width: 400px;
-                margin: 0 auto;
             }
 
             .item-title {
