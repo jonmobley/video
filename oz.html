@@ -353,10 +353,8 @@
                 id: wistiaId,
                 options: {
                     responsive: true,
-                    autoPlay: false,
-                    controlsVisibleOnLoad: true,
-                    fullscreenButton: true,
-                    playsinline: false,
+                    // Let Wistia use the video's configured settings
+                    // autoPlay, controls, etc. will be based on Wistia dashboard settings
                 },
                 onReady: function(video) {
                     currentWistiaVideo = video;
