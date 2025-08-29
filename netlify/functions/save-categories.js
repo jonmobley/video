@@ -1,7 +1,11 @@
-const { getStore } = require('@netlify/blobs');
-
-// Initialize Netlify Blob store
-const store = getStore('vidshare-data');
+// Try to import Netlify Blobs, fall back gracefully if not available
+let store = null;
+try {
+  const { getStore } = require('@netlify/blobs');
+  store = getStore('vidshare-data');
+} catch (error) {
+  console.log('Netlify Blobs not available, using fallback mode:', error.message);
+}
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -56,15 +60,47 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate category IDs found');
     }
 
-    // Save to Netlify Blobs
-    await store.set('categories', JSON.stringify(categories));
-    console.log('Successfully saved categories to Netlify Blobs');
+    // Try to save to Netlify Blobs if available
+    if (store) {
+      try {
+        await store.set('categories', JSON.stringify(categories));
+        console.log('Successfully saved categories to Netlify Blobs');
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, count: categories.length })
-    };
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, count: categories.length })
+        };
+      } catch (blobError) {
+        console.error('Could not save to Netlify Blobs:', blobError.message);
+        
+        // Fall back to success without persistence
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            count: categories.length, 
+            message: 'Categories validated but not persisted (storage unavailable)',
+            temporary: true
+          })
+        };
+      }
+    } else {
+      // Netlify Blobs not available, return success but indicate temporary storage
+      console.log('Netlify Blobs not available, categories not persisted');
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          count: categories.length, 
+          message: 'Categories validated but not persisted (Netlify Blobs unavailable)',
+          temporary: true
+        })
+      };
+    }
   } catch (error) {
     return {
       statusCode: 400,

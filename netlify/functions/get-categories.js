@@ -1,7 +1,11 @@
-const { getStore } = require('@netlify/blobs');
-
-// Initialize Netlify Blob store
-const store = getStore('vidshare-data');
+// Try to import Netlify Blobs, fall back gracefully if not available
+let store = null;
+try {
+  const { getStore } = require('@netlify/blobs');
+  store = getStore('vidshare-data');
+} catch (error) {
+  console.log('Netlify Blobs not available, using fallback mode:', error.message);
+}
 
 // Default categories for initial setup
 const defaultCategories = [
@@ -36,22 +40,29 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Try to read existing categories from Netlify Blobs
-    let categories;
-    try {
-      const categoriesData = await store.get('categories', { type: 'json' });
-      if (categoriesData) {
-        categories = categoriesData;
-        console.log('Loaded categories from Netlify Blobs:', categories.length, 'categories');
-      } else {
-        // No data exists, use defaults and save them
-        categories = defaultCategories;
-        await store.set('categories', JSON.stringify(categories));
-        console.log('Initialized with default categories in Netlify Blobs');
+    let categories = defaultCategories; // Start with defaults
+
+    // Try to use Netlify Blobs if available
+    if (store) {
+      try {
+        const categoriesData = await store.get('categories', { type: 'json' });
+        if (categoriesData) {
+          categories = categoriesData;
+          console.log('Loaded categories from Netlify Blobs:', categories.length, 'categories');
+        } else {
+          // No data exists, try to save defaults
+          try {
+            await store.set('categories', JSON.stringify(categories));
+            console.log('Initialized with default categories in Netlify Blobs');
+          } catch (saveError) {
+            console.log('Could not save to Blobs, using defaults:', saveError.message);
+          }
+        }
+      } catch (blobError) {
+        console.log('Blob storage error, using defaults:', blobError.message);
       }
-    } catch (blobError) {
-      console.log('Blob storage error, using defaults:', blobError.message);
-      categories = defaultCategories;
+    } else {
+      console.log('Netlify Blobs not available, using default categories');
     }
 
     return {

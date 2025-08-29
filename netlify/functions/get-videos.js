@@ -1,7 +1,11 @@
-const { getStore } = require('@netlify/blobs');
-
-// Initialize Netlify Blob store
-const store = getStore('vidshare-data');
+// Try to import Netlify Blobs, fall back gracefully if not available
+let store = null;
+try {
+  const { getStore } = require('@netlify/blobs');
+  store = getStore('vidshare-data');
+} catch (error) {
+  console.log('Netlify Blobs not available, using fallback mode:', error.message);
+}
 
 // Default videos for initial setup
 const defaultVideos = [
@@ -62,22 +66,29 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Try to read existing videos from Netlify Blobs
-    let videos;
-    try {
-      const videosData = await store.get('videos', { type: 'json' });
-      if (videosData) {
-        videos = videosData;
-        console.log('Loaded videos from Netlify Blobs:', videos.length, 'videos');
-      } else {
-        // No data exists, use defaults and save them
-        videos = defaultVideos;
-        await store.set('videos', JSON.stringify(videos));
-        console.log('Initialized with default videos in Netlify Blobs');
+    let videos = defaultVideos; // Start with defaults
+
+    // Try to use Netlify Blobs if available
+    if (store) {
+      try {
+        const videosData = await store.get('videos', { type: 'json' });
+        if (videosData) {
+          videos = videosData;
+          console.log('Loaded videos from Netlify Blobs:', videos.length, 'videos');
+        } else {
+          // No data exists, try to save defaults
+          try {
+            await store.set('videos', JSON.stringify(videos));
+            console.log('Initialized with default videos in Netlify Blobs');
+          } catch (saveError) {
+            console.log('Could not save to Blobs, using defaults:', saveError.message);
+          }
+        }
+      } catch (blobError) {
+        console.log('Blob storage error, using defaults:', blobError.message);
       }
-    } catch (blobError) {
-      console.log('Blob storage error, using defaults:', blobError.message);
-      videos = defaultVideos;
+    } else {
+      console.log('Netlify Blobs not available, using default videos');
     }
 
     return {
@@ -87,7 +98,7 @@ exports.handler = async (event, context) => {
     };
   } catch (error) {
     console.error('Error in get-videos function:', error);
-    // Fallback to default videos even if everything fails
+    // Always return default videos as final fallback
     return {
       statusCode: 200,
       headers,
