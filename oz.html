@@ -124,14 +124,14 @@
             margin-top: 264px;
             padding: 16px;
             min-height: calc(100vh - 264px);
-            max-width: 1200px;
+            max-width: 800px;
             margin-left: auto;
             margin-right: auto;
         }
 
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 16px;
         }
 
@@ -272,13 +272,13 @@
 
             .content {
                 margin-top: 364px;
-                max-width: 1200px;
+                max-width: 800px;
                 margin-left: auto;
                 margin-right: auto;
             }
 
             .video-grid {
-                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
                 gap: 20px;
             }
 
@@ -289,15 +289,8 @@
 
         @media screen and (min-width: 1024px) {
             .video-grid {
-                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
                 gap: 24px;
-            }
-        }
-
-        @media screen and (min-width: 1400px) {
-            .video-grid {
-                grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-                gap: 28px;
             }
         }
     </style>
