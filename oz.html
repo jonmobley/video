@@ -256,8 +256,82 @@
             }
         }
 
-        /* Desktop responsiveness */
-        @media screen and (min-width: 768px) {
+        /* Responsive desktop layouts */
+        
+        /* Small desktop - 1 column (768px - 999px) */
+        @media screen and (min-width: 768px) and (max-width: 999px) {
+            .video-container {
+                max-width: 600px;
+                aspect-ratio: 16/9;
+            }
+
+            .wistia_responsive_padding,
+            .wistia_responsive_wrapper {
+                height: 100% !important;
+            }
+
+            .tags-container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .content {
+                margin-top: calc(600px * 9/16 + 48px);
+                padding-top: 32px;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                max-width: 400px;
+                margin: 0 auto;
+            }
+
+            .item-title {
+                font-size: 15px;
+            }
+        }
+
+        /* Medium desktop - 2 columns (1000px - 1299px) */
+        @media screen and (min-width: 1000px) and (max-width: 1299px) {
+            .video-container {
+                max-width: 700px;
+                aspect-ratio: 16/9;
+            }
+
+            .wistia_responsive_padding,
+            .wistia_responsive_wrapper {
+                height: 100% !important;
+            }
+
+            .tags-container {
+                max-width: 700px;
+                margin: 0 auto;
+            }
+
+            .content {
+                margin-top: calc(700px * 9/16 + 48px);
+                padding-top: 32px;
+                max-width: 700px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+
+            .item-title {
+                font-size: 15px;
+            }
+        }
+
+        /* Large desktop - 3 columns (1300px+) */
+        @media screen and (min-width: 1300px) {
             .video-container {
                 max-width: 800px;
                 aspect-ratio: 16/9;
@@ -266,6 +340,11 @@
             .wistia_responsive_padding,
             .wistia_responsive_wrapper {
                 height: 100% !important;
+            }
+
+            .tags-container {
+                max-width: 800px;
+                margin: 0 auto;
             }
 
             .content {
@@ -278,18 +357,11 @@
 
             .video-grid {
                 grid-template-columns: repeat(3, 1fr);
-                gap: 20px;
+                gap: 24px;
             }
 
             .item-title {
                 font-size: 15px;
-            }
-        }
-
-        @media screen and (min-width: 1024px) {
-            .video-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 24px;
             }
         }
     </style>
