@@ -458,7 +458,7 @@
     </style>
 </head>
 <body>
-    <a href="/oz" class="main-page-link">← Back to Videos</a>
+    <a href="/oz" class="main-page-link">Back to Videos</a>
 
     <div class="admin-container">
         <div class="header">
@@ -514,7 +514,7 @@
                     <label for="wistiaId">Wistia Video ID</label>
                     <input type="text" id="wistiaId" placeholder="e.g., abc123def456" required>
                     <small style="color: #aaa; font-size: 11px; margin-top: 4px; display: block;">
-                        Find this in your Wistia dashboard under Video Settings → Embed & Share
+                        Find this in your Wistia dashboard under Video Settings > Embed & Share
                     </small>
                 </div>
                 
@@ -697,7 +697,7 @@
             
             switch(type) {
                 case 'saved-server':
-                    statusText.innerHTML = `✅ ${count} videos • Saved to server: ${time} • Updates shared with all users`;
+                    statusText.innerHTML = `${count} videos saved to server: ${time} - Updates shared with all users`;
                     break;
                 case 'save-failed':
                     statusText.innerHTML = `❌ ${count} videos • Save failed: ${time} • Check internet connection`;
