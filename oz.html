@@ -33,16 +33,16 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             margin: 0 auto;
             box-sizing: border-box;
+            display: none;
             opacity: 0;
             transform: translateY(-20px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
         }
 
         .video-container.active {
+            display: block;
             opacity: 1;
             transform: translateY(0);
-            pointer-events: auto;
         }
 
         .video-title-overlay {
