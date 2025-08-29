@@ -37,12 +37,14 @@
             opacity: 0;
             transform: translateY(-20px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
         }
 
         .video-container.active {
             display: block;
             opacity: 1;
             transform: translateY(0);
+            pointer-events: auto;
         }
 
         .video-title-overlay {
@@ -420,7 +422,7 @@
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 80vw;
+            max-width: 400px;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
@@ -551,6 +553,29 @@
         }
 
         .admin-save-btn:active {
+            transform: translateY(0);
+        }
+
+        .admin-exit-btn {
+            background: rgba(255, 59, 48, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-exit-btn:hover {
+            background: rgba(255, 59, 48, 0.3);
+            border-color: rgba(255, 59, 48, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .admin-exit-btn:active {
             transform: translateY(0);
         }
 
@@ -780,13 +805,13 @@
             margin-top: 12px;
         }
 
-        /* Adjust body padding when banner is visible */
-        .edit-mode {
-            padding-top: 60px;
+        /* Adjust content padding when banner is visible */
+        .edit-mode .content {
+            padding-top: 80px; /* 56px banner height + 24px original padding */
         }
 
         .edit-mode .header {
-            top: 60px;
+            top: 56px;
         }
 
         /* Edit Mode Styles */
@@ -1341,6 +1366,7 @@
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
+                <button class="admin-exit-btn" id="adminExitBtn">Exit Edit</button>
             </div>
         </div>
     </div>
@@ -1366,12 +1392,8 @@
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="ballet">Ballet</div>
-                <div class="tag" data-category="jazz">Jazz</div>
-                <div class="tag" data-category="contemporary">Contemporary</div>
-                <div class="tag" data-category="tap">Tap</div>
-                <div class="tag" data-category="choreography">Choreography</div>
-                <div class="tag" data-category="warmup">Warm-up</div>
+                <div class="tag" data-category="chorus-and-kids">Chorus and Kids</div>
+                <div class="tag" data-category="section-one">Section One</div>
             </div>
         </div>
     </div>
@@ -1966,6 +1988,8 @@
             
             videoItems.forEach(item => {
                 item.addEventListener('click', () => {
+                    if (isEditMode) return; // Don't play in edit mode
+                    
                     const wistiaId = item.dataset.wistia;
                     const title = item.dataset.title;
                     
@@ -1982,10 +2006,14 @@
                 
                 const thumbnail = item.querySelector('.thumbnail');
                 item.addEventListener('mouseenter', () => {
-                    thumbnail.style.transform = 'scale(1.02)';
+                    if (!isEditMode) {
+                        thumbnail.style.transform = 'scale(1.02)';
+                    }
                 });
                 item.addEventListener('mouseleave', () => {
-                    thumbnail.style.transform = 'scale(1)';
+                    if (!isEditMode) {
+                        thumbnail.style.transform = 'scale(1)';
+                    }
                 });
             });
         }
@@ -2097,6 +2125,17 @@
             
             // Set featured button listener
             document.getElementById('adminSetFeaturedBtn').addEventListener('click', openSetFeaturedDialog);
+            
+            // Exit edit button listener
+            document.getElementById('adminExitBtn').addEventListener('click', function() {
+                if (hasUnsavedChanges) {
+                    if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
+                        exitEditMode();
+                    }
+                } else {
+                    exitEditMode();
+                }
+            });
             
             console.log('Edit mode enabled');
         }

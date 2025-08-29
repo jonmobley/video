@@ -2,26 +2,26 @@
 const videos = [
   {
     id: 'ssgxvlsdmx',
-    title: 'Dance Video 1',
-    category: 'ballet',
+    title: 'Chorus and Kids Stage L',
+    category: 'chorus-and-kids',
     wistiaId: 'ssgxvlsdmx'
   },
   {
     id: '7kpm1d3mhv',
-    title: 'Dance Video 2',
-    category: 'jazz',
+    title: 'Chorus and Kids Stage R',
+    category: 'chorus-and-kids',
     wistiaId: '7kpm1d3mhv'
   },
   {
     id: 'eklwt6f33t',
-    title: 'Dance Video 3',
-    category: 'contemporary',
+    title: 'Section One: Dancers',
+    category: 'section-one',
     wistiaId: 'eklwt6f33t'
   },
   {
     id: 'xqxp9qk6ab',
-    title: 'Dance Video 4',
-    category: 'tap',
+    title: 'Section One: Stage R Chorus',
+    category: 'section-one',
     wistiaId: 'xqxp9qk6ab'
   }
 ];

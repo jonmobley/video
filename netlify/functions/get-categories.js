@@ -15,12 +15,8 @@ async function ensureDataDir() {
 
 // Default categories for initial setup
 const defaultCategories = [
-  { id: 'ballet', name: 'Ballet', color: '#ff6b6b' },
-  { id: 'jazz', name: 'Jazz', color: '#4ecdc4' },
-  { id: 'contemporary', name: 'Contemporary', color: '#45b7d1' },
-  { id: 'tap', name: 'Tap', color: '#f9ca24' },
-  { id: 'choreography', name: 'Choreography', color: '#6c5ce7' },
-  { id: 'warmup', name: 'Warm-up', color: '#a0e7e5' }
+  { id: 'chorus-and-kids', name: 'Chorus and Kids', color: '#ff6b6b' },
+  { id: 'section-one', name: 'Section One', color: '#4ecdc4' }
 ];
 
 exports.handler = async (event, context) => {
