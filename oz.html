@@ -103,6 +103,47 @@
             }
         }
 
+        /* Thumbnail close overlay for active videos */
+        .thumbnail-close-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 25;
+            backdrop-filter: blur(4px);
+        }
+
+        .thumbnail-close-button {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
+        }
+
+        .thumbnail-close-button:hover {
+            background: #008f67;
+            transform: scale(1.05);
+        }
+
+        /* Show thumbnail close overlay on desktop hover for active videos */
+        @media screen and (min-width: 768px) {
+            .video-item.active:hover .thumbnail-close-overlay {
+                display: flex;
+            }
+        }
+
 
 
         .page-header {
@@ -124,6 +165,12 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             justify-self: start;
             opacity: 0.5;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .replay-logo:hover {
+            opacity: 1.0;
         }
 
         .re-green {
@@ -1690,6 +1737,9 @@
                             <div class="video-edit-overlay">
                                 <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                             </div>
+                            <div class="thumbnail-close-overlay">
+                                <button class="thumbnail-close-button" onclick="stopVideoAndClosePlayer()">Close</button>
+                            </div>
                         </div>
                         <div class="item-info">
                             <div class="item-title">${video.title}</div>
@@ -1921,8 +1971,8 @@
                     
                     // Check if this is the currently playing video
                     if (currentlyPlayingVideoId === wistiaId) {
-                        // Stop the video and close the player
-                        stopVideoAndClosePlayer();
+                        // Do nothing - only the close overlay button should close the video
+                        return;
                     } else {
                         // Load the new video
                         loadWistiaVideo(wistiaId, title);
@@ -2318,6 +2368,21 @@
                         activateCategory(categoryName);
                     }
                 });
+            });
+
+            // Add event listeners for thumbnail close overlays
+            document.querySelectorAll('.thumbnail-close-overlay').forEach(overlay => {
+                overlay.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent video click
+                });
+                
+                const closeButton = overlay.querySelector('.thumbnail-close-button');
+                if (closeButton) {
+                    closeButton.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent video click
+                        stopVideoAndClosePlayer();
+                    });
+                }
             });
 
             // Add drag and drop for video reordering
@@ -3129,6 +3194,9 @@
                     <div class="video-edit-overlay">
                         <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                     </div>
+                    <div class="thumbnail-close-overlay">
+                        <button class="thumbnail-close-button" onclick="stopVideoAndClosePlayer()">Close</button>
+                    </div>
                 </div>
                 <div class="item-info">
                     <div class="item-title">${video.title}</div>
@@ -3162,8 +3230,8 @@
                 
                 // Check if this is the currently playing video
                 if (currentlyPlayingVideoId === wistiaId) {
-                    // Stop the video and close the player
-                    stopVideoAndClosePlayer();
+                    // Do nothing - only the close overlay button should close the video
+                    return;
                 } else {
                     // Load the new video
                     loadWistiaVideo(wistiaId, title);
@@ -3215,6 +3283,22 @@
                     activateCategory(categoryName);
                 }
             });
+
+            // Add event listener for thumbnail close overlay
+            const closeOverlay = videoElement.querySelector('.thumbnail-close-overlay');
+            if (closeOverlay) {
+                closeOverlay.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent video click
+                });
+                
+                const closeButton = closeOverlay.querySelector('.thumbnail-close-button');
+                if (closeButton) {
+                    closeButton.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent video click
+                        stopVideoAndClosePlayer();
+                    });
+                }
+            }
         }
 
         // Function to activate a category and filter videos
