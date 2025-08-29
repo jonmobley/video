@@ -44,7 +44,7 @@
             position: absolute;
             top: 16px;
             left: 16px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.6);
             color: white;
             padding: 8px 12px;
             border-radius: 6px;
@@ -59,7 +59,7 @@
         }
 
         .video-container:hover .video-title-overlay {
-            opacity: 1;
+            opacity: 0.8;
         }
 
 
@@ -322,7 +322,7 @@
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 400px;
+            max-width: 80vw;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
@@ -505,7 +505,7 @@
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 500px;
+            max-width: 80vw;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
@@ -618,7 +618,7 @@
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 500px;
+            max-width: 80vw;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
         }
@@ -2650,34 +2650,52 @@
 
         // Add Video Popup Functions
         function openAddVideoPopup() {
+            console.log('🎬 DEBUG: === OPENING ADD VIDEO POPUP ===');
+            
             // Reset form
+            console.log('🎬 DEBUG: Resetting add video form');
             document.getElementById('addVideoForm').reset();
             document.getElementById('addVideoError').style.display = 'none';
             
             // Populate category dropdown
+            console.log('🎬 DEBUG: Populating category dropdown');
             populateAddCategoryDropdown();
             
             // Show popup
+            console.log('🎬 DEBUG: Showing add video overlay');
             document.getElementById('addVideoOverlay').style.display = 'flex';
             document.getElementById('wistiaLink').focus();
+            
+            console.log('🎬 DEBUG: Add video popup opened successfully');
         }
 
         function populateAddCategoryDropdown() {
+            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN ===');
+            
             const select = document.getElementById('newVideoCategory');
+            console.log('📋 DEBUG: Found category select element:', select);
+            
             const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
                 id: tag.dataset.category,
                 name: tag.textContent
             }));
+            console.log('📋 DEBUG: Found categories:', categories);
             
+            console.log('📋 DEBUG: Setting default option');
             select.innerHTML = '<option value="">Select Category</option>';
+            
+            console.log('📋 DEBUG: Adding categories to dropdown');
             categories.forEach(cat => {
                 if (cat.id !== 'all') {
+                    console.log('📋 DEBUG: Adding category:', cat);
                     const option = document.createElement('option');
                     option.value = cat.id;
                     option.textContent = cat.name;
                     select.appendChild(option);
                 }
             });
+            
+            console.log('📋 DEBUG: Category dropdown populated with', select.children.length, 'options');
         }
 
         // Wistia Link Parsing and Title Fetching
