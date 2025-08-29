@@ -71,6 +71,31 @@
             opacity: 1;
         }
 
+        /* Mobile title below video player */
+        .mobile-video-title {
+            display: none;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: left;
+            padding: 16px 20px 8px 20px;
+            margin: 0;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Hide overlay title on mobile, show below-player title */
+        @media (max-width: 768px) {
+            .video-title-overlay {
+                display: none !important;
+            }
+            
+            .mobile-video-title {
+                display: block;
+            }
+        }
+
         .video-close-button {
             position: absolute;
             top: 12px;
@@ -1388,12 +1413,13 @@
             <div class="video-title-overlay" id="current-video-title">Select a video to play</div>
             <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()">Close</button>
         </div>
+        <div class="mobile-video-title" id="mobile-video-title">Select a video to play</div>
         <div class="tags-container">
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="chorus-and-kids">Chorus and Kids</div>
-                <div class="tag" data-category="section-one">Section One</div>
+                <div class="tag" data-category="chorus and kids">Chorus and Kids</div>
+                <div class="tag" data-category="section one">Section One</div>
             </div>
         </div>
     </div>
@@ -1631,6 +1657,12 @@
                 if (titleElement) {
                     titleElement.textContent = 'Select a video to play';
                 }
+                
+                // Update mobile title
+                const mobileTitleElement = document.getElementById('mobile-video-title');
+                if (mobileTitleElement) {
+                    mobileTitleElement.textContent = 'Select a video to play';
+                }
             }, 200); // Wait for half of the animation duration
             
             // Clear active video state immediately
@@ -1652,6 +1684,12 @@
             const titleElement = document.getElementById('current-video-title');
             if (titleElement) {
                 titleElement.textContent = title;
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = title;
             }
             
             // Set active video state
@@ -1765,7 +1803,7 @@
                         </div>
                         <div class="item-info">
                             <div class="item-title">${video.title}</div>
-                            <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
+                            <div class="item-tag">${video.category.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</div>
                         </div>
                     </div>
                 `;
@@ -2618,8 +2656,8 @@
             if (categoryName && categoryName.trim()) {
                 const newTag = document.createElement('div');
                 newTag.className = 'tag';
-                newTag.setAttribute('data-category', categoryName.toLowerCase().replace(/\s+/g, '-'));
-                newTag.textContent = categoryName.charAt(0).toUpperCase() + categoryName.slice(1);
+                newTag.setAttribute('data-category', categoryName.toLowerCase());
+                newTag.textContent = categoryName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
                 
                 // Insert before the last category (or at the end)
                 const tagsContainer = document.querySelector('.tags');
@@ -2883,6 +2921,12 @@
             const titleElement = document.getElementById('current-video-title');
             if (titleElement) {
                 titleElement.textContent = 'Featured Image';
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = 'Featured Image';
             }
             
             // Clear active video state
@@ -3239,7 +3283,7 @@
                 </div>
                 <div class="item-info">
                     <div class="item-title">${video.title}</div>
-                    <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
+                    <div class="item-tag">${video.category.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</div>
                 </div>
             `;
             

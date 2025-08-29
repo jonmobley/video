@@ -15,8 +15,8 @@ async function ensureDataDir() {
 
 // Default categories for initial setup
 const defaultCategories = [
-  { id: 'chorus-and-kids', name: 'Chorus and Kids', color: '#ff6b6b' },
-  { id: 'section-one', name: 'Section One', color: '#4ecdc4' }
+  { id: 'chorus and kids', name: 'Chorus and Kids', color: '#ff6b6b' },
+  { id: 'section one', name: 'Section One', color: '#4ecdc4' }
 ];
 
 exports.handler = async (event, context) => {
