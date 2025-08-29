@@ -423,7 +423,7 @@
             
             videoGrid.innerHTML = videos.map(video => `
                 <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
-                    <div class="thumbnail"></div>
+                    <div class="thumbnail" style="background-image: url('https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg'); background-size: cover; background-position: center;"></div>
                     <div class="item-info">
                         <div class="item-title">${video.title}</div>
                         <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
