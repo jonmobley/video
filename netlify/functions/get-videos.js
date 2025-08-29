@@ -16,28 +16,28 @@ async function ensureDataDir() {
 // Default videos for initial setup
 const defaultVideos = [
   {
-    id: 'abc123def456',
-    title: 'Basic Ballet Positions',
+    id: 'ssgxvlsdmx',
+    title: 'Dance Video 1',
     category: 'ballet',
-    wistiaId: 'abc123def456'
+    wistiaId: 'ssgxvlsdmx'
   },
   {
-    id: 'def456ghi789',
-    title: 'Jazz Square Tutorial',
+    id: '7kpm1d3mhv',
+    title: 'Dance Video 2',
     category: 'jazz',
-    wistiaId: 'def456ghi789'
+    wistiaId: '7kpm1d3mhv'
   },
   {
-    id: 'ghi789jkl012',
-    title: 'Floor Work Fundamentals',
+    id: 'eklwt6f33t',
+    title: 'Dance Video 3',
     category: 'contemporary',
-    wistiaId: 'ghi789jkl012'
+    wistiaId: 'eklwt6f33t'
   },
   {
-    id: 'jkl012mno345',
-    title: 'Basic Tap Steps',
+    id: 'xqxp9qk6ab',
+    title: 'Dance Video 4',
     category: 'tap',
-    wistiaId: 'jkl012mno345'
+    wistiaId: 'xqxp9qk6ab'
   }
 ];
 

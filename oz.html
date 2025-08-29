@@ -30,10 +30,12 @@
 
         .video-container {
             width: 100%;
+            max-width: 800px;
             height: 200px;
             background: #1a1a1a;
             position: relative;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            margin: 0 auto;
         }
 
         .wistia-player {
@@ -75,6 +77,8 @@
             background: #0f0f0f;
             border-bottom: 1px solid #333;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
         }
 
         .tags {
@@ -83,6 +87,8 @@
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            max-width: 800px;
+            width: 100%;
         }
 
         .tags::-webkit-scrollbar {
@@ -263,6 +269,7 @@
         @media screen and (min-width: 768px) {
             .video-container {
                 height: 300px;
+                max-width: 800px;
             }
 
             .wistia_responsive_padding,
@@ -299,7 +306,7 @@
     <div class="header">
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div id="wistia_current_video" class="wistia_embed wistia_async_abc123def456" style="height:100%;width:100%">&nbsp;</div>
+                <div id="wistia_current_video" class="wistia_embed wistia_async_ssgxvlsdmx" style="height:100%;width:100%">&nbsp;</div>
             </div>
             <div class="video-info">
                 <div class="video-title" id="currentTitle">Loading videos...</div>
