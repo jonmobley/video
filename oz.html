@@ -735,6 +735,99 @@
             display: block;
         }
 
+        /* Category inline editing */
+        .edit-mode .tag:not(.add-category-btn):not([data-category="all"]) {
+            position: relative;
+        }
+
+        .edit-mode .tag:not(.add-category-btn):not([data-category="all"]):hover::after {
+            content: '✕';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff3b30;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 70;
+        }
+
+        .category-editing {
+            background: #2a2a2a !important;
+            border: 1px solid #008f67 !important;
+            outline: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 80px;
+        }
+
+        /* Unsaved changes indicator */
+        .unsaved-indicator {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: #ff9500;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 200;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        .edit-mode .unsaved-indicator.show {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        /* Keyboard shortcuts help */
+        .keyboard-shortcuts {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 11px;
+            z-index: 200;
+            display: none;
+            backdrop-filter: blur(10px);
+            border: 1px solid #333;
+        }
+
+        .edit-mode .keyboard-shortcuts.show {
+            display: block;
+        }
+
+        .keyboard-shortcuts div {
+            margin: 2px 0;
+        }
+
+        .keyboard-shortcuts kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+
         .edit-mode .add-category-btn {
             display: flex !important;
             align-items: center;
@@ -964,6 +1057,17 @@
 
     <!-- Edit Mode Indicator -->
     <div class="edit-indicator" id="editIndicator">Edit Mode</div>
+    
+    <!-- Unsaved Changes Indicator -->
+    <div class="unsaved-indicator" id="unsavedIndicator">Unsaved Changes</div>
+    
+    <!-- Keyboard Shortcuts Help -->
+    <div class="keyboard-shortcuts" id="keyboardShortcuts">
+        <div><kbd>Ctrl+S</kbd> Save changes</div>
+        <div><kbd>Esc</kbd> Exit edit mode</div>
+        <div><kbd>Ctrl+A</kbd> Add video</div>
+        <div><kbd>?</kbd> Toggle shortcuts</div>
+    </div>
 
     <!-- Login Popup -->
     <div class="login-overlay" id="loginOverlay" style="display: none;">
@@ -1393,6 +1497,9 @@
             // Add edit functionality to existing videos
             addEditListeners();
             
+            // Add category edit listeners
+            addCategoryEditListeners();
+            
             // Add save button listener
             document.getElementById('adminSaveBtn').addEventListener('click', saveAllChanges);
             
@@ -1409,6 +1516,242 @@
             document.getElementById('adminBanner').style.display = 'none';
             
             console.log('Edit mode disabled');
+        }
+
+        // Unsaved changes tracking
+        let hasUnsavedChanges = false;
+
+        function markUnsavedChanges() {
+            hasUnsavedChanges = true;
+            document.getElementById('unsavedIndicator').classList.add('show');
+        }
+
+        function clearUnsavedChanges() {
+            hasUnsavedChanges = false;
+            document.getElementById('unsavedIndicator').classList.remove('show');
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Only handle shortcuts in edit mode
+            if (!isEditMode) {
+                // Show shortcuts help with ? key even outside edit mode
+                if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    e.preventDefault();
+                    const shortcuts = document.getElementById('keyboardShortcuts');
+                    shortcuts.classList.toggle('show');
+                }
+                return;
+            }
+
+            // Ctrl+S - Save changes
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveAllChanges();
+            }
+            
+            // Escape - Exit edit mode
+            else if (e.key === 'Escape' && !document.querySelector('.login-overlay[style*="flex"]') && !document.querySelector('.add-video-overlay[style*="flex"]') && !document.querySelector('.edit-video-overlay[style*="flex"]')) {
+                e.preventDefault();
+                if (hasUnsavedChanges) {
+                    if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
+                        exitEditMode();
+                    }
+                } else {
+                    exitEditMode();
+                }
+            }
+            
+            // Ctrl+A - Add video
+            else if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                openAddVideoPopup();
+            }
+            
+            // ? - Toggle keyboard shortcuts help
+            else if (e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                e.preventDefault();
+                const shortcuts = document.getElementById('keyboardShortcuts');
+                shortcuts.classList.toggle('show');
+            }
+        });
+
+        // Category inline editing and deletion
+        function addCategoryEditListeners() {
+            document.querySelectorAll('.tag:not(.add-category-btn)').forEach(tag => {
+                if (tag.dataset.category === 'all') return; // Skip "All" category
+                
+                // Double-click to edit category name
+                tag.addEventListener('dblclick', function(e) {
+                    if (!isEditMode) return;
+                    e.stopPropagation();
+                    editCategoryName(this);
+                });
+                
+                // Click on X to delete category
+                tag.addEventListener('click', function(e) {
+                    if (!isEditMode) return;
+                    
+                    // Check if click is on the X button area (top-right corner)
+                    const rect = this.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const clickY = e.clientY - rect.top;
+                    
+                    // X button is in top-right corner (last 18px of width and height)
+                    if (clickX > rect.width - 18 && clickY < 18) {
+                        e.stopPropagation();
+                        deleteCategoryWithReassignment(this);
+                    }
+                });
+            });
+        }
+
+        function editCategoryName(categoryElement) {
+            const currentName = categoryElement.textContent;
+            const currentId = categoryElement.dataset.category;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.className = 'category-editing';
+            
+            categoryElement.replaceWith(input);
+            input.focus();
+            input.select();
+            
+            function saveCategoryName() {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    categoryElement.textContent = newName;
+                    
+                    // Update all videos with this category
+                    const videoItems = document.querySelectorAll(`[data-category="${currentId}"]`);
+                    videoItems.forEach(item => {
+                        const tagElement = item.querySelector('.item-tag');
+                        if (tagElement) {
+                            tagElement.textContent = newName.charAt(0).toUpperCase() + newName.slice(1);
+                        }
+                    });
+                    
+                    markUnsavedChanges();
+                    console.log('Category renamed from', currentName, 'to', newName);
+                } else {
+                    categoryElement.textContent = currentName;
+                }
+                input.replaceWith(categoryElement);
+                
+                // Re-add listeners
+                addCategoryEditListeners();
+            }
+            
+            input.addEventListener('blur', saveCategoryName);
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    saveCategoryName();
+                } else if (e.key === 'Escape') {
+                    categoryElement.textContent = currentName;
+                    input.replaceWith(categoryElement);
+                    addCategoryEditListeners();
+                }
+            });
+        }
+
+        function deleteCategoryWithReassignment(categoryElement) {
+            const categoryId = categoryElement.dataset.category;
+            const categoryName = categoryElement.textContent;
+            
+            // Count videos in this category
+            const videosInCategory = document.querySelectorAll(`[data-category="${categoryId}"]`);
+            
+            if (videosInCategory.length === 0) {
+                // No videos, safe to delete
+                if (confirm(`Delete category "${categoryName}"?`)) {
+                    categoryElement.remove();
+                    markUnsavedChanges();
+                    console.log('Category deleted:', categoryName);
+                }
+                return;
+            }
+            
+            // Get available categories for reassignment
+            const availableCategories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)'))
+                .filter(tag => tag.dataset.category !== 'all' && tag.dataset.category !== categoryId)
+                .map(tag => ({ id: tag.dataset.category, name: tag.textContent }));
+            
+            if (availableCategories.length === 0) {
+                alert('Cannot delete the last category. Create another category first.');
+                return;
+            }
+            
+            // Create reassignment dialog
+            const reassignmentOptions = availableCategories.map(cat => 
+                `<option value="${cat.id}">${cat.name}</option>`
+            ).join('');
+            
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 1001; backdrop-filter: blur(4px);
+            `;
+            
+            dialog.innerHTML = `
+                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 400px;">
+                    <h3 style="color: white; margin: 0 0 16px 0;">Delete Category</h3>
+                    <p style="color: #aaa; margin: 0 0 16px 0;">
+                        "${categoryName}" has ${videosInCategory.length} video(s). 
+                        Choose a category to reassign them to:
+                    </p>
+                    <select id="reassignSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; margin-bottom: 20px;">
+                        <option value="">Select category...</option>
+                        ${reassignmentOptions}
+                    </select>
+                    <div style="display: flex; gap: 12px;">
+                        <button id="confirmDelete" style="flex: 1; padding: 8px 16px; background: #ff3b30; color: white; border: none; border-radius: 6px; cursor: pointer;">Delete & Reassign</button>
+                        <button id="cancelDelete" style="flex: 1; padding: 8px 16px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            dialog.querySelector('#confirmDelete').addEventListener('click', function() {
+                const newCategoryId = dialog.querySelector('#reassignSelect').value;
+                if (!newCategoryId) {
+                    alert('Please select a category for reassignment.');
+                    return;
+                }
+                
+                const newCategoryName = availableCategories.find(cat => cat.id === newCategoryId).name;
+                
+                // Reassign all videos
+                videosInCategory.forEach(item => {
+                    item.dataset.category = newCategoryId;
+                    const tagElement = item.querySelector('.item-tag');
+                    if (tagElement) {
+                        tagElement.textContent = newCategoryName.charAt(0).toUpperCase() + newCategoryName.slice(1);
+                    }
+                    
+                    // Update edit button onclick
+                    const editBtn = item.querySelector('.video-edit-btn');
+                    if (editBtn) {
+                        const wistiaId = item.dataset.wistia;
+                        const title = item.dataset.title;
+                        editBtn.setAttribute('onclick', `openEditVideoPopup('${wistiaId}', '${title}', '${newCategoryId}')`);
+                    }
+                });
+                
+                // Remove category
+                categoryElement.remove();
+                markUnsavedChanges();
+                
+                console.log(`Category "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
+                document.body.removeChild(dialog);
+            });
+            
+            dialog.querySelector('#cancelDelete').addEventListener('click', function() {
+                document.body.removeChild(dialog);
+            });
         }
 
         function addEditListeners() {
@@ -1472,7 +1815,7 @@
                 const newTitle = input.value.trim();
                 if (newTitle && newTitle !== currentTitle) {
                     titleElement.textContent = newTitle;
-                    // Here you would save to server
+                    markUnsavedChanges();
                     console.log('Title changed from', currentTitle, 'to', newTitle);
                 } else {
                     titleElement.textContent = currentTitle;
@@ -1516,11 +1859,11 @@
             
             function saveCategory() {
                 const newCategory = select.value;
-                if (newCategory !== currentCategory) {
-                    tagElement.textContent = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
-                    // Here you would save to server
-                    console.log('Category changed from', currentCategory, 'to', newCategory);
-                }
+                            if (newCategory !== currentCategory) {
+                tagElement.textContent = newCategory.charAt(0).toUpperCase() + newCategory.slice(1);
+                markUnsavedChanges();
+                console.log('Category changed from', currentCategory, 'to', newCategory);
+            }
                 select.replaceWith(tagElement);
             }
             
@@ -1565,7 +1908,7 @@
                 }
                 
                 console.log('Video reordered from position', draggedIndex, 'to', targetIndex);
-                // Here you would save the new order to server
+                markUnsavedChanges();
             }
         }
 
@@ -1607,7 +1950,7 @@
                 }
                 
                 console.log('Category reordered from position', draggedIndex, 'to', targetIndex);
-                // Here you would save the new category order to server
+                markUnsavedChanges();
             }
         }
 
@@ -1657,7 +2000,7 @@
                 });
                 
                 console.log('New category created:', categoryName);
-                // Here you would save the new category to server
+                markUnsavedChanges();
             }
         }
 
@@ -1694,6 +2037,9 @@
                 saveBtn.textContent = 'Saved!';
                 saveBtn.style.background = 'rgba(52, 199, 89, 0.3)';
                 saveBtn.style.borderColor = 'rgba(52, 199, 89, 0.5)';
+                
+                // Clear unsaved changes
+                clearUnsavedChanges();
                 
                 // Reset button after 2 seconds
                 setTimeout(() => {
