@@ -1408,6 +1408,42 @@
             }
         }
 
+        function stopVideoAndClosePlayer() {
+            console.log('Stopping video and closing player');
+            
+            // Stop the current Wistia video if it exists
+            if (window.Wistia && currentlyPlayingVideoId) {
+                const video = window.Wistia.api(`wistia_${currentlyPlayingVideoId}`);
+                if (video) {
+                    video.pause();
+                    video.time(0); // Reset to beginning
+                }
+            }
+            
+            // Hide the video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.remove('active');
+            
+            // Clear the video container content
+            const videoContainer = document.getElementById('wistia-player');
+            videoContainer.innerHTML = `
+                <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
+                    <div style="text-align: center;">
+                        <div>Loading video player...</div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear active video state
+            setActiveVideo(null);
+            
+            // Update title overlay
+            const titleElement = document.getElementById('current-video-title');
+            if (titleElement) {
+                titleElement.textContent = 'Select a video to play';
+            }
+        }
+
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
             console.log('Loading Wistia video:', wistiaId, title);
@@ -1662,8 +1698,15 @@
                     const wistiaId = item.dataset.wistia;
                     const title = item.dataset.title;
                     
-                    loadWistiaVideo(wistiaId, title);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    // Check if this is the currently playing video
+                    if (currentlyPlayingVideoId === wistiaId) {
+                        // Stop the video and close the player
+                        stopVideoAndClosePlayer();
+                    } else {
+                        // Load the new video
+                        loadWistiaVideo(wistiaId, title);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 });
                 
                 const thumbnail = item.querySelector('.thumbnail');
@@ -2882,8 +2925,15 @@
                 const wistiaId = videoElement.dataset.wistia;
                 const title = videoElement.dataset.title;
                 
-                loadWistiaVideo(wistiaId, title);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Check if this is the currently playing video
+                if (currentlyPlayingVideoId === wistiaId) {
+                    // Stop the video and close the player
+                    stopVideoAndClosePlayer();
+                } else {
+                    // Load the new video
+                    loadWistiaVideo(wistiaId, title);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             });
             
             // Add hover effects
