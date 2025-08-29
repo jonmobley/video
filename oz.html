@@ -96,10 +96,10 @@
         }
 
         .tag.active {
-            background: #ff6b6b;
+            background: #008f67;
             color: #ffffff;
-            border-color: #ff5252;
-            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+            border-color: #007a5a;
+            box-shadow: 0 4px 12px rgba(0, 143, 103, 0.3);
         }
 
         .tag:hover {
@@ -109,7 +109,7 @@
         }
 
         .tag.active:hover {
-            background: #ff5252;
+            background: #007a5a;
         }
 
         .content {
@@ -211,7 +211,7 @@
 
         .item-tag {
             background: #333;
-            color: #ff6b6b;
+            color: #008f67;
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 11px;
@@ -430,7 +430,7 @@
                     <div style="text-align: center; padding: 40px; color: #666;">
                         <h3>No videos yet</h3>
                         <p>Use the admin panel to add dance instruction videos</p>
-                        <a href="/admin.html" style="color: #ff6b6b; text-decoration: none; margin-top: 12px; display: inline-block;">→ Go to Admin Panel</a>
+                        <a href="/admin.html" style="color: #008f67; text-decoration: none; margin-top: 12px; display: inline-block;">→ Go to Admin Panel</a>
                     </div>
                 `;
                 return;
@@ -524,7 +524,7 @@
         function showError(message) {
             const videoGrid = document.getElementById('videoGrid');
             videoGrid.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #ff6b6b;">
+                <div style="text-align: center; padding: 40px; color: #008f67;">
                     <h3>⚠️ ${message}</h3>
                     <p style="color: #aaa; margin-top: 8px;">Please try refreshing the page</p>
                 </div>
