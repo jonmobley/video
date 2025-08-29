@@ -749,6 +749,46 @@
             font-weight: 600;
         }
 
+        /* Hover play button for desktop */
+        .thumbnail-play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .thumbnail-play-button::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 18px solid rgba(255, 255, 255, 0.9);
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
+        }
+
+        /* Show play button on hover for desktop only */
+        @media screen and (min-width: 768px) {
+            .video-item:not(.active):hover .thumbnail-play-button {
+                display: flex;
+            }
+            
+            .video-item:not(.active):hover .thumbnail-play-button:hover {
+                background: rgba(0, 0, 0, 0.8);
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        }
+
         .edit-indicator {
             position: fixed;
             top: 20px;
@@ -1311,6 +1351,7 @@
                     <div class="thumbnail" id="thumb-${video.wistiaId}">
                         <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                         <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
+                        <div class="thumbnail-play-button"></div>
                         <div class="video-edit-overlay">
                             <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                         </div>
@@ -2387,6 +2428,7 @@
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
                     <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                     <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
+                    <div class="thumbnail-play-button"></div>
                     <div class="video-edit-overlay">
                         <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
                     </div>
