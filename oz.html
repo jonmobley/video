@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VidShare</title>
+    <title>Replay</title>
     <style>
         * {
             margin: 0;
@@ -52,6 +52,34 @@
             margin: 0;
             line-height: 1.3;
             text-align: center;
+        }
+
+        .page-header {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 24px auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .replay-logo {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .page-title {
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
+            text-align: center;
+            flex: 1;
+            margin-left: 40px;
         }
 
         .wistia-player {
@@ -1029,6 +1057,23 @@
 
         /* Mobile styles */
         @media screen and (max-width: 767px) {
+            .page-header {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .replay-logo {
+                font-size: 24px;
+            }
+
+            .page-title {
+                font-size: 20px;
+                margin-left: 0;
+                text-align: center;
+            }
+
             .video-title-container {
                 position: absolute;
                 top: 20px;
@@ -1085,6 +1130,10 @@
         
         /* Small desktop - 2 columns (768px - 999px) */
         @media screen and (min-width: 768px) and (max-width: 999px) {
+            .page-header {
+                max-width: 700px;
+            }
+
             .video-container {
                 max-width: 700px;
                 aspect-ratio: 16/9;
@@ -1120,6 +1169,10 @@
 
         /* Medium desktop - 2 columns (1000px - 1299px) */
         @media screen and (min-width: 1000px) and (max-width: 1299px) {
+            .page-header {
+                max-width: 700px;
+            }
+
             .video-container {
                 max-width: 700px;
                 aspect-ratio: 16/9;
@@ -1206,6 +1259,10 @@
     </div>
 
     <div class="header">
+        <div class="page-header">
+            <div class="replay-logo">Replay</div>
+            <h1 class="page-title">Grace Church | Wizard of Oz</h1>
+        </div>
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
                 <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
@@ -1239,7 +1296,7 @@
         </div>
 
         <div class="footer">
-            Powered by VidShare
+            Powered by Replay
             <span class="login-link" id="loginLink">Login</span>
         </div>
     </div>
