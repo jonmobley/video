@@ -168,23 +168,30 @@
 
         .duration-overlay {
             position: absolute !important;
-            bottom: 6px !important;
-            right: 6px !important;
-            background: rgba(0, 0, 0, 0.9) !important;
+            bottom: 8px !important;
+            right: 8px !important;
+            background: rgba(0, 0, 0, 0.85) !important;
             color: white !important;
-            padding: 3px 6px !important;
-            border-radius: 4px !important;
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
             font-size: 12px !important;
             font-weight: 600 !important;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-            backdrop-filter: blur(4px) !important;
+            backdrop-filter: blur(8px) !important;
             z-index: 100 !important;
-            display: block !important;
-            line-height: 1 !important;
-            min-width: 30px !important;
+            display: none !important; /* Will be set to block by JavaScript when duration is loaded */
+            line-height: 1.2 !important;
+            min-width: 35px !important;
             text-align: center !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
             pointer-events: none !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            transition: opacity 0.2s ease !important;
+        }
+
+        .duration-overlay.placeholder {
+            opacity: 0.7 !important;
+            font-style: italic !important;
         }
 
         .item-info {
@@ -1169,30 +1176,68 @@
 
         // Load video duration from Wistia oEmbed API
         async function loadVideoDuration(wistiaId) {
+            const durationElement = document.getElementById(`duration-${wistiaId}`);
+            if (!durationElement) {
+                console.log('Duration element not found for:', wistiaId);
+                return;
+            }
+
             try {
                 console.log('Loading duration for:', wistiaId);
-                const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
-                const data = await response.json();
-                console.log('Duration data for', wistiaId, ':', data);
                 
-                if (data.duration && data.duration > 0) {
-                    const durationElement = document.getElementById(`duration-${wistiaId}`);
-                    console.log('Duration element found:', durationElement);
-                    if (durationElement) {
-                        const minutes = Math.floor(data.duration / 60);
-                        const seconds = Math.floor(data.duration % 60);
-                        const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                        console.log('Setting duration to:', formattedDuration);
-                        durationElement.textContent = formattedDuration;
-                        durationElement.style.display = 'block'; // Show only when we have valid duration
+                // Try multiple API endpoints for better compatibility
+                const apiUrls = [
+                    `https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`,
+                    `https://fast.wistia.com/oembed?url=https://home.wistia.com/medias/${wistiaId}&format=json`,
+                    `https://fast.wistia.com/oembed?url=https://app.wistia.com/medias/${wistiaId}&format=json`
+                ];
+
+                let durationFound = false;
+                
+                for (const apiUrl of apiUrls) {
+                    try {
+                        console.log('Trying API URL:', apiUrl);
+                        const response = await fetch(apiUrl);
+                        
+                        if (!response.ok) {
+                            console.log('API response not ok:', response.status, 'for', apiUrl);
+                            continue;
+                        }
+                        
+                        const data = await response.json();
+                        console.log('Duration data for', wistiaId, ':', data);
+                        
+                        if (data.duration && data.duration > 0) {
+                            const minutes = Math.floor(data.duration / 60);
+                            const seconds = Math.floor(data.duration % 60);
+                            const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                            console.log('Setting duration to:', formattedDuration);
+                            durationElement.textContent = formattedDuration;
+                            durationElement.classList.remove('placeholder');
+                            durationElement.style.display = 'block';
+                            durationFound = true;
+                            break;
+                        }
+                    } catch (apiError) {
+                        console.log('API call failed for', apiUrl, ':', apiError);
+                        continue;
                     }
-                } else {
-                    console.log('No valid duration found in data for', wistiaId);
-                    // Don't show overlay if no duration - leave it hidden
                 }
+                
+                // If no duration found from API, show a placeholder
+                if (!durationFound) {
+                    console.log('No duration found via API for', wistiaId, ', showing placeholder');
+                    durationElement.textContent = '--:--';
+                    durationElement.classList.add('placeholder');
+                    durationElement.style.display = 'block';
+                }
+                
             } catch (error) {
                 console.log('Failed to load duration for', wistiaId, error);
-                // Don't show overlay on error - leave it hidden
+                // Show placeholder on error
+                durationElement.textContent = '--:--';
+                durationElement.classList.add('placeholder');
+                durationElement.style.display = 'block';
             }
         }
 
@@ -1350,6 +1395,9 @@
             
             // Add save button listener
             document.getElementById('adminSaveBtn').addEventListener('click', saveAllChanges);
+            
+            // Add video button listener
+            document.getElementById('adminAddVideoBtn').addEventListener('click', openAddVideoPopup);
             
             console.log('Edit mode enabled');
         }
@@ -1759,6 +1807,261 @@
                 }
             }
         });
+
+        // Add Video Popup Functions
+        function openAddVideoPopup() {
+            // Reset form
+            document.getElementById('addVideoForm').reset();
+            document.getElementById('addVideoError').style.display = 'none';
+            
+            // Populate category dropdown
+            populateAddCategoryDropdown();
+            
+            // Show popup
+            document.getElementById('addVideoOverlay').style.display = 'flex';
+            document.getElementById('wistiaLink').focus();
+        }
+
+        function populateAddCategoryDropdown() {
+            const select = document.getElementById('newVideoCategory');
+            const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
+                id: tag.dataset.category,
+                name: tag.textContent
+            }));
+            
+            select.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(cat => {
+                if (cat.id !== 'all') {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // Wistia Link Parsing and Title Fetching
+        function extractWistiaId(url) {
+            // Handle various Wistia URL formats:
+            // https://videosharepro.wistia.com/medias/abc123
+            // https://fast.wistia.net/embed/iframe/abc123
+            // https://videosharepro.wistia.com/embed/iframe/abc123
+            // abc123 (direct ID)
+            
+            if (!url) return null;
+            
+            // If it's already just an ID (alphanumeric string)
+            if (/^[a-zA-Z0-9]+$/.test(url.trim())) {
+                return url.trim();
+            }
+            
+            // Extract from various URL patterns
+            const patterns = [
+                /wistia\.com\/medias\/([a-zA-Z0-9]+)/,
+                /wistia\.net\/embed\/iframe\/([a-zA-Z0-9]+)/,
+                /wistia\.com\/embed\/iframe\/([a-zA-Z0-9]+)/,
+                /fast\.wistia\.com\/embed\/iframe\/([a-zA-Z0-9]+)/
+            ];
+            
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            
+            return null;
+        }
+
+        async function fetchWistiaVideoData(wistiaId) {
+            try {
+                const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
+                const data = await response.json();
+                
+                return {
+                    title: data.title || 'Untitled Video',
+                    duration: data.duration || 0,
+                    thumbnail: data.thumbnail_url || null
+                };
+            } catch (error) {
+                console.error('Failed to fetch Wistia data:', error);
+                return {
+                    title: 'Untitled Video',
+                    duration: 0,
+                    thumbnail: null
+                };
+            }
+        }
+
+        // Wistia Link Input Handler
+        document.getElementById('wistiaLink').addEventListener('input', async function(e) {
+            const url = e.target.value.trim();
+            const titleInput = document.getElementById('newVideoTitle');
+            
+            if (!url) {
+                titleInput.value = '';
+                titleInput.placeholder = 'Video title will be loaded...';
+                return;
+            }
+            
+            const wistiaId = extractWistiaId(url);
+            
+            if (wistiaId) {
+                titleInput.placeholder = 'Loading title...';
+                titleInput.disabled = true;
+                
+                const videoData = await fetchWistiaVideoData(wistiaId);
+                
+                titleInput.value = videoData.title;
+                titleInput.disabled = false;
+                titleInput.placeholder = 'Enter video title...';
+                
+                console.log('Loaded Wistia data:', { id: wistiaId, ...videoData });
+            } else {
+                titleInput.value = '';
+                titleInput.placeholder = 'Invalid Wistia URL';
+            }
+        });
+
+        // Add Video Form Handlers
+        document.getElementById('cancelAddVideo').addEventListener('click', function() {
+            document.getElementById('addVideoOverlay').style.display = 'none';
+            document.getElementById('addVideoError').style.display = 'none';
+        });
+
+        document.getElementById('addVideoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const wistiaUrl = document.getElementById('wistiaLink').value.trim();
+            const title = document.getElementById('newVideoTitle').value.trim();
+            const category = document.getElementById('newVideoCategory').value;
+            
+            // Validation
+            if (!wistiaUrl || !title || !category) {
+                document.getElementById('addVideoError').textContent = 'Please fill in all fields';
+                document.getElementById('addVideoError').style.display = 'block';
+                return;
+            }
+            
+            const wistiaId = extractWistiaId(wistiaUrl);
+            if (!wistiaId) {
+                document.getElementById('addVideoError').textContent = 'Invalid Wistia URL or ID';
+                document.getElementById('addVideoError').style.display = 'block';
+                return;
+            }
+            
+            // Check if video already exists
+            if (document.querySelector(`[data-wistia="${wistiaId}"]`)) {
+                document.getElementById('addVideoError').textContent = 'This video already exists';
+                document.getElementById('addVideoError').style.display = 'block';
+                return;
+            }
+            
+            // Add video to grid
+            await addVideoToGrid({
+                wistiaId: wistiaId,
+                title: title,
+                category: category
+            });
+            
+            // Close popup
+            document.getElementById('addVideoOverlay').style.display = 'none';
+            document.getElementById('addVideoError').style.display = 'none';
+            
+            console.log('Video added:', { id: wistiaId, title, category });
+        });
+
+        async function addVideoToGrid(video) {
+            const videoGrid = document.getElementById('videoGrid');
+            
+            // Create new video element
+            const videoElement = document.createElement('div');
+            videoElement.className = 'video-item';
+            videoElement.setAttribute('data-category', video.category);
+            videoElement.setAttribute('data-title', video.title);
+            videoElement.setAttribute('data-wistia', video.wistiaId);
+            
+            videoElement.innerHTML = `
+                <div class="thumbnail" id="thumb-${video.wistiaId}">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                    <div class="duration-overlay" id="duration-${video.wistiaId}" style="position: absolute; z-index: 30; display: none;"></div>
+                    <div class="video-edit-overlay">
+                        <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                    </div>
+                </div>
+                <div class="item-info">
+                    <div class="item-title">${video.title}</div>
+                    <div class="item-tag">${video.category.charAt(0).toUpperCase() + video.category.slice(1)}</div>
+                </div>
+            `;
+            
+            // Add to grid
+            videoGrid.appendChild(videoElement);
+            
+            // Add event listeners for the new video
+            addVideoEventListeners(videoElement);
+            
+            // Load thumbnail and duration
+            loadWistiaThumbnail(video.wistiaId);
+            loadVideoDuration(video.wistiaId);
+            
+            // If in edit mode, add edit listeners
+            if (isEditMode) {
+                addEditListenersToVideo(videoElement);
+            }
+        }
+
+        function addVideoEventListeners(videoElement) {
+            // Add click listener for video playback
+            videoElement.addEventListener('click', () => {
+                if (isEditMode) return; // Don't play in edit mode
+                
+                const wistiaId = videoElement.dataset.wistia;
+                const title = videoElement.dataset.title;
+                
+                loadWistiaVideo(wistiaId, title);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            // Add hover effects
+            const thumbnail = videoElement.querySelector('.thumbnail');
+            videoElement.addEventListener('mouseenter', () => {
+                if (!isEditMode) {
+                    thumbnail.style.transform = 'scale(1.02)';
+                }
+            });
+            
+            videoElement.addEventListener('mouseleave', () => {
+                if (!isEditMode) {
+                    thumbnail.style.transform = 'scale(1)';
+                }
+            });
+        }
+
+        function addEditListenersToVideo(videoElement) {
+            // Add drag and drop
+            videoElement.draggable = true;
+            videoElement.addEventListener('dragstart', handleVideoDragStart);
+            videoElement.addEventListener('dragover', handleVideoDragOver);
+            videoElement.addEventListener('drop', handleVideoDrop);
+            videoElement.addEventListener('dragend', handleVideoDragEnd);
+            
+            // Add inline editing
+            const titleElement = videoElement.querySelector('.item-title');
+            const tagElement = videoElement.querySelector('.item-tag');
+            
+            titleElement.addEventListener('click', function(e) {
+                if (!isEditMode) return;
+                e.stopPropagation();
+                editTitle(this);
+            });
+            
+            tagElement.addEventListener('click', function(e) {
+                if (!isEditMode) return;
+                e.stopPropagation();
+                editCategory(this);
+            });
+        }
     </script>
 </body>
 </html>
