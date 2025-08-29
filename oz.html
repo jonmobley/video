@@ -232,11 +232,8 @@
 
         .tags-container {
             padding: 12px 16px;
-            background: linear-gradient(to bottom, #0f0f0f 0%, #0f0f0f 70%, rgba(15, 15, 15, 0.95) 85%, rgba(15, 15, 15, 0.8) 100%);
-            box-shadow: 
-                0 8px 20px rgba(0, 0, 0, 0.5),
-                0 16px 40px rgba(0, 0, 0, 0.3),
-                0 4px 8px rgba(0, 0, 0, 0.7);
+            background: transparent;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             display: flex;
             justify-content: center;
             position: relative;
@@ -257,43 +254,7 @@
             display: none;
         }
 
-        .tags-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 60px;
-            background: linear-gradient(to left, 
-                #0f0f0f 0%, 
-                rgba(15, 15, 15, 0.95) 20%, 
-                rgba(15, 15, 15, 0.8) 40%, 
-                rgba(15, 15, 15, 0.5) 60%, 
-                rgba(15, 15, 15, 0.2) 80%, 
-                transparent 100%);
-            pointer-events: none;
-            z-index: 60;
-        }
 
-        .tags-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 60px;
-            background: linear-gradient(to right, 
-                #0f0f0f 0%, 
-                rgba(15, 15, 15, 0.95) 20%, 
-                rgba(15, 15, 15, 0.8) 40%, 
-                rgba(15, 15, 15, 0.5) 60%, 
-                rgba(15, 15, 15, 0.2) 80%, 
-                transparent 100%);
-            pointer-events: none;
-            z-index: 60;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
 
         .tag {
             background: #2a2a2a;
@@ -1325,18 +1286,10 @@
             
             .tags-container {
                 position: relative;
-                background: linear-gradient(to bottom, 
-                    #0f0f0f 0%, 
-                    #0f0f0f 60%, 
-                    rgba(15, 15, 15, 0.95) 75%, 
-                    rgba(15, 15, 15, 0.85) 85%, 
-                    rgba(15, 15, 15, 0.7) 92%, 
-                    rgba(15, 15, 15, 0.5) 96%, 
-                    rgba(15, 15, 15, 0.3) 98%, 
-                    rgba(15, 15, 15, 0.1) 100%);
+                background: transparent;
                 margin: 0;
                 padding: 4px 16px 8px 16px;
-                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             }
             
             /* Content area with proper padding */
