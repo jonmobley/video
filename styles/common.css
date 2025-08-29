@@ -1,0 +1,100 @@
+/* Common styles shared across VidShare pages */
+
+/* CSS Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Base typography and colors */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0a0a;
+    color: #ffffff;
+}
+
+/* Common button styles */
+.btn {
+    background: #007AFF;
+    color: #ffffff;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.btn:hover {
+    background: #0056CC;
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    background: #3A3A3C;
+    color: #EBEBF54D;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Common form styles */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 17px;
+    color: #ffffff;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 16px;
+    background: #2C2C2E;
+    border: 1px solid #38383A;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 17px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #007AFF;
+    background: #3A3A3C;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.form-group input::placeholder {
+    color: #EBEBF599;
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+    body {
+        padding: 16px;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

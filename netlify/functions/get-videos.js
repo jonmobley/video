@@ -1,5 +1,20 @@
-// Videos data - simplified approach without file system
-const videos = [
+const fs = require('fs').promises;
+const path = require('path');
+
+const DATA_FILE = path.join(__dirname, '../../data/videos.json');
+
+// Ensure data directory exists
+async function ensureDataDir() {
+  const dataDir = path.dirname(DATA_FILE);
+  try {
+    await fs.access(dataDir);
+  } catch {
+    await fs.mkdir(dataDir, { recursive: true });
+  }
+}
+
+// Default videos for initial setup
+const defaultVideos = [
   {
     id: 'ssgxvlsdmx',
     title: 'Chorus and Kids Stage L',
@@ -57,6 +72,19 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    await ensureDataDir();
+    
+    // Try to read existing videos
+    let videos;
+    try {
+      const data = await fs.readFile(DATA_FILE, 'utf8');
+      videos = JSON.parse(data);
+    } catch {
+      // File doesn't exist, create with default videos
+      videos = defaultVideos;
+      await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+    }
+
     console.log('Returning videos:', videos.length, 'videos');
     return {
       statusCode: 200,

@@ -1,3 +1,18 @@
+const fs = require('fs').promises;
+const path = require('path');
+
+const DATA_FILE = path.join(__dirname, '../../data/videos.json');
+
+// Ensure data directory exists
+async function ensureDataDir() {
+  const dataDir = path.dirname(DATA_FILE);
+  try {
+    await fs.access(dataDir);
+  } catch {
+    await fs.mkdir(dataDir, { recursive: true });
+  }
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -35,16 +50,24 @@ exports.handler = async (event, context) => {
     // Validate each video object
     for (const video of videos) {
       if (!video.id || !video.title || !video.category || !video.wistiaId) {
-        throw new Error('Invalid video data structure');
+        throw new Error('Invalid video data structure - id, title, category, and wistiaId are required');
       }
     }
 
-    // For now, just return success without persisting
-    // In a real app, you'd save to a database
+    // Check for duplicate IDs
+    const ids = videos.map(video => video.id);
+    const uniqueIds = new Set(ids);
+    if (ids.length !== uniqueIds.size) {
+      throw new Error('Duplicate video IDs found');
+    }
+
+    await ensureDataDir();
+    await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ success: true, count: videos.length, message: 'Videos received (not persisted in demo)' })
+      body: JSON.stringify({ success: true, count: videos.length })
     };
   } catch (error) {
     return {
@@ -53,4 +76,5 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ error: error.message })
     };
   }
+};
 };

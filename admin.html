@@ -458,7 +458,7 @@
     </style>
 </head>
 <body>
-    <a href="/oz" class="main-page-link">Back to Videos</a>
+    <a href="/oz.html" class="main-page-link">Back to Videos</a>
 
     <div class="admin-container">
         <div class="header">
@@ -567,9 +567,9 @@
                     throw new Error('Failed to load videos');
                 }
             } catch (error) {
-                console.log('Server not available:', error);
-                showError('Failed to load videos. Please check your internet connection.');
-                videos = getDefaultVideos();
+                console.error('Failed to load videos from server:', error);
+                showError('Failed to load videos. Please check your internet connection and try refreshing the page.');
+                videos = []; // Start with empty array if server unavailable
             }
             renderVideoList();
             updateStatus();
@@ -585,8 +585,8 @@
                     throw new Error('Failed to load categories');
                 }
             } catch (error) {
-                console.log('Categories server not available:', error);
-                showError('Failed to load categories. Using defaults.');
+                console.error('Failed to load categories from server:', error);
+                showError('Failed to load categories. Using default categories.');
                 categories = getDefaultCategories();
             }
             renderCategoryList();
@@ -615,8 +615,8 @@
                     throw new Error('Server save failed');
                 }
             } catch (error) {
-                console.log('Server save failed:', error);
-                showError('Failed to save video. Please try again.');
+                console.error('Failed to save video to server:', error);
+                showError('Failed to save video. Please check your connection and try again.');
                 updateStatus('save-failed');
             } finally {
                 const submitBtn = document.getElementById('submitBtn');
@@ -645,40 +645,12 @@
                     throw new Error(errorData.error || 'Server save failed');
                 }
             } catch (error) {
-                console.log('Categories save failed:', error);
+                console.error('Failed to save categories to server:', error);
                 showError('Failed to save categories: ' + error.message);
             }
         }
 
-        // Default videos for testing
-        function getDefaultVideos() {
-            return [
-                {
-                    id: 'ssgxvlsdmx',
-                    title: 'Chorus and Kids Stage L',
-                    category: 'chorus and kids',
-                    wistiaId: 'ssgxvlsdmx'
-                },
-                {
-                    id: '7kpm1d3mhv',
-                    title: 'Chorus and Kids Stage R',
-                    category: 'chorus and kids',
-                    wistiaId: '7kpm1d3mhv'
-                },
-                {
-                    id: 'eklwt6f33t',
-                    title: 'Section One: Dancers',
-                    category: 'section one',
-                    wistiaId: 'eklwt6f33t'
-                },
-                {
-                    id: 'xqxp9qk6ab',
-                    title: 'Section One: Stage R Chorus',
-                    category: 'section one',
-                    wistiaId: 'xqxp9qk6ab'
-                }
-            ];
-        }
+
 
         // Default categories
         function getDefaultCategories() {
@@ -715,6 +687,12 @@
             }
         }
 
+        // Standardized message display timeouts
+        const MESSAGE_TIMEOUT = {
+            SUCCESS: 4000,
+            ERROR: 6000
+        };
+
         // Show success message
         function showSuccess(message) {
             const successMsg = document.getElementById('successMessage');
@@ -722,7 +700,7 @@
             successMsg.style.display = 'block';
             setTimeout(() => {
                 successMsg.style.display = 'none';
-            }, 3000);
+            }, MESSAGE_TIMEOUT.SUCCESS);
         }
 
         // Show error message
@@ -733,7 +711,7 @@
             errorMsg.style.display = 'block';
             setTimeout(() => {
                 errorMsg.style.display = 'none';
-            }, 5000);
+            }, MESSAGE_TIMEOUT.ERROR);
         }
 
         // Render category list
