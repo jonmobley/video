@@ -1492,7 +1492,7 @@
                 z-index: auto;
                 background: #0f0f0f;
                 padding: 12px 20px 16px 20px;
-                border-bottom: 1px solid #2a2a2a;
+                /* border-bottom: 1px solid #2a2a2a; */ /* REMOVED FOR CLEAN HEADER */
                 margin-top: 0;
                 display: flex;
                 justify-content: center;
@@ -1560,7 +1560,7 @@
                 flex-direction: column;
                 gap: 12px;
                 z-index: 10;
-                border-bottom: 1px solid #2a2a2a;
+                /* border-bottom: 1px solid #2a2a2a; */ /* REMOVED FOR CLEAN HEADER */
             }
             
             /* Content area - dynamic padding based on video state */
@@ -1620,19 +1620,37 @@
             }
             
             .categories-dropdown {
-                order: 2;
+                order: 2; /* Dropdown always stays at top */
             }
             
+            /* When NO video is active: Header → Dropdown → Tags → Grid */
             .tags-container {
-                order: 3; /* Tags come right after dropdown */
+                order: 3;
             }
             
             .video-container {
-                order: 4; /* Video appears after tags when active */
+                order: 4;
+                display: none; /* Hidden when not active */
             }
             
             .mobile-video-title {
-                order: 5; /* Video title after video */
+                order: 5;
+                display: none; /* Hidden when not active */
+            }
+            
+            /* When video IS active: Header → Dropdown → Video → Video Title → Tags → Grid */
+            body.video-active .video-container {
+                order: 3; /* Video moves up when active */
+                display: block;
+            }
+            
+            body.video-active .mobile-video-title {
+                order: 4; /* Title after video when active */
+                display: block;
+            }
+            
+            body.video-active .tags-container {
+                order: 5; /* Tags move down when video active */
             }
         }
 
