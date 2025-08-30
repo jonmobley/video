@@ -1524,6 +1524,7 @@
                 position: relative;
                 background: transparent;
                 margin: 0;
+                margin-top: 112px; /* Push below fixed header (60px) + dropdown (52px) */
                 padding: 8px 16px 16px 16px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
                 flex-direction: column;
@@ -1535,7 +1536,7 @@
             
             /* Content area with proper padding */
             .content {
-                padding-top: 220px; /* Page header (60px) + Mobile dropdown (52px) + Tags (76px: 8+16+52px content) + buffer (32px) */
+                padding-top: 200px; /* Fixed header + dropdown (112px) + Tags with margin (76px) + buffer (12px) */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
@@ -1544,7 +1545,7 @@
             
             /* When video is active, adjust positioning */
             body.video-active .content {
-                padding-top: 480px; /* Page header (60px) + Mobile dropdown (52px) + Video (212px) + Mobile title (32px) + Tags (76px: 8+16+52px) + buffer (48px) */
+                padding-top: 444px; /* Fixed header + dropdown (112px) + Video (212px) + Mobile title (32px) + Tags with margin (76px) + buffer (12px) */
             }
             
             /* Keep mobile elements properly spaced when video is active */
@@ -1746,7 +1747,7 @@
         <div class="tags-container">
             <div class="categories-dropdown">
                 <select id="categoriesDropdown" class="category-select">
-                    <option value="all-songs" selected data-icon="music-note">♪ All Songs</option>
+                    <option value="all-songs" selected data-icon="music-note">♪ All Dance Videos</option>
                     <option value="the-merry-land-of-oz" data-icon="music-note">♪ The Merry Land of Oz</option>
                     <option value="" disabled>More coming soon!</option>
                 </select>
@@ -2065,7 +2066,7 @@
             // Stop video and close player
             stopVideoAndClosePlayer();
             
-            // Reset category dropdown to "All Songs"
+            // Reset category dropdown to "All Dance Videos"
             const dropdown = document.getElementById('categoriesDropdown');
             if (dropdown) {
                 dropdown.value = 'all-songs';
