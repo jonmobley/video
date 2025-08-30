@@ -652,11 +652,12 @@
 
 
 
-        // Default categories
+        // Default categories (updated to match current tag system)
         function getDefaultCategories() {
             return [
-                { id: 'chorus and kids', name: 'Chorus and Kids', color: '#008f67' },
-                { id: 'section one', name: 'Section One', color: '#4ecdc4' }
+                { id: 'dancers', name: 'Dancers', color: '#4ecdc4', icon: null },
+                { id: 'kids', name: 'Kids', color: '#ff6b6b', icon: null },
+                { id: 'chorus', name: 'Chorus', color: '#ffd93d', icon: null }
             ];
         }
 
@@ -667,6 +668,25 @@
                 .replace(/\s+/g, '-')
                 .replace(/-+/g, '-')
                 .replace(/^-|-$/g, '');
+        }
+
+        // Generate URL string for video (matches Netlify function logic)
+        function generateVideoUrlString(wistiaId) {
+            let hash = 0;
+            for (let i = 0; i < wistiaId.length; i++) {
+                const char = wistiaId.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            
+            const positiveHash = Math.abs(hash);
+            let urlString = positiveHash.toString(36);
+            
+            while (urlString.length < 6) {
+                urlString = '0' + urlString;
+            }
+            
+            return urlString.substring(0, 8);
         }
 
         // Update status bar
@@ -723,21 +743,25 @@
                 return;
             }
             
-            categoryList.innerHTML = categories.map(category => `
-                <div class="category-item" style="--category-color: ${category.color}">
-                    <div class="category-details">
-                        <div class="category-color-preview" style="background-color: ${category.color}"></div>
-                        <div>
-                            <span class="category-name">${category.name}</span>
-                            <span class="category-id">(${category.id})</span>
+            categoryList.innerHTML = categories.map(category => {
+                const iconDisplay = category.icon ? `Icon: ${category.icon} | ` : '';
+                return `
+                    <div class="category-item" style="--category-color: ${category.color}">
+                        <div class="category-details">
+                            <div class="category-color-preview" style="background-color: ${category.color}"></div>
+                            <div>
+                                <span class="category-name">${category.name}</span>
+                                <span class="category-id">(${category.id})</span>
+                                ${category.icon ? `<br><span style="font-size: 12px; color: #666;">${iconDisplay}Available in dropdown</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="category-actions-item">
+                            <button class="btn btn-edit btn-small" onclick="editCategory('${category.id}')">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteCategory('${category.id}')">Delete</button>
                         </div>
                     </div>
-                    <div class="category-actions-item">
-                        <button class="btn btn-edit btn-small" onclick="editCategory('${category.id}')">Edit</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteCategory('${category.id}')">Delete</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Populate category select dropdown
@@ -915,7 +939,9 @@
                 id: wistiaId,
                 title: title,
                 category: category,
-                wistiaId: wistiaId
+                tags: [category], // Convert category to tags array
+                wistiaId: wistiaId,
+                urlString: generateVideoUrlString(wistiaId)
             };
             
             videos.push(newVideo);
@@ -947,12 +973,15 @@
             videoList.innerHTML = videos.map((video, index) => {
                 const category = categories.find(cat => cat.id === video.category);
                 const categoryName = category ? category.name : video.category;
+                const tags = video.tags ? video.tags.join(', ') : video.category;
+                const urlString = video.urlString || 'Not generated';
                 
                 return `
                     <div class="video-row">
                         <div class="video-details">
                             <h3>${video.title}</h3>
-                            <p>Category: ${categoryName} | Wistia ID: ${video.wistiaId}</p>
+                            <p>Category: ${categoryName} | Tags: ${tags}</p>
+                            <p style="font-size: 14px; color: #666;">Wistia ID: ${video.wistiaId} | URL: /oz.html#${urlString}</p>
                         </div>
                         <div class="video-actions">
                             <button class="btn btn-danger btn-small" onclick="deleteVideo(${index})">Delete</button>

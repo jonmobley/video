@@ -261,6 +261,12 @@
             margin: 0;
             text-align: center;
             justify-self: center;
+            transition: color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .page-title:hover {
+            color: #008f67;
+            opacity: 0.8;
         }
 
         .wistia-player {
@@ -300,7 +306,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             gap: 24px;
             position: relative;
             z-index: 50;
@@ -310,6 +316,11 @@
             display: flex;
             align-items: center;
             position: relative;
+            margin-top: 8px;
+        }
+
+        .mobile-categories-dropdown {
+            display: none;
         }
 
         .category-select {
@@ -364,7 +375,7 @@
             -ms-overflow-style: none;
             max-width: 800px;
             width: 100%;
-            padding: 8px 0 16px 0;
+            padding: 8px 0 8px 0;
         }
 
         .tags::-webkit-scrollbar {
@@ -1397,7 +1408,7 @@
             }
             
             .page-header {
-                padding: 8px 20px 4px 20px;
+                padding: 24px 20px 4px 20px;
                 text-align: center;
                 display: block !important;
                 visibility: visible !important;
@@ -1411,6 +1422,18 @@
             
             .vidshare-logo {
                 display: none !important;
+            }
+
+            .mobile-categories-dropdown {
+                display: block;
+                background: #0f0f0f;
+                padding: 8px 20px;
+                border-bottom: 1px solid #2a2a2a;
+            }
+
+            .mobile-categories-dropdown .categories-dropdown {
+                margin-top: 0;
+                justify-content: center;
             }
             
             .video-container {
@@ -1437,13 +1460,13 @@
                 gap: 12px;
             }
 
-            .categories-dropdown {
-                order: -1;
+            .tags-container .categories-dropdown {
+                display: none;
             }
             
             /* Content area with proper padding */
             .content {
-                padding-top: 140px; /* Page header (36px) + Tags (76px: 8+16+52px content) + buffer (28px) */
+                padding-top: 196px; /* Page header (52px) + Mobile dropdown (40px) + Tags (76px: 8+16+52px content) + buffer (28px) */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
@@ -1452,7 +1475,7 @@
             
             /* When video is active, adjust positioning */
             body.video-active .content {
-                padding-top: 380px; /* Page header (36px) + Video (212px) + Mobile title (32px) + Tags (76px: 8+16+52px) + buffer (24px) */
+                padding-top: 436px; /* Page header (52px) + Mobile dropdown (40px) + Video (212px) + Mobile title (32px) + Tags (76px: 8+16+52px) + buffer (24px) */
             }
             
             /* Keep mobile elements properly spaced when video is active */
@@ -1635,7 +1658,15 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title">Grace Church Wizard of Oz</h1>
+            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
+        </div>
+        <div class="mobile-categories-dropdown">
+            <div class="categories-dropdown">
+                <select id="categoriesDropdown" class="category-select">
+                    <option value="the-merry-land-of-oz" selected data-icon="music-note">♪ The Merry Land of Oz</option>
+                    <option value="" disabled>More coming soon!</option>
+                </select>
+            </div>
         </div>
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
@@ -1651,12 +1682,6 @@
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         <div class="tags-container">
-            <div class="categories-dropdown">
-                <select id="categoriesDropdown" class="category-select">
-                    <option value="the-merry-land-of-oz" selected data-icon="music-note">♪ The Merry Land of Oz</option>
-                    <option value="" disabled>More coming soon!</option>
-                </select>
-            </div>
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
@@ -1962,6 +1987,12 @@
             
             // Clear active video state immediately
             setActiveVideo(null);
+        }
+
+        // Reset page to default state (called when clicking page title)
+        function resetToDefault() {
+            console.log('Resetting page to default state');
+            stopVideoAndClosePlayer();
         }
 
         // Load Wistia video

@@ -9,9 +9,9 @@ try {
 
 // Default tags for initial setup (renamed from categories to tags)
 const defaultCategories = [
-  { id: 'dancers', name: 'Dancers', color: '#4ecdc4' },
-  { id: 'kids', name: 'Kids', color: '#ff6b6b' },
-  { id: 'chorus', name: 'Chorus', color: '#ffd93d' }
+  { id: 'dancers', name: 'Dancers', color: '#4ecdc4', icon: null },
+  { id: 'kids', name: 'Kids', color: '#ff6b6b', icon: null },
+  { id: 'chorus', name: 'Chorus', color: '#ffd93d', icon: null }
 ];
 
 exports.handler = async (event, context) => {
