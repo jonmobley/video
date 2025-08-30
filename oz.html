@@ -64,21 +64,11 @@
             z-index: -1;
         }
 
-        /* Mobile-optimized background */
+        /* Hide background on mobile */
         @media screen and (max-width: 767px) {
-            body::before {
-                background-position: center center;
-                background-size: cover;
-                opacity: 0.12;
-                filter: blur(2px);
-                will-change: transform;
-                transform: translateZ(0);
-            }
-            
+            body::before,
             body::after {
-                background: radial-gradient(ellipse at center, transparent 0%, transparent 20%, rgba(15, 15, 15, 0.4) 50%, rgba(15, 15, 15, 0.8) 100%);
-                will-change: transform;
-                transform: translateZ(0);
+                display: none;
             }
         }
 
@@ -467,19 +457,16 @@
             cursor: pointer;
             transition: all 0.2s ease;
             border: 2px solid transparent;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .tag.active {
             background: #008f67;
             color: #ffffff;
             border-color: #007a5a;
-            box-shadow: 0 4px 12px rgba(0, 143, 103, 0.3);
         }
 
         .tag:hover {
             background: #3a3a3a;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
 
         .tag.active:hover {
@@ -1503,10 +1490,15 @@
                 right: 0;
                 z-index: 150;
                 background: #0f0f0f;
-                padding: 8px 20px;
+                padding: 12px 20px 16px 20px;
                 border-bottom: 1px solid #2a2a2a;
                 margin-top: 0;
                 justify-content: center;
+            }
+            
+            /* Fix dropdown arrow positioning on mobile */
+            .categories-dropdown::after {
+                right: calc(50% - 70px); /* Adjust based on dropdown width */
             }
             
             .video-container {
@@ -1536,13 +1528,14 @@
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
                 flex-direction: column;
                 gap: 12px;
+                z-index: 10; /* Lower than header and dropdown */
             }
 
 
             
             /* Content area with proper padding */
             .content {
-                padding-top: 196px; /* Page header (52px) + Mobile dropdown (40px) + Tags (76px: 8+16+52px content) + buffer (28px) */
+                padding-top: 220px; /* Page header (60px) + Mobile dropdown (52px) + Tags (76px: 8+16+52px content) + buffer (32px) */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
@@ -1551,7 +1544,7 @@
             
             /* When video is active, adjust positioning */
             body.video-active .content {
-                padding-top: 436px; /* Page header (52px) + Mobile dropdown (40px) + Video (212px) + Mobile title (32px) + Tags (76px: 8+16+52px) + buffer (24px) */
+                padding-top: 480px; /* Page header (60px) + Mobile dropdown (52px) + Video (212px) + Mobile title (32px) + Tags (76px: 8+16+52px) + buffer (48px) */
             }
             
             /* Keep mobile elements properly spaced when video is active */
