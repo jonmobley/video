@@ -1471,15 +1471,16 @@
             }
             
             .page-header {
-                order: 1; /* Page title first */
+                /* NO ORDER - let it stay in natural DOM position */
                 padding: 20px 20px 12px 20px;
                 text-align: center;
                 display: block !important;
                 visibility: visible !important;
                 position: relative;
-                /* Ensure it stays at the very top */
-                top: 0;
                 width: 100%;
+                /* Force it to stay at top */
+                margin-top: 0;
+                flex-shrink: 0;
             }
             
             .page-title {
@@ -1494,7 +1495,7 @@
 
             /* Dropdown comes second in header */
             .categories-dropdown {
-                order: 2; /* Dropdown after page title */
+                /* Remove order: 2 and let it follow naturally after page-header */
                 position: relative;
                 top: auto;
                 left: auto;
