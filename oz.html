@@ -1552,16 +1552,16 @@
             
             /* When video is active, adjust positioning */
             body.video-active .content {
-                padding-top: 432px; /* Fixed elements (112px) + Video (212px) + Mobile title (32px) + Tags height (76px) = 432px */
+                padding-top: 432px; /* Tags margin-top (356px) + Tags height (76px) = 432px */
             }
             
-            /* Keep mobile elements properly spaced when video is active */
+            /* When video is active, adjust element positioning */
             body.video-active .mobile-video-title {
                 margin-top: 0;
             }
             
             body.video-active .tags-container {
-                margin-top: 0;
+                margin-top: 356px; /* Fixed elements (112px) + Video (212px) + Mobile title (32px) = 356px */
             }
 
 
