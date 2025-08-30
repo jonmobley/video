@@ -1151,6 +1151,21 @@
             margin-left: 4px;
         }
 
+        /* Duration overlay on thumbnail */
+        .thumbnail-duration {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 15;
+            backdrop-filter: blur(4px);
+        }
+
         /* Show play button on hover for desktop only */
         @media screen and (min-width: 768px) {
             .video-item:not(.active):hover .thumbnail-play-button {
@@ -2145,6 +2160,7 @@
                     <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
                             <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                            <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
                                 <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
@@ -2212,13 +2228,14 @@
             console.log('🕐 DEBUG: === LOADING DURATION FOR:', wistiaId, '===');
             
             const durationElement = document.getElementById(`duration-${wistiaId}`);
-            console.log('🕐 DEBUG: Duration element found:', durationElement);
-            console.log('🕐 DEBUG: Duration element ID:', `duration-${wistiaId}`);
+            const thumbnailDurationElement = document.getElementById(`thumb-duration-${wistiaId}`);
+            console.log('🕐 DEBUG: Duration elements found:', {
+                info: durationElement,
+                thumbnail: thumbnailDurationElement
+            });
             
-            if (!durationElement) {
-                console.error('🕐 ERROR: Duration element not found for:', wistiaId);
-                console.log('🕐 DEBUG: Available duration elements:', 
-                    Array.from(document.querySelectorAll('[id^="duration-"]')).map(el => el.id));
+            if (!durationElement && !thumbnailDurationElement) {
+                console.error('🕐 ERROR: No duration elements found for:', wistiaId);
                 return;
             }
 
@@ -2264,8 +2281,15 @@
                             const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
                             console.log('🕐 SUCCESS: Setting duration to:', formattedDuration);
                             
-                            durationElement.textContent = formattedDuration;
-                            durationElement.classList.remove('placeholder');
+                            // Update both duration elements
+                            if (durationElement) {
+                                durationElement.textContent = formattedDuration;
+                                durationElement.classList.remove('placeholder');
+                            }
+                            if (thumbnailDurationElement) {
+                                thumbnailDurationElement.textContent = formattedDuration;
+                                thumbnailDurationElement.classList.remove('placeholder');
+                            }
                             
                             console.log('🕐 DEBUG: After setting duration, element styles:', {
                                 display: durationElement.style.display,
@@ -2289,8 +2313,14 @@
                 // If no duration found from API, show a placeholder
                 if (!durationFound) {
                     console.log('🕐 FALLBACK: No duration found via API for', wistiaId, ', showing placeholder');
-                    durationElement.textContent = '--:--';
-                    durationElement.classList.add('placeholder');
+                    if (durationElement) {
+                        durationElement.textContent = '--:--';
+                        durationElement.classList.add('placeholder');
+                    }
+                    if (thumbnailDurationElement) {
+                        thumbnailDurationElement.textContent = '--:--';
+                        thumbnailDurationElement.classList.add('placeholder');
+                    }
                     
                     console.log('🕐 DEBUG: After setting placeholder, element styles:', {
                         display: durationElement.style.display,
@@ -3726,6 +3756,7 @@
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
                     <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                    <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
                         <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
