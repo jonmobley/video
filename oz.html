@@ -1448,28 +1448,29 @@
             display: none;
         }
 
-        /* Mobile styles */
+        /* Mobile styles - REPLACE EXISTING MOBILE SECTION */
         @media screen and (max-width: 767px) {
             body {
                 padding-top: 0;
             }
             
+            /* Make header elements non-fixed to prevent overlap */
             .header {
-                position: fixed !important;
-                top: 0;
-                left: 0;
-                right: 0;
+                position: relative !important;
+                top: auto !important;
+                left: auto !important;
+                right: auto !important;
                 z-index: 200;
-                background: transparent;
+                background: #0f0f0f;
                 width: 100%;
-                min-height: 60px;
             }
             
             .page-header {
-                padding: 24px 20px 4px 20px;
+                padding: 20px 20px 12px 20px;
                 text-align: center;
                 display: block !important;
                 visibility: visible !important;
+                position: relative;
             }
             
             .page-title {
@@ -1482,89 +1483,126 @@
                 display: none !important;
             }
 
-            /* Move categories dropdown to header on mobile */
+            /* Position categories dropdown right after header */
             .categories-dropdown {
-                position: fixed;
-                top: 60px; /* After page header */
-                left: 0;
-                right: 0;
-                z-index: 150;
+                position: relative;
+                top: auto;
+                left: auto;
+                right: auto;
+                z-index: auto;
                 background: #0f0f0f;
-                padding: 12px 20px 16px 20px;
+                padding: 8px 20px 12px 20px;
                 border-bottom: 1px solid #2a2a2a;
                 margin-top: 0;
                 justify-content: center;
             }
             
-            /* Fix dropdown arrow positioning on mobile */
+            /* Fix dropdown arrow positioning */
             .categories-dropdown::after {
-                right: calc(50% - 70px); /* Adjust based on dropdown width */
+                right: calc(50% - 70px);
             }
             
+            /* Video container - only show when active */
             .video-container {
                 position: relative;
-                margin: 0;
-                max-width: 100%;
+                margin: 0 20px;
+                max-width: calc(100% - 40px);
                 aspect-ratio: 16/9;
                 border-radius: 8px;
                 box-shadow: 
                     0 8px 20px -3px rgba(0, 0, 0, 0.35),
                     0 15px 40px -8px rgba(0, 0, 0, 0.2),
                     0 25px 60px -12px rgba(0, 0, 0, 0.1);
+                /* Hidden by default, shown when .active class is added */
+                display: none;
+                opacity: 0;
+                transform: translateY(-10px);
+                transition: all 0.3s ease;
             }
             
+            .video-container.active {
+                display: block;
+                opacity: 1;
+                transform: translateY(0);
+                margin-bottom: 12px;
+            }
+            
+            /* Mobile video title - positioned right after video */
             .mobile-video-title {
+                display: none;
                 position: relative;
                 background: #0f0f0f;
-                margin: 0;
-                padding: 8px 20px 4px 20px;
+                margin: 0 20px;
+                padding: 8px 0 4px 0;
+                color: #ffffff;
+                font-size: 18px;
+                font-weight: 600;
+                text-align: left;
             }
             
+            /* Show mobile title only when video is active */
+            body.video-active .mobile-video-title {
+                display: block;
+            }
+            
+            /* Tags container - repositions based on video state */
             .tags-container {
                 position: relative;
                 background: #0f0f0f;
                 margin: 0;
-                margin-top: 112px; /* Align to bottom of fixed header (60px) + dropdown (52px) */
-                padding: 8px 16px 16px 16px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                padding: 12px 16px 16px 16px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
                 flex-direction: column;
                 gap: 12px;
-                z-index: 10; /* Lower than header and dropdown */
+                z-index: 10;
+                border-bottom: 1px solid #2a2a2a;
             }
             
-            /* Top-align Now Playing overlay on mobile */
+            /* Content area - dynamic padding based on video state */
+            .content {
+                padding: 20px 20px 24px 20px;
+                transition: all 0.3s ease;
+            }
+            
+            /* When video is active, add top margin to content */
+            body.video-active .content {
+                margin-top: 8px;
+            }
+            
+            /* Adjust video grid for mobile */
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            
+            /* Ensure thumbnails don't get cut off */
+            .video-item {
+                min-height: auto;
+            }
+            
+            .thumbnail {
+                aspect-ratio: 16/9;
+                width: 100%;
+            }
+            
+            /* Adjust active video indicator position */
             .video-item.active .thumbnail::before {
-                top: 12px;
+                top: 8px;
                 left: 50%;
                 transform: translateX(-50%);
-            }
-
-
-            
-            /* Content area with proper padding */
-            .content {
-                padding-top: 188px; /* Fixed elements (112px) + Tags height (76px) = 188px */
-                padding-left: 20px;
-                padding-right: 20px;
-                padding-bottom: 24px;
-                transition: padding-top 0.3s ease;
+                font-size: 10px;
+                padding: 4px 12px;
             }
             
-            /* When video is active, adjust positioning */
-            body.video-active .content {
-                padding-top: 432px; /* Tags margin-top (356px) + Tags height (76px) = 432px */
+            /* Mobile-specific close button for video */
+            .video-close-button {
+                display: block !important;
+                opacity: 1 !important;
+                top: 8px;
+                right: 8px;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(8px);
             }
-            
-            /* When video is active, adjust element positioning */
-            body.video-active .mobile-video-title {
-                margin-top: 0;
-            }
-            
-            body.video-active .tags-container {
-                margin-top: 356px; /* Align to bottom of video player: Fixed elements (112px) + Video (212px) + Mobile title (32px) = 356px */
-            }
-
-
         }
 
         /* Landscape fullscreen styles */
