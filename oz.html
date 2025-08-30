@@ -67,6 +67,11 @@
             transform: translateY(-20px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             pointer-events: none;
+            outline: none;
+        }
+
+        .video-container:focus {
+            outline: none;
         }
 
         .video-container.active {
@@ -262,6 +267,20 @@
             width: 100%;
             height: 100%;
             position: relative;
+            outline: none;
+        }
+
+        .wistia-player:focus,
+        .wistia-player iframe:focus,
+        .video-container iframe:focus,
+        .video-container *:focus {
+            outline: none !important;
+        }
+
+        /* Remove focus outline from any Wistia-generated elements */
+        [id*="wistia"]:focus,
+        [class*="wistia"]:focus {
+            outline: none !important;
         }
 
         .wistia_responsive_padding {
