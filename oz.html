@@ -1613,7 +1613,6 @@
             .header {
                 display: flex;
                 flex-direction: column;
-                order: 1;
             }
             
             .page-header {
@@ -1624,16 +1623,16 @@
                 order: 2;
             }
             
+            .tags-container {
+                order: 3; /* Tags come right after dropdown */
+            }
+            
             .video-container {
-                order: 3;
+                order: 4; /* Video appears after tags when active */
             }
             
             .mobile-video-title {
-                order: 4;
-            }
-            
-            .tags-container {
-                order: 5;
+                order: 5; /* Video title after video */
             }
         }
 
