@@ -1515,14 +1515,14 @@
             
             .mobile-video-title {
                 position: relative;
-                background: transparent;
+                background: #0f0f0f;
                 margin: 0;
                 padding: 8px 20px 4px 20px;
             }
             
             .tags-container {
                 position: relative;
-                background: transparent;
+                background: #0f0f0f;
                 margin: 0;
                 margin-top: 112px; /* Push below fixed header (60px) + dropdown (52px) */
                 padding: 8px 16px 16px 16px;
@@ -1531,12 +1531,19 @@
                 gap: 12px;
                 z-index: 10; /* Lower than header and dropdown */
             }
+            
+            /* Top-align Now Playing overlay on mobile */
+            .video-item.active .thumbnail::before {
+                top: 12px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
 
 
             
             /* Content area with proper padding */
             .content {
-                padding-top: 200px; /* Fixed header + dropdown (112px) + Tags with margin (76px) + buffer (12px) */
+                padding-top: 188px; /* Fixed elements (112px) + Tags height (76px) = 188px */
                 padding-left: 20px;
                 padding-right: 20px;
                 padding-bottom: 24px;
@@ -1545,7 +1552,7 @@
             
             /* When video is active, adjust positioning */
             body.video-active .content {
-                padding-top: 444px; /* Fixed header + dropdown (112px) + Video (212px) + Mobile title (32px) + Tags with margin (76px) + buffer (12px) */
+                padding-top: 432px; /* Fixed elements (112px) + Video (212px) + Mobile title (32px) + Tags height (76px) = 432px */
             }
             
             /* Keep mobile elements properly spaced when video is active */
