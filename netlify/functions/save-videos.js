@@ -7,6 +7,29 @@ try {
   console.log('Netlify Blobs not available, using fallback mode:', error.message);
 }
 
+// Function to generate a persistent random string for a video
+function generateVideoUrlString(wistiaId) {
+  // Create a simple hash from the wistiaId to ensure consistency
+  let hash = 0;
+  for (let i = 0; i < wistiaId.length; i++) {
+    const char = wistiaId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  // Convert to positive number and create a base36 string
+  const positiveHash = Math.abs(hash);
+  let urlString = positiveHash.toString(36);
+  
+  // Ensure minimum length of 6 characters
+  while (urlString.length < 6) {
+    urlString = '0' + urlString;
+  }
+  
+  // Limit to 8 characters for clean URLs
+  return urlString.substring(0, 8);
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -41,10 +64,16 @@ exports.handler = async (event, context) => {
       throw new Error('Videos must be an array');
     }
 
-    // Validate each video object
+    // Validate and enhance each video object
     for (const video of videos) {
       if (!video.id || !video.title || !video.category || !video.wistiaId) {
         throw new Error('Invalid video data structure - id, title, category, and wistiaId are required');
+      }
+      
+      // Ensure video has a URL string
+      if (!video.urlString) {
+        video.urlString = generateVideoUrlString(video.wistiaId);
+        console.log(`Generated URL string for video ${video.wistiaId}: ${video.urlString}`);
       }
     }
 

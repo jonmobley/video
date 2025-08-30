@@ -7,6 +7,29 @@ try {
   console.log('Netlify Blobs not available, using fallback mode:', error.message);
 }
 
+// Function to generate a persistent random string for a video
+function generateVideoUrlString(wistiaId) {
+  // Create a simple hash from the wistiaId to ensure consistency
+  let hash = 0;
+  for (let i = 0; i < wistiaId.length; i++) {
+    const char = wistiaId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  // Convert to positive number and create a base36 string
+  const positiveHash = Math.abs(hash);
+  let urlString = positiveHash.toString(36);
+  
+  // Ensure minimum length of 6 characters
+  while (urlString.length < 6) {
+    urlString = '0' + urlString;
+  }
+  
+  // Limit to 8 characters for clean URLs
+  return urlString.substring(0, 8);
+}
+
 // Default videos for initial setup
 const defaultVideos = [
   {
@@ -14,28 +37,32 @@ const defaultVideos = [
     title: 'Chorus and Kids Stage L',
     category: 'chorus',
     tags: ['chorus', 'kids'],
-    wistiaId: 'ssgxvlsdmx'
+    wistiaId: 'ssgxvlsdmx',
+    urlString: generateVideoUrlString('ssgxvlsdmx')
   },
   {
     id: '7kpm1d3mhv',
     title: 'Chorus and Kids Stage R',
     category: 'chorus',
     tags: ['chorus', 'kids'],
-    wistiaId: '7kpm1d3mhv'
+    wistiaId: '7kpm1d3mhv',
+    urlString: generateVideoUrlString('7kpm1d3mhv')
   },
   {
     id: 'eklwt6f33t',
     title: 'Section One: Dancers',
     category: 'dancers',
     tags: ['dancers'],
-    wistiaId: 'eklwt6f33t'
+    wistiaId: 'eklwt6f33t',
+    urlString: generateVideoUrlString('eklwt6f33t')
   },
   {
     id: 'xqxp9qk6ab',
     title: 'Section One: Stage R Chorus',
     category: 'chorus',
     tags: ['chorus'],
-    wistiaId: 'xqxp9qk6ab'
+    wistiaId: 'xqxp9qk6ab',
+    urlString: generateVideoUrlString('xqxp9qk6ab')
   }
 ];
 

@@ -1771,6 +1771,9 @@
         let originalVideoPosition = null;
         let originalVideoElement = null;
 
+        // Store video URL mappings
+        let videoUrlMappings = {};
+
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
             document.querySelectorAll('.video-item').forEach(item => {
@@ -1787,13 +1790,71 @@
                 currentlyPlayingVideoId = wistiaId;
                 // Add video-active class to body for mobile layout positioning
                 document.body.classList.add('video-active');
+                
+                // Update browser URL with video's unique string
+                updateBrowserUrl(wistiaId);
             } else {
                 restoreVideoPosition();
                 currentlyPlayingVideoId = null;
                 // Remove video-active class from body
                 document.body.classList.remove('video-active');
+                
+                // Clear URL hash when no video is playing
+                clearBrowserUrl();
             }
         }
+
+        function updateBrowserUrl(wistiaId) {
+            const video = videoUrlMappings[wistiaId];
+            if (video && video.urlString) {
+                // Update URL without triggering page reload
+                const newUrl = `${window.location.pathname}#${video.urlString}`;
+                window.history.replaceState(null, '', newUrl);
+            }
+        }
+
+        function clearBrowserUrl() {
+            // Remove hash from URL
+            const newUrl = window.location.pathname + window.location.search;
+            window.history.replaceState(null, '', newUrl);
+        }
+
+        function buildVideoUrlMappings(videos) {
+            // Clear existing mappings
+            videoUrlMappings = {};
+            
+            // Build mappings from video data
+            videos.forEach(video => {
+                if (video.urlString) {
+                    videoUrlMappings[video.wistiaId] = video;
+                    // Also create reverse mapping for URL string to wistiaId
+                    videoUrlMappings[video.urlString] = video;
+                }
+            });
+            
+            console.log('🔗 Built video URL mappings:', Object.keys(videoUrlMappings).length / 2, 'videos');
+        }
+
+        function checkForDirectVideoLink() {
+            const hash = window.location.hash.substring(1); // Remove # symbol
+            if (hash) {
+                // Look for video with this URL string
+                const video = videoUrlMappings[hash];
+                if (video && video.wistiaId) {
+                    console.log('🔗 Direct link detected, loading video:', video.title);
+                    // Small delay to ensure video grid is ready
+                    setTimeout(() => {
+                        loadWistiaVideo(video.wistiaId, video.title);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }, 100);
+                }
+            }
+        }
+
+        // Listen for hash changes (back/forward navigation)
+        window.addEventListener('hashchange', function() {
+            checkForDirectVideoLink();
+        });
 
         function moveVideoToFirst(videoElement) {
             const videoGrid = document.getElementById('videoGrid');
@@ -2080,6 +2141,12 @@
             
             // Fix orphaned words in titles
             fixOrphanedWords();
+            
+            // Build video URL mappings for direct links
+            buildVideoUrlMappings(videos);
+            
+            // Check if we should auto-play a video from URL hash
+            checkForDirectVideoLink();
             
             console.log('🎬 DEBUG: Video grid HTML set, checking for duration elements...');
             
