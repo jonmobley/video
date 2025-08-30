@@ -101,7 +101,7 @@
 
         .video-container {
             width: 100%;
-            max-width: 800px;
+            max-width: 1000px;
             aspect-ratio: 16/9;
             background: #1a1a1a;
             position: relative;
@@ -165,7 +165,7 @@
             text-align: left;
             padding: 16px 20px 8px 20px;
             margin: 0;
-            max-width: 800px;
+            max-width: 1000px;
             margin-left: auto;
             margin-right: auto;
         }
@@ -183,13 +183,14 @@
 
         .video-close-button {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(0, 0, 0, 0.7);
+            top: -8px;
+            right: -8px;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             border: none;
-            padding: 12px 16px;
-            border-radius: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -197,23 +198,22 @@
             opacity: 0;
             transition: all 0.3s ease;
             z-index: 20;
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: 700;
             backdrop-filter: blur(4px);
-            white-space: nowrap;
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
 
         .video-close-button::before {
             content: '✕';
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 700;
             color: white;
-            margin-right: 8px;
         }
 
         .video-close-button:hover {
-            background: #008f67;
-            transform: scale(1.05);
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
         }
 
         /* Show close button on hover for desktop only */
@@ -276,7 +276,7 @@
 
         .page-header {
             width: 100%;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto 12px auto;
             padding: 16px 20px 0 20px;
             display: grid;
@@ -435,7 +435,7 @@
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            max-width: 800px;
+            max-width: 1000px;
             width: 100%;
             padding: 8px 0 8px 0;
         }
@@ -475,7 +475,7 @@
 
         .content {
             padding: 24px 20px;
-            max-width: 800px;
+            max-width: 1000px;
             margin-left: auto;
             margin-right: auto;
             box-sizing: border-box;
@@ -1682,7 +1682,7 @@
         /* Large desktop - 3 columns (1300px+) */
         @media screen and (min-width: 1300px) {
             .video-container {
-                max-width: 800px;
+                max-width: 1000px;
                 aspect-ratio: 16/9;
             }
 
@@ -1692,13 +1692,13 @@
             }
 
             .tags-container {
-                max-width: 800px;
+                max-width: 1000px;
                 margin: 0 auto;
             }
 
             .content {
                 padding: 24px 20px;
-                max-width: 800px;
+                max-width: 1000px;
                 margin-left: auto;
                 margin-right: auto;
                 box-sizing: border-box;
@@ -1748,7 +1748,7 @@
                 </div>
             </div>
             <div class="video-title-overlay" id="current-video-title"></div>
-            <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()">Close</button>
+            <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()"></button>
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         <div class="tags-container">
