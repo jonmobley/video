@@ -1491,15 +1491,18 @@
                 right: auto;
                 z-index: auto;
                 background: #0f0f0f;
-                padding: 8px 20px 12px 20px;
+                padding: 12px 20px 16px 20px;
                 border-bottom: 1px solid #2a2a2a;
                 margin-top: 0;
+                display: flex;
                 justify-content: center;
+                align-items: center;
+                width: 100%;
             }
             
-            /* Fix dropdown arrow positioning */
+            /* Center the dropdown arrow better */
             .categories-dropdown::after {
-                right: calc(50% - 70px);
+                right: calc(50% - 60px); /* Adjusted for better centering */
             }
             
             /* Video container - only show when active */
@@ -1520,11 +1523,13 @@
                 transition: all 0.3s ease;
             }
             
+            /* Ensure video appears AFTER dropdown */
             .video-container.active {
                 display: block;
                 opacity: 1;
                 transform: translateY(0);
                 margin-bottom: 12px;
+                margin-top: 8px; /* Add space between dropdown and video */
             }
             
             /* Mobile video title - positioned right after video */
@@ -1602,6 +1607,33 @@
                 right: 8px;
                 background: rgba(0, 0, 0, 0.8);
                 backdrop-filter: blur(8px);
+            }
+            
+            /* Force proper mobile layout order */
+            .header {
+                display: flex;
+                flex-direction: column;
+                order: 1;
+            }
+            
+            .page-header {
+                order: 1;
+            }
+            
+            .categories-dropdown {
+                order: 2;
+            }
+            
+            .video-container {
+                order: 3;
+            }
+            
+            .mobile-video-title {
+                order: 4;
+            }
+            
+            .tags-container {
+                order: 5;
             }
         }
 
