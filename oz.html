@@ -154,7 +154,7 @@
 
         .video-close-button::before {
             content: '✕';
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
             color: white;
             margin-right: 8px;
@@ -203,7 +203,7 @@
 
         .thumbnail-close-button::before {
             content: '✕';
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             color: white;
             margin-right: 6px;
@@ -364,7 +364,7 @@
             -ms-overflow-style: none;
             max-width: 800px;
             width: 100%;
-            padding: 4px 0;
+            padding: 8px 0 16px 0;
         }
 
         .tags::-webkit-scrollbar {
@@ -1653,7 +1653,7 @@
         <div class="tags-container">
             <div class="categories-dropdown">
                 <select id="categoriesDropdown" class="category-select">
-                    <option value="the-merry-land-of-oz" selected>The Merry Land of Oz</option>
+                    <option value="the-merry-land-of-oz" selected data-icon="music-note">♪ The Merry Land of Oz</option>
                     <option value="" disabled>More coming soon!</option>
                 </select>
             </div>
@@ -1783,11 +1783,22 @@
 
         // Track currently playing video
         let currentlyPlayingVideoId = null;
-        let originalVideoPosition = null;
-        let originalVideoElement = null;
 
         // Store video URL mappings
         let videoUrlMappings = {};
+        
+        // Available category icons
+        const availableIcons = {
+            'music-note': '♪',
+            'star': '★',
+            'heart': '♥',
+            'diamond': '♦',
+            'club': '♣',
+            'spade': '♠'
+        };
+        
+        // Category management
+        let categories = [];
 
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
@@ -1800,7 +1811,6 @@
                 const activeVideo = document.querySelector(`[data-wistia="${wistiaId}"]`);
                 if (activeVideo) {
                     activeVideo.classList.add('active');
-                    moveVideoToFirst(activeVideo);
                 }
                 currentlyPlayingVideoId = wistiaId;
                 // Add video-active class to body for mobile layout positioning
@@ -1809,7 +1819,6 @@
                 // Update browser URL with video's unique string
                 updateBrowserUrl(wistiaId);
             } else {
-                restoreVideoPosition();
                 currentlyPlayingVideoId = null;
                 // Remove video-active class from body
                 document.body.classList.remove('video-active');
@@ -1871,66 +1880,44 @@
             checkForDirectVideoLink();
         });
 
-        function moveVideoToFirst(videoElement) {
-            const videoGrid = document.getElementById('videoGrid');
+        // Function to update categories dropdown with icons
+        function updateCategoriesDropdown(categoriesData) {
+            const dropdown = document.getElementById('categoriesDropdown');
+            if (!dropdown) return;
             
-            // Store original position if not already stored
-            if (!originalVideoElement) {
-                originalVideoElement = videoElement.cloneNode(true);
-                originalVideoPosition = Array.from(videoGrid.children).indexOf(videoElement);
-                console.log('Stored original position:', originalVideoPosition);
-            }
-            
-            // Move video to first position
-            if (videoGrid.firstChild !== videoElement) {
-                videoGrid.insertBefore(videoElement, videoGrid.firstChild);
-                console.log('Moved video to first position');
-            }
-        }
-
-        function restoreVideoPosition() {
-            if (originalVideoElement && originalVideoPosition !== null) {
-                const videoGrid = document.getElementById('videoGrid');
-                const currentVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
-                
-                if (currentVideo) {
-                    // Get all current children
-                    const children = Array.from(videoGrid.children);
-                    
-                    // Remove the current video from its position
-                    currentVideo.remove();
-                    
-                    // Insert it back at the original position
-                    if (originalVideoPosition >= children.length - 1) {
-                        videoGrid.appendChild(currentVideo);
-                    } else {
-                        const referenceNode = children[originalVideoPosition];
-                        videoGrid.insertBefore(currentVideo, referenceNode);
-                    }
-                    
-                    console.log('Restored video to original position:', originalVideoPosition);
-                }
-                
-                // Clear stored position
-                originalVideoElement = null;
-                originalVideoPosition = null;
-            }
-        }
-
-        function moveVideoToFirstInFilteredView(videoElement) {
-            const videoGrid = document.getElementById('videoGrid');
-            const visibleVideos = Array.from(videoGrid.children).filter(child => 
-                !child.classList.contains('hidden')
+            // Clear existing options except the default ones
+            const defaultOptions = Array.from(dropdown.options).filter(option => 
+                option.value === 'the-merry-land-of-oz' || option.value === ''
             );
             
-            // If the video is not already first among visible videos, move it
-            if (visibleVideos.length > 0 && visibleVideos[0] !== videoElement) {
-                // Find the first visible video and insert before it
-                const firstVisible = visibleVideos[0];
-                videoGrid.insertBefore(videoElement, firstVisible);
-                console.log('Moved playing video to first position in filtered view');
+            dropdown.innerHTML = '';
+            
+            // Add back default options
+            defaultOptions.forEach(option => dropdown.appendChild(option));
+            
+            // Add category-based options if needed in the future
+            if (categoriesData && categoriesData.length > 0) {
+                categoriesData.forEach(category => {
+                    if (category.showInDropdown) {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
+                        option.textContent = icon + category.name;
+                        option.setAttribute('data-icon', category.icon || '');
+                        dropdown.appendChild(option);
+                    }
+                });
             }
         }
+
+        // Function to get icon HTML for admin interface
+        function getIconHtml(iconKey) {
+            return iconKey && availableIcons[iconKey] ? availableIcons[iconKey] : '';
+        }
+
+
+
+
 
         function stopVideoAndClosePlayer() {
             console.log('Stopping video and closing player');
@@ -2603,6 +2590,14 @@
                 tag.addEventListener('click', function(e) {
                     if (!isEditMode) return;
                     
+                    // Check if Ctrl/Cmd+click for icon editing
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        editCategoryIcon(this);
+                        return;
+                    }
+                    
                     // Check if click is on the X button area (top-right corner)
                     const rect = this.getBoundingClientRect();
                     const clickX = e.clientX - rect.left;
@@ -2614,6 +2609,81 @@
                         deleteCategoryWithReassignment(this);
                     }
                 });
+            });
+        }
+
+        function editCategoryIcon(categoryElement) {
+            const categoryId = categoryElement.dataset.category;
+            const currentIcon = categoryElement.dataset.icon || '';
+            
+            // Create icon selection popup
+            const popup = document.createElement('div');
+            popup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #2a2a2a;
+                border: 2px solid #008f67;
+                border-radius: 12px;
+                padding: 20px;
+                z-index: 1000;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                color: white;
+                min-width: 300px;
+            `;
+            
+            popup.innerHTML = `
+                <h3 style="margin: 0 0 15px 0; color: #008f67;">Choose Category Icon</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+                    <button class="icon-option" data-icon="" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === '' ? '#008f67' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer;">None</button>
+                    ${Object.entries(availableIcons).map(([key, icon]) => 
+                        `<button class="icon-option" data-icon="${key}" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === key ? '#008f67' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer; font-size: 18px;">${icon} ${key.replace('-', ' ')}</button>`
+                    ).join('')}
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="cancelIconEdit" style="padding: 8px 16px; background: #666; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
+                    <button id="saveIconEdit" style="padding: 8px 16px; background: #008f67; border: none; border-radius: 6px; color: white; cursor: pointer;">Save</button>
+                </div>
+            `;
+            
+            document.body.appendChild(popup);
+            
+            let selectedIcon = currentIcon;
+            
+            // Handle icon selection
+            popup.querySelectorAll('.icon-option').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    popup.querySelectorAll('.icon-option').forEach(b => b.style.borderColor = 'transparent');
+                    this.style.borderColor = '#008f67';
+                    selectedIcon = this.dataset.icon;
+                });
+            });
+            
+            // Handle save
+            popup.querySelector('#saveIconEdit').addEventListener('click', function() {
+                categoryElement.dataset.icon = selectedIcon;
+                
+                // Update category display (for future dropdown integration)
+                const iconDisplay = selectedIcon && availableIcons[selectedIcon] ? availableIcons[selectedIcon] + ' ' : '';
+                
+                // Mark as changed
+                markUnsavedChanges();
+                console.log(`Category ${categoryId} icon updated to: ${selectedIcon}`);
+                
+                document.body.removeChild(popup);
+            });
+            
+            // Handle cancel
+            popup.querySelector('#cancelIconEdit').addEventListener('click', function() {
+                document.body.removeChild(popup);
+            });
+            
+            // Close on outside click
+            popup.addEventListener('click', function(e) {
+                if (e.target === popup) {
+                    document.body.removeChild(popup);
+                }
             });
         }
 
@@ -3811,19 +3881,7 @@
                     }
                 });
                 
-                // If there's a currently playing video, check if it should be moved to first position
-                if (currentlyPlayingVideoId) {
-                    const activeVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
-                    if (activeVideo && categoryName === 'all') {
-                        moveVideoToFirstInFilteredView(activeVideo);
-                    } else if (activeVideo) {
-                        // Check if active video has the selected tag
-                        const videoTags = activeVideo.dataset.tags ? activeVideo.dataset.tags.split(',') : [activeVideo.dataset.category];
-                        if (videoTags.includes(categoryName)) {
-                            moveVideoToFirstInFilteredView(activeVideo);
-                        }
-                    }
-                }
+
                 
                 console.log('Category filtering completed:', categoryName);
             } finally {
