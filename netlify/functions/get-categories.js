@@ -7,10 +7,11 @@ try {
   console.log('Netlify Blobs not available, using fallback mode:', error.message);
 }
 
-// Default categories for initial setup
+// Default tags for initial setup (renamed from categories to tags)
 const defaultCategories = [
-  { id: 'chorus and kids', name: 'Chorus and Kids', color: '#ff6b6b' },
-  { id: 'section one', name: 'Section One', color: '#4ecdc4' }
+  { id: 'dancers', name: 'Dancers', color: '#4ecdc4' },
+  { id: 'kids', name: 'Kids', color: '#ff6b6b' },
+  { id: 'chorus', name: 'Chorus', color: '#ffd93d' }
 ];
 
 exports.handler = async (event, context) => {

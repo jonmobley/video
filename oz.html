@@ -281,8 +281,53 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             display: flex;
             justify-content: center;
+            align-items: center;
+            gap: 16px;
             position: relative;
             z-index: 50;
+        }
+
+        .categories-dropdown {
+            display: flex;
+            align-items: center;
+        }
+
+        .category-select {
+            background: #008f67;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            position: relative;
+            padding-right: 32px;
+        }
+
+        .category-select:hover {
+            background: #007a5a;
+        }
+
+        .category-select:focus {
+            background: #007a5a;
+            box-shadow: 0 0 0 2px rgba(0, 143, 103, 0.3);
+        }
+
+        /* Custom dropdown arrow */
+        .categories-dropdown::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 10px;
+            pointer-events: none;
         }
 
         .tags {
@@ -1354,6 +1399,12 @@
                 margin: 0;
                 padding: 8px 16px 16px 16px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .categories-dropdown {
+                order: -1;
             }
             
             /* Content area with proper padding */
@@ -1566,11 +1617,18 @@
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         <div class="tags-container">
+            <div class="categories-dropdown">
+                <select id="categoriesDropdown" class="category-select">
+                    <option value="the-merry-land-of-oz" selected>The Merry Land of Oz</option>
+                    <option value="" disabled>More coming soon!</option>
+                </select>
+            </div>
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="chorus and kids">Chorus and Kids</div>
-                <div class="tag" data-category="section one">Section One</div>
+                <div class="tag" data-category="dancers">Dancers</div>
+                <div class="tag" data-category="kids">Kids</div>
+                <div class="tag" data-category="chorus">Chorus</div>
             </div>
         </div>
     </div>
@@ -1965,8 +2023,14 @@
             
             const videoHTML = videos.map((video, index) => {
                 console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videos.length}:`, video);
+                
+                // Handle both old format (category) and new format (tags array)
+                const videoTags = video.tags || [video.category];
+                const tagsString = videoTags.join(',');
+                const displayTag = videoTags.map(tag => tag.charAt(0).toUpperCase() + tag.slice(1)).join(', ');
+                
                 const html = `
-                    <div class="video-item" data-category="${video.category}" data-title="${video.title}" data-wistia="${video.wistiaId}">
+                    <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
                             <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                             <div class="thumbnail-play-button"></div>
@@ -1985,7 +2049,7 @@
                                 <div class="item-title">${video.title}</div>
                                 <div class="item-duration" id="duration-${video.wistiaId}">--:--</div>
                             </div>
-                            <div class="item-tag">${video.category.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</div>
+                            <div class="item-tag">${displayTag}</div>
                         </div>
                     </div>
                 `;
@@ -3606,24 +3670,38 @@
                     }
                 }
                 
-                // Filter videos based on category - use consistent method
+                // Filter videos based on tags - use consistent method
                 const videoItems = document.querySelectorAll('.video-item');
                 videoItems.forEach(item => {
                     // Clear any existing display styles to ensure consistency
                     item.style.display = '';
                     
-                    if (categoryName === 'all' || item.dataset.category === categoryName) {
+                    if (categoryName === 'all') {
                         item.classList.remove('hidden');
                     } else {
-                        item.classList.add('hidden');
+                        // Check if the video has the selected tag
+                        const videoTags = item.dataset.tags ? item.dataset.tags.split(',') : [item.dataset.category];
+                        const hasTag = videoTags.includes(categoryName);
+                        
+                        if (hasTag) {
+                            item.classList.remove('hidden');
+                        } else {
+                            item.classList.add('hidden');
+                        }
                     }
                 });
                 
                 // If there's a currently playing video, check if it should be moved to first position
                 if (currentlyPlayingVideoId) {
                     const activeVideo = document.querySelector(`[data-wistia="${currentlyPlayingVideoId}"]`);
-                    if (activeVideo && (categoryName === 'all' || activeVideo.dataset.category === categoryName)) {
+                    if (activeVideo && categoryName === 'all') {
                         moveVideoToFirstInFilteredView(activeVideo);
+                    } else if (activeVideo) {
+                        // Check if active video has the selected tag
+                        const videoTags = activeVideo.dataset.tags ? activeVideo.dataset.tags.split(',') : [activeVideo.dataset.category];
+                        if (videoTags.includes(categoryName)) {
+                            moveVideoToFirstInFilteredView(activeVideo);
+                        }
                     }
                 }
                 
