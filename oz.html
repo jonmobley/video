@@ -309,6 +309,7 @@
         .categories-dropdown {
             display: flex;
             align-items: center;
+            position: relative;
         }
 
         .category-select {
@@ -317,7 +318,7 @@
             border: none;
             padding: 8px 16px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             outline: none;
@@ -325,7 +326,10 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             position: relative;
-            padding-right: 32px;
+            padding-right: 36px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .category-select:hover {
@@ -345,8 +349,9 @@
             top: 50%;
             transform: translateY(-50%);
             color: white;
-            font-size: 10px;
+            font-size: 12px;
             pointer-events: none;
+            z-index: 1;
         }
 
         .tags {
