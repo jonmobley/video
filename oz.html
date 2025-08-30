@@ -1457,7 +1457,7 @@
             /* Header container - contains page header and dropdown */
             .header {
                 position: relative !important;
-                top: auto !important;
+                top: 0 !important; /* Ensure header starts at top */
                 left: auto !important;
                 right: auto !important;
                 z-index: 200;
@@ -1466,6 +1466,8 @@
                 /* Reorder children with flexbox */
                 display: flex;
                 flex-direction: column;
+                margin-top: 0; /* No top margin */
+                padding-top: 0; /* No top padding */
             }
             
             .page-header {
@@ -1475,6 +1477,9 @@
                 display: block !important;
                 visibility: visible !important;
                 position: relative;
+                /* Ensure it stays at the very top */
+                top: 0;
+                width: 100%;
             }
             
             .page-title {
