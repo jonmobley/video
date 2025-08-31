@@ -1509,20 +1509,17 @@
                 width: 100%;
             }
             
-            /* Fix dropdown arrow positioning for mobile - position relative to centered dropdown */
+            /* Hide the default arrow on mobile since positioning is problematic */
             .categories-dropdown::after {
-                right: 12px;
-                position: absolute;
-                top: 50%;
-                transform: translateY(-50%);
-                /* Ensure it's positioned relative to the select element, not the container */
-                z-index: 10;
+                display: none;
             }
             
-            /* Ensure dropdown container provides proper positioning context */
-            .categories-dropdown {
-                position: relative;
-                display: inline-block;
+            /* Show native dropdown arrow on mobile */
+            .category-select {
+                appearance: auto;
+                -webkit-appearance: auto;
+                -moz-appearance: auto;
+                padding-right: 16px; /* Reduce padding since we're using native arrow */
             }
             
             /* Video container comes third in header when active */
