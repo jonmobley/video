@@ -1509,12 +1509,20 @@
                 width: 100%;
             }
             
-            /* Fix dropdown arrow positioning for mobile */
+            /* Fix dropdown arrow positioning for mobile - position relative to centered dropdown */
             .categories-dropdown::after {
                 right: 12px;
                 position: absolute;
                 top: 50%;
                 transform: translateY(-50%);
+                /* Ensure it's positioned relative to the select element, not the container */
+                z-index: 10;
+            }
+            
+            /* Ensure dropdown container provides proper positioning context */
+            .categories-dropdown {
+                position: relative;
+                display: inline-block;
             }
             
             /* Video container comes third in header when active */
