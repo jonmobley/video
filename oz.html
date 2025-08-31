@@ -1509,9 +1509,12 @@
                 width: 100%;
             }
             
-            /* Fix dropdown arrow positioning */
+            /* Fix dropdown arrow positioning for mobile */
             .categories-dropdown::after {
-                right: calc(50% - 60px);
+                right: 12px;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
             }
             
             /* Video container comes third in header when active */
