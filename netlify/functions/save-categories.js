@@ -5,8 +5,20 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 let supabase = null;
 
+console.log('Supabase initialization:', {
+  hasUrl: !!supabaseUrl,
+  hasKey: !!supabaseKey,
+  urlLength: supabaseUrl ? supabaseUrl.length : 0,
+  urlStart: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined'
+});
+
 if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client created successfully');
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+  }
 }
 
 exports.handler = async (event, context) => {
