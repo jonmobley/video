@@ -1,4 +1,5 @@
 # VidShare Dance Hub
+<!-- Last updated: 2025-02-01 -->
 
 A mobile-first video sharing platform for theater groups to share dance instruction videos with cast members. Built with Wistia integration and serverless functions.
 
