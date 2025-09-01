@@ -2237,6 +2237,24 @@
                 if (response.ok) {
                     const videos = await response.json();
                     console.log('Videos loaded:', videos);
+                    
+                    // Check if there's a featured video saved
+                    const featuredVideo = videos.find(v => v.featured === true);
+                    if (featuredVideo) {
+                        featuredContent.videoId = featuredVideo.wistiaId;
+                        featuredContent.title = featuredVideo.title;
+                        featuredContent.type = 'video';
+                        
+                        // Load the featured video in the player
+                        loadWistiaVideo(featuredVideo.wistiaId, featuredVideo.title);
+                        
+                        // Show the video player
+                        const videoPlayer = document.getElementById('videoPlayer');
+                        if (videoPlayer) {
+                            videoPlayer.style.display = 'block';
+                        }
+                    }
+                    
                     renderVideoGrid(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
@@ -2277,7 +2295,10 @@
         function renderVideoGrid(videos) {
             const videoGrid = document.getElementById('videoGrid');
             
-            if (videos.length === 0) {
+            // Filter out featured video from the grid
+            const videosToDisplay = videos.filter(video => video.wistiaId !== featuredContent.videoId);
+            
+            if (videosToDisplay.length === 0 && videos.length === 0) {
                 videoGrid.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #666;">
                         <h3>No videos yet</h3>
@@ -2289,10 +2310,11 @@
             }
             
             console.log('🎬 DEBUG: === RENDERING VIDEO GRID ===');
-            console.log('🎬 DEBUG: Videos to render:', videos.length);
+            console.log('🎬 DEBUG: Videos to render:', videosToDisplay.length);
+            console.log('🎬 DEBUG: Featured video:', featuredContent.videoId);
             
-            const videoHTML = videos.map((video, index) => {
-                console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videos.length}:`, video);
+            const videoHTML = videosToDisplay.map((video, index) => {
+                console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videosToDisplay.length}:`, video);
                 
                 // Handle both old format (category) and new format (tags array)
                 const videoTags = video.tags || [video.category];
@@ -3273,13 +3295,26 @@
             saveBtn.style.opacity = '0.7';
             
             try {
-                // Collect all current data
-                const videos = Array.from(document.querySelectorAll('.video-item')).map((item, index) => ({
-                    id: item.dataset.wistia,
-                    wistiaId: item.dataset.wistia,
-                    title: item.querySelector('.item-title').textContent,
-                    category: item.dataset.category,
-                    tags: item.dataset.tags ? item.dataset.tags.split(',') : [],
+                // Get current video data from server to ensure we save all videos
+                const getResponse = await fetch('/.netlify/functions/get-videos');
+                const allServerVideos = await getResponse.json();
+                
+                // Create a map of current grid videos for easy lookup
+                const gridVideosMap = {};
+                document.querySelectorAll('.video-item').forEach((item) => {
+                    gridVideosMap[item.dataset.wistia] = {
+                        title: item.querySelector('.item-title').textContent,
+                        category: item.dataset.category,
+                        tags: item.dataset.tags ? item.dataset.tags.split(',') : []
+                    };
+                });
+                
+                // Update all videos with current data and featured status
+                const videos = allServerVideos.map((video, index) => ({
+                    ...video,
+                    // Update with grid data if video is in grid
+                    ...(gridVideosMap[video.wistiaId] || {}),
+                    featured: video.wistiaId === featuredContent.videoId,
                     order: index
                 }));
                 

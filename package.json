@@ -19,7 +19,9 @@
   "license": "MIT",
   "dependencies": {
     "@netlify/blobs": "^10.0.10",
-    "@supabase/supabase-js": "^2.56.1"
+    "@supabase/supabase-js": "^2.56.1",
+    "dotenv": "^17.2.1",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"

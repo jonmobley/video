@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS videos (
   category TEXT NOT NULL,
   tags TEXT[],
   url_string TEXT,
+  featured BOOLEAN DEFAULT FALSE,
   "order" INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
