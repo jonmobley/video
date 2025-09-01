@@ -1370,8 +1370,8 @@
         }
 
         .featured-btn {
-            background: rgba(255, 149, 0, 0.9);
-            color: white;
+            background: #1a1a1a;
+            color: #888;
             border: none;
             padding: 4px 8px;
             border-radius: 12px;
@@ -1384,12 +1384,18 @@
         }
 
         .featured-btn:hover {
-            background: rgba(255, 149, 0, 1);
+            background: #2a2a2a;
+            color: #aaa;
             transform: translateY(-1px);
         }
 
         .featured-btn.active {
-            background: #ff9500;
+            background: rgba(255, 149, 0, 0.9);
+            color: white;
+        }
+
+        .featured-btn.active:hover {
+            background: rgba(255, 149, 0, 1);
         }
 
         /* Featured image placeholder */
@@ -2302,7 +2308,7 @@
                             <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
-                                <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
+                                <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
                             </div>
                             <div class="video-edit-overlay">
                                 <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
@@ -3385,15 +3391,24 @@
         };
 
         function setFeaturedVideo(wistiaId) {
-            // Remove featured class from all videos
+            // Remove featured class from all videos and buttons
             document.querySelectorAll('.video-item').forEach(item => {
                 item.classList.remove('featured');
+            });
+            document.querySelectorAll('.featured-btn').forEach(btn => {
+                btn.classList.remove('active');
             });
             
             // Add featured class to selected video
             const videoItem = document.querySelector(`[data-wistia="${wistiaId}"]`);
             if (videoItem) {
                 videoItem.classList.add('featured');
+                // Add active class to the button
+                const featuredBtn = videoItem.querySelector('.featured-btn');
+                if (featuredBtn) {
+                    featuredBtn.classList.add('active');
+                }
+                
                 featuredContent.type = 'video';
                 featuredContent.videoId = wistiaId;
                 featuredContent.title = videoItem.dataset.title;
@@ -3562,9 +3577,12 @@
         }
 
         function clearFeaturedContent() {
-            // Remove featured class from all videos
+            // Remove featured class from all videos and buttons
             document.querySelectorAll('.video-item').forEach(item => {
                 item.classList.remove('featured');
+            });
+            document.querySelectorAll('.featured-btn').forEach(btn => {
+                btn.classList.remove('active');
             });
             
             featuredContent = {
