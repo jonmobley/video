@@ -3273,6 +3273,7 @@
                     wistiaId: item.dataset.wistia,
                     title: item.querySelector('.item-title').textContent,
                     category: item.dataset.category,
+                    tags: item.dataset.tags ? item.dataset.tags.split(',') : [],
                     order: index
                 }));
                 
