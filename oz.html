@@ -3295,8 +3295,17 @@
                 });
                 
                 if (!videoResponse.ok) {
-                    const videoError = await videoResponse.json();
-                    throw new Error(`Failed to save videos: ${videoError.error}`);
+                    let errorMessage = `Failed to save videos (Status: ${videoResponse.status})`;
+                    try {
+                        const videoError = await videoResponse.json();
+                        if (videoError.error) {
+                            errorMessage = `Failed to save videos: ${videoError.error}`;
+                        }
+                    } catch (e) {
+                        // Response body is not valid JSON
+                        console.error('Could not parse error response:', e);
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 // Save categories
@@ -3309,8 +3318,17 @@
                 });
                 
                 if (!categoryResponse.ok) {
-                    const categoryError = await categoryResponse.json();
-                    throw new Error(`Failed to save categories: ${categoryError.error}`);
+                    let errorMessage = `Failed to save categories (Status: ${categoryResponse.status})`;
+                    try {
+                        const categoryError = await categoryResponse.json();
+                        if (categoryError.error) {
+                            errorMessage = `Failed to save categories: ${categoryError.error}`;
+                        }
+                    } catch (e) {
+                        // Response body is not valid JSON
+                        console.error('Could not parse error response:', e);
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 const videoResult = await videoResponse.json();

@@ -1,10 +1,22 @@
 // Try to import Netlify Blobs, fall back gracefully if not available
 let store = null;
+let blobsAvailable = false;
+
 try {
   const { getStore } = require('@netlify/blobs');
-  store = getStore('vidshare-data');
+  // Only try to get store if we're in a Netlify environment
+  // The siteID and token are automatically set in Netlify Functions environment
+  if (process.env.NETLIFY || process.env.NETLIFY_DEV) {
+    console.log('Netlify environment detected, attempting to initialize Blobs...');
+    store = getStore('vidshare-data');
+    blobsAvailable = true;
+    console.log('Netlify Blobs initialized successfully');
+  } else {
+    console.log('Not in Netlify environment, Blobs disabled');
+  }
 } catch (error) {
   console.log('Netlify Blobs not available, using fallback mode:', error.message);
+  console.log('This is expected in local development or if Blobs is not configured');
 }
 
 // Function to generate a persistent random string for a video
@@ -39,24 +51,32 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json'
   };
 
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
-
   try {
+    // Log environment for debugging
+    console.log('Function environment:', {
+      NETLIFY: process.env.NETLIFY,
+      NETLIFY_DEV: process.env.NETLIFY_DEV,
+      CONTEXT: process.env.CONTEXT,
+      hasSiteID: !!process.env.SITE_ID,
+      hasStore: !!store
+    });
+
+    // Handle preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers,
+        body: ''
+      };
+    }
+
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers,
+        body: JSON.stringify({ error: 'Method not allowed' })
+      };
+    }
     const videos = JSON.parse(event.body);
     
     // Validate video data
@@ -126,11 +146,11 @@ exports.handler = async (event, context) => {
       };
     }
   } catch (error) {
+    console.error('Handler error:', error);
     return {
-      statusCode: 400,
+      statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message || 'Internal server error' })
     };
   }
-};
 };
