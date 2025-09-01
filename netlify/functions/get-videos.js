@@ -1,85 +1,61 @@
-// Try to import Netlify Blobs, fall back gracefully if not available
-let store = null;
-try {
-  const { getStore } = require('@netlify/blobs');
-  store = getStore('vidshare-data');
-} catch (error) {
-  console.log('Netlify Blobs not available, using fallback mode:', error.message);
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
 }
 
-// Function to generate a persistent random string for a video
-function generateVideoUrlString(wistiaId) {
-  // Create a simple hash from the wistiaId to ensure consistency
-  let hash = 0;
-  for (let i = 0; i < wistiaId.length; i++) {
-    const char = wistiaId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Convert to positive number and create a base36 string
-  const positiveHash = Math.abs(hash);
-  let urlString = positiveHash.toString(36);
-  
-  // Ensure minimum length of 6 characters
-  while (urlString.length < 6) {
-    urlString = '0' + urlString;
-  }
-  
-  // Limit to 8 characters for clean URLs
-  return urlString.substring(0, 8);
-}
-
-// Default videos for initial setup
-const defaultVideos = [
+// Default videos for fallback
+const DEFAULT_VIDEOS = [
   {
     id: 'ssgxvlsdmx',
+    wistiaId: 'ssgxvlsdmx',
     title: 'Chorus and Kids Stage L',
     category: 'chorus',
     tags: ['chorus', 'kids'],
-    wistiaId: 'ssgxvlsdmx',
-    urlString: generateVideoUrlString('ssgxvlsdmx')
+    order: 0
   },
   {
     id: '7kpm1d3mhv',
+    wistiaId: '7kpm1d3mhv',
     title: 'Chorus and Kids Stage R',
     category: 'chorus',
     tags: ['chorus', 'kids'],
-    wistiaId: '7kpm1d3mhv',
-    urlString: generateVideoUrlString('7kpm1d3mhv')
+    order: 1
   },
   {
     id: 'eklwt6f33t',
+    wistiaId: 'eklwt6f33t',
     title: 'Section One: Dancers',
     category: 'dancers',
     tags: ['dancers'],
-    wistiaId: 'eklwt6f33t',
-    urlString: generateVideoUrlString('eklwt6f33t')
+    order: 2
   },
   {
     id: 'xqxp9qk6ab',
+    wistiaId: 'xqxp9qk6ab',
     title: 'Section One: Stage R Chorus',
     category: 'chorus',
     tags: ['chorus'],
-    wistiaId: 'xqxp9qk6ab',
-    urlString: generateVideoUrlString('xqxp9qk6ab')
+    order: 3
   }
 ];
 
 exports.handler = async (event, context) => {
-  console.log('get-videos function called with method:', event.httpMethod);
-  
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json'
   };
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers,
@@ -88,7 +64,6 @@ exports.handler = async (event, context) => {
   }
 
   if (event.httpMethod !== 'GET') {
-    console.log('Invalid method:', event.httpMethod);
     return {
       statusCode: 405,
       headers,
@@ -97,43 +72,62 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    let videos = defaultVideos; // Start with defaults
-
-    // Try to use Netlify Blobs if available
-    if (store) {
+    // Try to get videos from Supabase if available
+    if (supabase) {
       try {
-        const videosData = await store.get('videos', { type: 'json' });
-        if (videosData) {
-          videos = videosData;
-          console.log('Loaded videos from Netlify Blobs:', videos.length, 'videos');
-        } else {
-          // No data exists, try to save defaults
-          try {
-            await store.set('videos', JSON.stringify(videos));
-            console.log('Initialized with default videos in Netlify Blobs');
-          } catch (saveError) {
-            console.log('Could not save to Blobs, using defaults:', saveError.message);
-          }
+        const { data, error } = await supabase
+          .from('videos')
+          .select('*')
+          .order('order', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching videos from Supabase:', error);
+          throw error;
         }
-      } catch (blobError) {
-        console.log('Blob storage error, using defaults:', blobError.message);
+
+        // Transform Supabase data to match expected format
+        const videos = data.map(video => ({
+          id: video.id,
+          wistiaId: video.wistia_id,
+          title: video.title,
+          category: video.category,
+          tags: video.tags || [],
+          urlString: video.url_string,
+          order: video.order
+        }));
+
+        console.log(`Successfully fetched ${videos.length} videos from Supabase`);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(videos)
+        };
+      } catch (dbError) {
+        console.error('Database query failed, using default videos:', dbError);
+        // Fall back to default videos if database fails
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(DEFAULT_VIDEOS)
+        };
       }
     } else {
-      console.log('Netlify Blobs not available, using default videos');
+      // Supabase not configured, return default videos
+      console.log('Supabase not configured, returning default videos');
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(DEFAULT_VIDEOS)
+      };
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(videos)
-    };
   } catch (error) {
-    console.error('Error in get-videos function:', error);
-    // Always return default videos as final fallback
+    console.error('Handler error:', error);
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
-      body: JSON.stringify(defaultVideos)
+      body: JSON.stringify({ error: error.message || 'Internal server error' })
     };
   }
 };

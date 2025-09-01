@@ -1,22 +1,12 @@
-// Try to import Netlify Blobs, fall back gracefully if not available
-let store = null;
-let blobsAvailable = false;
+const { createClient } = require('@supabase/supabase-js');
 
-try {
-  const { getStore } = require('@netlify/blobs');
-  // Only try to get store if we're in a Netlify environment
-  // The siteID and token are automatically set in Netlify Functions environment
-  if (process.env.NETLIFY || process.env.NETLIFY_DEV) {
-    console.log('Netlify environment detected, attempting to initialize Blobs...');
-    store = getStore('vidshare-data');
-    blobsAvailable = true;
-    console.log('Netlify Blobs initialized successfully');
-  } else {
-    console.log('Not in Netlify environment, Blobs disabled');
-  }
-} catch (error) {
-  console.log('Netlify Blobs not available, using fallback mode:', error.message);
-  console.log('This is expected in local development or if Blobs is not configured');
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
 }
 
 // Function to generate a persistent random string for a video
@@ -54,11 +44,9 @@ exports.handler = async (event, context) => {
   try {
     // Log environment for debugging
     console.log('Function environment:', {
-      NETLIFY: process.env.NETLIFY,
-      NETLIFY_DEV: process.env.NETLIFY_DEV,
-      CONTEXT: process.env.CONTEXT,
-      hasSiteID: !!process.env.SITE_ID,
-      hasStore: !!store
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey,
+      hasSupabase: !!supabase
     });
 
     // Handle preflight requests
@@ -77,6 +65,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ error: 'Method not allowed' })
       };
     }
+
     const videos = JSON.parse(event.body);
     
     // Validate video data
@@ -104,35 +93,55 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate video IDs found');
     }
 
-    // Try to save to Netlify Blobs if available
-    if (store) {
+    // Try to save to Supabase if available
+    if (supabase) {
       try {
-        await store.set('videos', JSON.stringify(videos));
-        console.log('Successfully saved videos to Netlify Blobs');
+        // Prepare data for Supabase
+        const supabaseVideos = videos.map(video => ({
+          id: video.id,
+          wistia_id: video.wistiaId,
+          title: video.title,
+          category: video.category,
+          tags: video.tags || [],
+          url_string: video.urlString,
+          order: video.order || 0
+        }));
+
+        // Delete existing videos and insert new ones (upsert)
+        const { error: deleteError } = await supabase
+          .from('videos')
+          .delete()
+          .neq('id', ''); // Delete all records
+
+        if (deleteError) {
+          console.error('Error deleting existing videos:', deleteError);
+          throw deleteError;
+        }
+
+        // Insert new videos
+        const { data, error } = await supabase
+          .from('videos')
+          .insert(supabaseVideos);
+
+        if (error) {
+          console.error('Error saving videos to Supabase:', error);
+          throw error;
+        }
+
+        console.log('Successfully saved videos to Supabase');
         
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ success: true, count: videos.length, message: 'Videos saved successfully' })
         };
-      } catch (blobError) {
-        console.error('Could not save to Netlify Blobs:', blobError.message);
-        
-        // Fall back to success without persistence
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            success: true, 
-            count: videos.length, 
-            message: 'Videos validated but not persisted (storage unavailable)',
-            temporary: true
-          })
-        };
+      } catch (dbError) {
+        console.error('Database operation failed:', dbError);
+        throw new Error(`Failed to save videos: ${dbError.message}`);
       }
     } else {
-      // Netlify Blobs not available, return success but indicate temporary storage
-      console.log('Netlify Blobs not available, videos not persisted');
+      // Supabase not configured
+      console.log('Supabase not configured, videos not persisted');
       
       return {
         statusCode: 200,
@@ -140,7 +149,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           count: videos.length, 
-          message: 'Videos validated but not persisted (Netlify Blobs unavailable)',
+          message: 'Videos validated but not persisted (Supabase not configured)',
           temporary: true
         })
       };

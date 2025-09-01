@@ -1,17 +1,20 @@
-// Try to import Netlify Blobs, fall back gracefully if not available
-let store = null;
-try {
-  const { getStore } = require('@netlify/blobs');
-  store = getStore('vidshare-data');
-} catch (error) {
-  console.log('Netlify Blobs not available, using fallback mode:', error.message);
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
 }
 
-// Default tags for initial setup (renamed from categories to tags)
-const defaultCategories = [
-  { id: 'dancers', name: 'Dancers', color: '#4ecdc4', icon: null },
-  { id: 'kids', name: 'Kids', color: '#ff6b6b', icon: null },
-  { id: 'chorus', name: 'Chorus', color: '#ffd93d', icon: null }
+// Default categories for fallback
+const DEFAULT_CATEGORIES = [
+  { id: 'all', name: 'All Videos', order: 0 },
+  { id: 'chorus', name: 'Chorus', order: 1 },
+  { id: 'principals', name: 'Principals', order: 2 },
+  { id: 'dancers', name: 'Dancers', order: 3 }
 ];
 
 exports.handler = async (event, context) => {
@@ -19,7 +22,7 @@ exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json'
   };
 
@@ -41,42 +44,51 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    let categories = defaultCategories; // Start with defaults
-
-    // Try to use Netlify Blobs if available
-    if (store) {
+    // Try to get categories from Supabase if available
+    if (supabase) {
       try {
-        const categoriesData = await store.get('categories', { type: 'json' });
-        if (categoriesData) {
-          categories = categoriesData;
-          console.log('Loaded categories from Netlify Blobs:', categories.length, 'categories');
-        } else {
-          // No data exists, try to save defaults
-          try {
-            await store.set('categories', JSON.stringify(categories));
-            console.log('Initialized with default categories in Netlify Blobs');
-          } catch (saveError) {
-            console.log('Could not save to Blobs, using defaults:', saveError.message);
-          }
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('order', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching categories from Supabase:', error);
+          throw error;
         }
-      } catch (blobError) {
-        console.log('Blob storage error, using defaults:', blobError.message);
+
+        console.log(`Successfully fetched ${data.length} categories from Supabase`);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(data)
+        };
+      } catch (dbError) {
+        console.error('Database query failed, using default categories:', dbError);
+        // Fall back to default categories if database fails
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(DEFAULT_CATEGORIES)
+        };
       }
     } else {
-      console.log('Netlify Blobs not available, using default categories');
+      // Supabase not configured, return default categories
+      console.log('Supabase not configured, returning default categories');
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(DEFAULT_CATEGORIES)
+      };
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(categories)
-    };
   } catch (error) {
-    console.error('Error in get-categories function:', error);
+    console.error('Handler error:', error);
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
-      body: JSON.stringify(defaultCategories)
+      body: JSON.stringify({ error: error.message || 'Internal server error' })
     };
   }
 };

@@ -1,22 +1,12 @@
-// Try to import Netlify Blobs, fall back gracefully if not available
-let store = null;
-let blobsAvailable = false;
+const { createClient } = require('@supabase/supabase-js');
 
-try {
-  const { getStore } = require('@netlify/blobs');
-  // Only try to get store if we're in a Netlify environment
-  // The siteID and token are automatically set in Netlify Functions environment
-  if (process.env.NETLIFY || process.env.NETLIFY_DEV) {
-    console.log('Netlify environment detected, attempting to initialize Blobs...');
-    store = getStore('vidshare-data');
-    blobsAvailable = true;
-    console.log('Netlify Blobs initialized successfully');
-  } else {
-    console.log('Not in Netlify environment, Blobs disabled');
-  }
-} catch (error) {
-  console.log('Netlify Blobs not available, using fallback mode:', error.message);
-  console.log('This is expected in local development or if Blobs is not configured');
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
 }
 
 exports.handler = async (event, context) => {
@@ -29,6 +19,13 @@ exports.handler = async (event, context) => {
   };
 
   try {
+    // Log environment for debugging
+    console.log('Function environment:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey,
+      hasSupabase: !!supabase
+    });
+
     // Handle preflight requests
     if (event.httpMethod === 'OPTIONS') {
       return {
@@ -45,6 +42,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ error: 'Method not allowed' })
       };
     }
+
     const categories = JSON.parse(event.body);
     
     // Validate category data
@@ -71,35 +69,52 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate category IDs found');
     }
 
-    // Try to save to Netlify Blobs if available
-    if (store) {
+    // Try to save to Supabase if available
+    if (supabase) {
       try {
-        await store.set('categories', JSON.stringify(categories));
-        console.log('Successfully saved categories to Netlify Blobs');
+        // Prepare data for Supabase
+        const supabaseCategories = categories.map(category => ({
+          id: category.id,
+          name: category.name,
+          color: category.color || null,
+          order: category.order || 0
+        }));
+
+        // Delete existing categories and insert new ones (upsert)
+        const { error: deleteError } = await supabase
+          .from('categories')
+          .delete()
+          .neq('id', ''); // Delete all records
+
+        if (deleteError) {
+          console.error('Error deleting existing categories:', deleteError);
+          throw deleteError;
+        }
+
+        // Insert new categories
+        const { data, error } = await supabase
+          .from('categories')
+          .insert(supabaseCategories);
+
+        if (error) {
+          console.error('Error saving categories to Supabase:', error);
+          throw error;
+        }
+
+        console.log('Successfully saved categories to Supabase');
 
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ success: true, count: categories.length })
         };
-      } catch (blobError) {
-        console.error('Could not save to Netlify Blobs:', blobError.message);
-        
-        // Fall back to success without persistence
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            success: true, 
-            count: categories.length, 
-            message: 'Categories validated but not persisted (storage unavailable)',
-            temporary: true
-          })
-        };
+      } catch (dbError) {
+        console.error('Database operation failed:', dbError);
+        throw new Error(`Failed to save categories: ${dbError.message}`);
       }
     } else {
-      // Netlify Blobs not available, return success but indicate temporary storage
-      console.log('Netlify Blobs not available, categories not persisted');
+      // Supabase not configured
+      console.log('Supabase not configured, categories not persisted');
       
       return {
         statusCode: 200,
@@ -107,7 +122,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           count: categories.length, 
-          message: 'Categories validated but not persisted (Netlify Blobs unavailable)',
+          message: 'Categories validated but not persisted (Supabase not configured)',
           temporary: true
         })
       };
