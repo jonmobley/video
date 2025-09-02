@@ -416,6 +416,196 @@
             font-size: 15px;
         }
 
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: var(--spacing-lg);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-xl);
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--color-text-secondary);
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-footer {
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-md);
+        }
+
+        .section-divider {
+            margin: var(--spacing-xl) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text-primary);
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: var(--spacing-md);
+            background: var(--color-bg-tertiary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            color: var(--color-text-primary);
+            font-size: 17px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            background: var(--color-bg-quaternary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .image-upload-container {
+            display: flex;
+            gap: var(--spacing-lg);
+            align-items: flex-start;
+        }
+
+        .image-preview {
+            width: 300px;
+            aspect-ratio: 1200 / 630;
+            background: var(--color-bg-tertiary);
+            border: 2px dashed var(--color-border);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview-placeholder {
+            text-align: center;
+            color: var(--color-text-tertiary);
+            font-size: 14px;
+        }
+
+        .image-upload-controls {
+            flex: 1;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-flex;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--color-primary);
+            color: var(--color-text-primary);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .file-input-label:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .image-guidelines {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--color-bg-tertiary);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .image-guidelines ul {
+            margin: var(--spacing-sm) 0 0 var(--spacing-md);
+            padding-left: var(--spacing-md);
+        }
+
+        .image-guidelines li {
+            margin-bottom: var(--spacing-xs);
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: var(--spacing-md);
@@ -454,6 +644,21 @@
             .form-section h2 {
                 font-size: 20px;
             }
+            
+            .modal-content {
+                max-height: 100vh;
+                border-radius: 0;
+            }
+            
+            .image-upload-container {
+                flex-direction: column;
+            }
+            
+            .image-preview {
+                width: 100%;
+                max-width: 300px;
+                margin: 0 auto;
+            }
         }
     </style>
 </head>
@@ -464,6 +669,7 @@
         <div class="header">
             <h1>VidShare Admin</h1>
             <p>Add and manage dance instruction videos</p>
+            <button type="button" class="btn btn-secondary" id="pageInfoBtn" style="margin-top: var(--spacing-md);">Page Info</button>
         </div>
 
         <div class="status-bar">
@@ -1138,6 +1344,163 @@
         // Save page config button handler
         document.getElementById('savePageConfigBtn').addEventListener('click', savePageConfig);
 
+        // Page Info Modal functionality
+        const pageInfoModal = document.getElementById('pageInfoModal');
+        const pageInfoBtn = document.getElementById('pageInfoBtn');
+        const closePageInfoModal = document.getElementById('closePageInfoModal');
+        const cancelPageInfoBtn = document.getElementById('cancelPageInfoBtn');
+        const savePageInfoBtn = document.getElementById('savePageInfoBtn');
+        const shareImageInput = document.getElementById('shareImageInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const modalOgImageUrl = document.getElementById('modalOgImageUrl');
+
+        // Open modal
+        pageInfoBtn.addEventListener('click', () => {
+            loadPageInfoModal();
+            pageInfoModal.classList.add('active');
+        });
+
+        // Close modal
+        closePageInfoModal.addEventListener('click', () => {
+            pageInfoModal.classList.remove('active');
+        });
+
+        cancelPageInfoBtn.addEventListener('click', () => {
+            pageInfoModal.classList.remove('active');
+        });
+
+        // Close modal when clicking overlay
+        pageInfoModal.addEventListener('click', (e) => {
+            if (e.target === pageInfoModal) {
+                pageInfoModal.classList.remove('active');
+            }
+        });
+
+        // Load page info into modal
+        function loadPageInfoModal() {
+            const config = pageConfig[currentPage] || {};
+            
+            // Basic Info
+            document.getElementById('modalPageTitle').value = config.page_title || '';
+            
+            // Meta Data
+            document.getElementById('modalMetaDescription').value = config.meta_description || '';
+            document.getElementById('modalMetaKeywords').value = config.meta_keywords || '';
+            document.getElementById('modalCanonicalUrl').value = config.canonical_url || '';
+            
+            // Social Sharing
+            document.getElementById('modalOgTitle').value = config.og_title || '';
+            document.getElementById('modalOgDescription').value = config.og_description || '';
+            document.getElementById('modalOgImageUrl').value = config.og_image_url || '';
+            document.getElementById('modalTwitterTitle').value = config.twitter_title || '';
+            document.getElementById('modalTwitterDescription').value = config.twitter_description || '';
+            
+            // Load image preview
+            updateImagePreview(config.og_image_url);
+        }
+
+        // Update image preview
+        function updateImagePreview(imageUrl) {
+            if (imageUrl && imageUrl !== '/assets/og-image.png') {
+                imagePreview.innerHTML = `<img src="${imageUrl}" alt="Share image preview">`;
+            } else {
+                imagePreview.innerHTML = `
+                    <div class="image-preview-placeholder">
+                        <p>No image uploaded</p>
+                        <p style="font-size: 12px;">1200 × 630 px</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Handle image file upload
+        shareImageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('Please select a valid image file (JPEG, PNG, or WebP)');
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showError('Image file size must be less than 5MB');
+                return;
+            }
+
+            // Read and preview the image
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target.result;
+                updateImagePreview(imageUrl);
+                // Store the data URL temporarily
+                imagePreview.dataset.tempImage = imageUrl;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Handle image URL input
+        modalOgImageUrl.addEventListener('input', (e) => {
+            const imageUrl = e.target.value.trim();
+            if (imageUrl) {
+                updateImagePreview(imageUrl);
+            }
+        });
+
+        // Save page info
+        savePageInfoBtn.addEventListener('click', async () => {
+            const pageInfo = {
+                page: currentPage,
+                page_title: document.getElementById('modalPageTitle').value.trim(),
+                meta_description: document.getElementById('modalMetaDescription').value.trim(),
+                meta_keywords: document.getElementById('modalMetaKeywords').value.trim(),
+                canonical_url: document.getElementById('modalCanonicalUrl').value.trim(),
+                og_title: document.getElementById('modalOgTitle').value.trim(),
+                og_description: document.getElementById('modalOgDescription').value.trim(),
+                og_image_url: document.getElementById('modalOgImageUrl').value.trim(),
+                twitter_title: document.getElementById('modalTwitterTitle').value.trim() || null,
+                twitter_description: document.getElementById('modalTwitterDescription').value.trim() || null
+            };
+
+            // If there's a temporary image from file upload, note it
+            if (imagePreview.dataset.tempImage) {
+                showError('Note: Direct image uploads are not yet implemented. Please use an image URL instead.');
+                return;
+            }
+
+            try {
+                savePageInfoBtn.disabled = true;
+                savePageInfoBtn.textContent = 'Saving...';
+
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(pageInfo)
+                });
+
+                if (response.ok) {
+                    const config = await response.json();
+                    pageConfig[currentPage] = config;
+                    showSuccess('Page information saved successfully!');
+                    pageInfoModal.classList.remove('active');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Failed to save page info:', error);
+                showError('Failed to save page information: ' + error.message);
+            } finally {
+                savePageInfoBtn.disabled = false;
+                savePageInfoBtn.textContent = 'Save Changes';
+            }
+        });
+
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             // Set initial page from selector
@@ -1150,5 +1513,109 @@
             ]);
         });
     </script>
+
+    <!-- Page Info Modal -->
+    <div class="modal-overlay" id="pageInfoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Page Information</h2>
+                <button type="button" class="modal-close" id="closePageInfoModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Basic Info Section -->
+                <div>
+                    <h3 class="section-title">Basic Information</h3>
+                    <div class="form-group">
+                        <label for="modalPageTitle">Page Title</label>
+                        <input type="text" id="modalPageTitle" placeholder="e.g., Grace Church Wizard of Oz">
+                        <small>This title appears in the header of the page</small>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Meta Data Section -->
+                <div>
+                    <h3 class="section-title">SEO Meta Data</h3>
+                    <div class="form-group">
+                        <label for="modalMetaDescription">Meta Description</label>
+                        <textarea id="modalMetaDescription" placeholder="A brief description of the page content for search engines" rows="3"></textarea>
+                        <small>Recommended: 150-160 characters</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalMetaKeywords">Meta Keywords</label>
+                        <input type="text" id="modalMetaKeywords" placeholder="e.g., dance, videos, wizard of oz, performance">
+                        <small>Comma-separated keywords for SEO</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalCanonicalUrl">Canonical URL</label>
+                        <input type="url" id="modalCanonicalUrl" placeholder="https://vidsharepro.netlify.app/oz.html">
+                        <small>The primary URL for this page</small>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <!-- Social Sharing Section -->
+                <div>
+                    <h3 class="section-title">Social Media Sharing</h3>
+                    <div class="form-group">
+                        <label for="modalOgTitle">Open Graph Title</label>
+                        <input type="text" id="modalOgTitle" placeholder="e.g., Grace | Oz Dance Videos">
+                        <small>Title shown when shared on social media</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalOgDescription">Open Graph Description</label>
+                        <textarea id="modalOgDescription" placeholder="Description shown when shared on social media" rows="3"></textarea>
+                        <small>Recommended: 2-4 sentences</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Share Image</label>
+                        <div class="image-upload-container">
+                            <div class="image-preview" id="imagePreview">
+                                <div class="image-preview-placeholder">
+                                    <p>No image uploaded</p>
+                                    <p style="font-size: 12px;">1200 × 630 px</p>
+                                </div>
+                            </div>
+                            <div class="image-upload-controls">
+                                <div class="file-input-wrapper">
+                                    <input type="file" id="shareImageInput" accept="image/jpeg,image/jpg,image/png,image/webp">
+                                    <label for="shareImageInput" class="file-input-label">Choose Image</label>
+                                </div>
+                                <div class="form-group" style="margin-top: var(--spacing-md);">
+                                    <label for="modalOgImageUrl">Or enter image URL</label>
+                                    <input type="url" id="modalOgImageUrl" placeholder="https://example.com/image.png">
+                                </div>
+                                <div class="image-guidelines">
+                                    <strong>Image Guidelines:</strong>
+                                    <ul>
+                                        <li>Recommended size: 1200 × 630 pixels</li>
+                                        <li>Maximum file size: 5MB</li>
+                                        <li>Formats: JPEG, PNG, WebP</li>
+                                        <li>Use high-quality images for best results</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalTwitterTitle">Twitter Title (Optional)</label>
+                        <input type="text" id="modalTwitterTitle" placeholder="Leave empty to use Open Graph title">
+                        <small>Override title specifically for Twitter</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="modalTwitterDescription">Twitter Description (Optional)</label>
+                        <textarea id="modalTwitterDescription" placeholder="Leave empty to use Open Graph description" rows="2"></textarea>
+                        <small>Override description specifically for Twitter</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelPageInfoBtn">Cancel</button>
+                <button type="button" class="btn" id="savePageInfoBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

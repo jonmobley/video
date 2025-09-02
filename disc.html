@@ -6,33 +6,101 @@
     <title>DISC Heroes | Videos</title>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Watch Grace's dance videos from Oz performances. High-quality dance content featuring choreography, performances, and behind-the-scenes moments.">
-    <meta name="keywords" content="Grace, Oz, dance videos, choreography, performance, dance">
-    <meta name="author" content="Grace">
+    <meta name="description" content="Explore DISC Heroes video collection. Training videos, performances, and educational content for the DISC community.">
+    <meta name="keywords" content="DISC, heroes, training videos, educational content, performance">
+    <meta name="author" content="DISC Heroes">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://vidsharepro.netlify.app/oz.html">
-    <meta property="og:title" content="Grace | Oz Dance Videos">
-    <meta property="og:description" content="Watch Grace's dance videos from Oz performances. High-quality dance content featuring choreography, performances, and behind-the-scenes moments.">
+    <meta property="og:url" content="https://vidsharepro.netlify.app/disc.html">
+    <meta property="og:title" content="DISC Heroes | Videos">
+    <meta property="og:description" content="Explore DISC Heroes video collection. Training videos, performances, and educational content for the DISC community.">
     <meta property="og:image" content="https://vidsharepro.netlify.app/assets/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Grace Oz Dance Videos - Video Collection">
-    <meta property="og:site_name" content="Grace Dance Videos">
+    <meta property="og:image:alt" content="DISC Heroes - Video Collection">
+    <meta property="og:site_name" content="DISC Heroes Videos">
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://vidsharepro.netlify.app/oz.html">
-    <meta property="twitter:title" content="Grace | Oz Dance Videos">
-    <meta property="twitter:description" content="Watch Grace's dance videos from Oz performances. High-quality dance content featuring choreography, performances, and behind-the-scenes moments.">
+    <meta property="twitter:url" content="https://vidsharepro.netlify.app/disc.html">
+    <meta property="twitter:title" content="DISC Heroes | Videos">
+    <meta property="twitter:description" content="Explore DISC Heroes video collection. Training videos, performances, and educational content for the DISC community.">
     <meta property="twitter:image" content="https://vidsharepro.netlify.app/assets/og-image.png">
-    <meta property="twitter:image:alt" content="Grace Oz Dance Videos - Video Collection">
+    <meta property="twitter:image:alt" content="DISC Heroes - Video Collection">
     
     <!-- Additional Meta Tags -->
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#4d90db" id="theme-color-meta">
-    <link rel="canonical" href="https://vidsharepro.netlify.app/oz.html">
+    <link rel="canonical" href="https://vidsharepro.netlify.app/disc.html" id="canonical-link">
+    
+    <!-- Dynamic Meta Tag Loading Script -->
+    <script>
+        // Load page configuration and update meta tags
+        (async function() {
+            try {
+                const response = await fetch('/.netlify/functions/get-page-config?page=disc');
+                if (response.ok) {
+                    const config = await response.json();
+                    
+                    // Update document title
+                    if (config.page_title) {
+                        document.title = config.page_title;
+                    }
+                    
+                    // Update meta description
+                    if (config.meta_description) {
+                        document.querySelector('meta[name="description"]').content = config.meta_description;
+                    }
+                    
+                    // Update meta keywords
+                    if (config.meta_keywords) {
+                        document.querySelector('meta[name="keywords"]').content = config.meta_keywords;
+                    }
+                    
+                    // Update Open Graph tags
+                    if (config.og_title) {
+                        document.querySelector('meta[property="og:title"]').content = config.og_title;
+                    }
+                    if (config.og_description) {
+                        document.querySelector('meta[property="og:description"]').content = config.og_description;
+                    }
+                    if (config.og_image_url) {
+                        const ogImage = document.querySelector('meta[property="og:image"]');
+                        ogImage.content = config.og_image_url.startsWith('http') 
+                            ? config.og_image_url 
+                            : `https://vidsharepro.netlify.app${config.og_image_url}`;
+                    }
+                    
+                    // Update Twitter tags
+                    const twitterTitle = config.twitter_title || config.og_title;
+                    const twitterDescription = config.twitter_description || config.og_description;
+                    
+                    if (twitterTitle) {
+                        document.querySelector('meta[property="twitter:title"]').content = twitterTitle;
+                    }
+                    if (twitterDescription) {
+                        document.querySelector('meta[property="twitter:description"]').content = twitterDescription;
+                    }
+                    if (config.og_image_url) {
+                        const twitterImage = document.querySelector('meta[property="twitter:image"]');
+                        twitterImage.content = config.og_image_url.startsWith('http') 
+                            ? config.og_image_url 
+                            : `https://vidsharepro.netlify.app${config.og_image_url}`;
+                    }
+                    
+                    // Update canonical URL
+                    if (config.canonical_url) {
+                        document.getElementById('canonical-link').href = config.canonical_url;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load page configuration:', error);
+                // Meta tags will retain their default values
+            }
+        })();
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -271,7 +339,7 @@
         :root {
             --accent-color: #4d90db;
             --accent-hover: #3d80cb;
-            --accent-light: rgba(77, 144, 219, 0.1);
+            --accent-light: rgba(77, 144, 219, 0.3);
             --accent-shadow: rgba(77, 144, 219, 0.3);
         }
 
@@ -926,6 +994,44 @@
             margin-top: 12px;
         }
 
+        /* Tag selection styling */
+        .tag-selection-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 0;
+        }
+
+        .tag-selector {
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border: 2px solid #444;
+            border-radius: 20px;
+            color: #999;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .tag-selector:hover {
+            background: #333;
+            border-color: #666;
+            color: #fff;
+        }
+
+        .tag-selector.selected {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
+
+        .tag-selector.selected:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
         /* Edit Video Popup Styles */
         .edit-video-overlay {
             position: fixed;
@@ -1166,6 +1272,47 @@
             transform: translateY(-50%) scale(1.1);
         }
 
+        /* Delete button overlay */
+        .video-delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            background: #ff3b30;
+            border: none;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .edit-mode .video-item:hover .video-delete-btn {
+            display: flex;
+        }
+
+        .video-delete-btn::before {
+            content: '✕';
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .video-delete-btn:hover {
+            background: #d70015;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .video-delete-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Drag placeholder */
         .drag-placeholder {
             border: 3px dashed var(--accent-color);
@@ -1228,7 +1375,7 @@
         .video-edit-btn:hover {
             background: var(--accent-hover);
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(0, 143, 103, 0.4);
+            box-shadow: 0 6px 16px rgba(77, 144, 219, 0.4);
         }
 
         .video-edit-btn:active {
@@ -2002,6 +2149,13 @@
                     </select>
                 </div>
                 
+                <div class="form-group">
+                    <label>Tags</label>
+                    <div class="tag-selection-container" id="tagSelectionContainer">
+                        <!-- Tags will be populated dynamically -->
+                    </div>
+                </div>
+                
                 <div class="add-video-buttons">
                     <button type="submit" class="btn-add-video">Add Video</button>
                     <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
@@ -2467,6 +2621,7 @@
                 
                 const html = `
                     <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
+                        <button class="video-delete-btn" onclick="deleteVideo(event, '${video.wistiaId}')" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
                             <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
                             <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
@@ -3695,6 +3850,96 @@
             return insertBefore ? targetElement : targetElement.nextElementSibling;
         }
 
+        // Delete video with confirmation
+        async function deleteVideo(event, wistiaId) {
+            event.stopPropagation();
+            event.preventDefault();
+            
+            if (!isEditMode) return;
+            
+            // Find the video in the videos array
+            const video = videos.find(v => v.wistiaId === wistiaId);
+            if (!video) return;
+            
+            // Create confirmation dialog
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                backdrop-filter: blur(4px);
+            `;
+            
+            dialog.innerHTML = `
+                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 400px; text-align: center;">
+                    <h3 style="color: white; margin: 0 0 16px 0; font-size: 20px;">Delete Video</h3>
+                    <p style="color: #aaa; margin: 0 0 24px 0; font-size: 16px;">
+                        Are you sure you want to delete "${video.title}"?
+                    </p>
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <button id="confirmDelete" style="padding: 12px 24px; background: #ff3b30; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Delete</button>
+                        <button id="cancelDelete" style="padding: 12px 24px; background: #333; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(dialog);
+            
+            // Handle button hover effects
+            const confirmBtn = dialog.querySelector('#confirmDelete');
+            const cancelBtn = dialog.querySelector('#cancelDelete');
+            
+            confirmBtn.onmouseover = () => confirmBtn.style.background = '#d70015';
+            confirmBtn.onmouseout = () => confirmBtn.style.background = '#ff3b30';
+            cancelBtn.onmouseover = () => cancelBtn.style.background = '#444';
+            cancelBtn.onmouseout = () => cancelBtn.style.background = '#333';
+            
+            // Handle confirmation
+            confirmBtn.addEventListener('click', async () => {
+                // Remove from videos array
+                const index = videos.findIndex(v => v.wistiaId === wistiaId);
+                if (index !== -1) {
+                    videos.splice(index, 1);
+                }
+                
+                // If this was the featured video, clear featured status
+                if (featuredContent.videoId === wistiaId) {
+                    featuredContent.videoId = null;
+                    featuredContent.category = null;
+                }
+                
+                // Mark as changed
+                markUnsavedChanges();
+                
+                // Re-render the video grid
+                renderVideos();
+                
+                // Remove dialog
+                document.body.removeChild(dialog);
+                
+                console.log(`Video "${video.title}" deleted`);
+            });
+            
+            // Handle cancellation
+            cancelBtn.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+            });
+            
+            // Close on background click
+            dialog.addEventListener('click', (e) => {
+                if (e.target === dialog) {
+                    document.body.removeChild(dialog);
+                }
+            });
+        }
+
         // Move video using arrow controls
         function moveVideo(event, wistiaId, direction) {
             event.stopPropagation();
@@ -3865,36 +4110,39 @@
             saveBtn.style.opacity = '0.7';
             
             try {
-                // Get current video data from server to ensure we save all videos
+                // Get current video data from server to ensure we don't lose any existing data
                 const getResponse = await fetch('/.netlify/functions/get-videos?page=disc');
                 const allServerVideos = await getResponse.json();
                 
-                // Create a map of current grid videos with their order and data
-                const gridVideosMap = {};
-                const gridOrder = [];
-                document.querySelectorAll('.video-item').forEach((item, index) => {
-                    const wistiaId = item.dataset.wistia;
-                    gridOrder.push(wistiaId);
-                    gridVideosMap[wistiaId] = {
-                        title: item.querySelector('.item-title').textContent,
-                        category: item.dataset.category,
-                        tags: item.dataset.tags ? item.dataset.tags.split(',') : [],
-                        order: index  // Store the actual position in the grid
-                    };
+                // Create a map of server videos for easy lookup
+                const serverVideosMap = {};
+                allServerVideos.forEach(video => {
+                    serverVideosMap[video.wistiaId] = video;
                 });
                 
-                // Update all videos with current data and order from the grid
-                const videos = allServerVideos.map((video) => {
-                    const gridData = gridVideosMap[video.wistiaId];
-                    return {
-                        ...video,
-                        // Update with grid data if video is in grid
-                        ...(gridData || {}),
-                        featured: video.wistiaId === featuredContent.videoId,
-                        // Use grid order if available, otherwise keep existing order
-                        order: gridData ? gridData.order : video.order
+                // Collect all videos from the current grid (including newly added ones)
+                const videos = [];
+                document.querySelectorAll('.video-item').forEach((item, index) => {
+                    const wistiaId = item.dataset.wistia;
+                    const title = item.querySelector('.item-title').textContent;
+                    const category = item.dataset.category;
+                    const tags = item.dataset.tags ? item.dataset.tags.split(',') : [];
+                    
+                    // Use existing server data if available, otherwise create new video object
+                    const serverVideo = serverVideosMap[wistiaId];
+                    const video = {
+                        id: serverVideo?.id || wistiaId, // Use wistiaId as id for new videos
+                        wistiaId: wistiaId,
+                        title: title,
+                        category: category,
+                        tags: tags,
+                        urlString: serverVideo?.urlString || null, // Will be generated by server
+                        order: index,
+                        featured: wistiaId === featuredContent.videoId
                     };
-                }).sort((a, b) => a.order - b.order); // Sort by the new order
+                    
+                    videos.push(video);
+                });
                 
                 const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map((tag, index) => ({
                     id: tag.dataset.category,
@@ -4352,12 +4600,13 @@
                     videoItem.remove();
                     console.log('Video deleted:', currentEditingVideoId);
                     
+                    // Mark as having unsaved changes
+                    markUnsavedChanges();
+                    
                     // Close popup
                     document.getElementById('editVideoOverlay').style.display = 'none';
                     document.getElementById('editVideoError').style.display = 'none';
                     currentEditingVideoId = null;
-                    
-                    // Here you would delete from server
                 }
             }
         });
@@ -4384,7 +4633,7 @@
         }
 
         function populateAddCategoryDropdown() {
-            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN ===');
+            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN AND TAGS ===');
             
             const select = document.getElementById('newVideoCategory');
             console.log('📋 DEBUG: Found category select element:', select);
@@ -4410,6 +4659,23 @@
             });
             
             console.log('📋 DEBUG: Category dropdown populated with', select.children.length, 'options');
+            
+            // Also populate tag selection
+            const tagContainer = document.getElementById('tagSelectionContainer');
+            tagContainer.innerHTML = '';
+            
+            categories.forEach(cat => {
+                if (cat.id !== 'all') {
+                    const tagSelector = document.createElement('div');
+                    tagSelector.className = 'tag-selector';
+                    tagSelector.dataset.tagId = cat.id;
+                    tagSelector.textContent = cat.name;
+                    tagSelector.addEventListener('click', function() {
+                        this.classList.toggle('selected');
+                    });
+                    tagContainer.appendChild(tagSelector);
+                }
+            });
         }
 
         // Wistia Link Parsing and Title Fetching
@@ -4529,18 +4795,23 @@
                 return;
             }
             
+            // Collect selected tags
+            const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
+                .map(tag => tag.dataset.tagId);
+            
             // Add video to grid
             await addVideoToGrid({
                 wistiaId: wistiaId,
                 title: title,
-                category: category
+                category: category,
+                tags: selectedTags
             });
             
             // Close popup
             document.getElementById('addVideoOverlay').style.display = 'none';
             document.getElementById('addVideoError').style.display = 'none';
             
-            console.log('Video added:', { id: wistiaId, title, category });
+            console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
         });
 
         async function addVideoToGrid(video) {
@@ -4552,6 +4823,16 @@
             videoElement.setAttribute('data-category', video.category);
             videoElement.setAttribute('data-title', video.title);
             videoElement.setAttribute('data-wistia', video.wistiaId);
+            
+            // Handle tags - use tags array if provided, otherwise use category as single tag
+            const videoTags = video.tags && video.tags.length > 0 ? video.tags : [video.category];
+            const tagsString = videoTags.join(',');
+            videoElement.setAttribute('data-tags', tagsString);
+            
+            // Generate tag pills HTML
+            const displayTags = videoTags.map(tag => 
+                `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+            ).join('');
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
@@ -4572,7 +4853,7 @@
                     <div class="title-row">
                         <div class="item-title">${video.title}</div>
                     </div>
-                    <div class="item-tag">${video.category.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</div>
+                    <div class="item-tags">${displayTags}</div>
                 </div>
             `;
             
@@ -4590,6 +4871,9 @@
             if (isEditMode) {
                 addEditListenersToVideo(videoElement);
             }
+            
+            // Mark as having unsaved changes
+            markUnsavedChanges();
         }
 
         function addVideoEventListeners(videoElement) {

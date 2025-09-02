@@ -73,7 +73,15 @@ exports.handler = async (event, context) => {
             id: page,
             name: page.charAt(0).toUpperCase() + page.slice(1),
             accent_color: '#008f67',  // Default green color
-            page_title: page.charAt(0).toUpperCase() + page.slice(1)  // Default title
+            page_title: page.charAt(0).toUpperCase() + page.slice(1),  // Default title
+            meta_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
+            meta_keywords: `${page}, videos, collection`,
+            og_title: page.charAt(0).toUpperCase() + page.slice(1),
+            og_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
+            og_image_url: '/assets/og-image.png',
+            twitter_title: null,
+            twitter_description: null,
+            canonical_url: `https://vidsharepro.netlify.app/${page}.html`
           })
         };
       }
