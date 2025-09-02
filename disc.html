@@ -3296,24 +3296,32 @@
                 const getResponse = await fetch('/.netlify/functions/get-videos?page=disc');
                 const allServerVideos = await getResponse.json();
                 
-                // Create a map of current grid videos for easy lookup
+                // Create a map of current grid videos with their order and data
                 const gridVideosMap = {};
-                document.querySelectorAll('.video-item').forEach((item) => {
-                    gridVideosMap[item.dataset.wistia] = {
+                const gridOrder = [];
+                document.querySelectorAll('.video-item').forEach((item, index) => {
+                    const wistiaId = item.dataset.wistia;
+                    gridOrder.push(wistiaId);
+                    gridVideosMap[wistiaId] = {
                         title: item.querySelector('.item-title').textContent,
                         category: item.dataset.category,
-                        tags: item.dataset.tags ? item.dataset.tags.split(',') : []
+                        tags: item.dataset.tags ? item.dataset.tags.split(',') : [],
+                        order: index  // Store the actual position in the grid
                     };
                 });
                 
-                // Update all videos with current data and featured status
-                const videos = allServerVideos.map((video, index) => ({
-                    ...video,
-                    // Update with grid data if video is in grid
-                    ...(gridVideosMap[video.wistiaId] || {}),
-                    featured: video.wistiaId === featuredContent.videoId,
-                    order: index
-                }));
+                // Update all videos with current data and order from the grid
+                const videos = allServerVideos.map((video) => {
+                    const gridData = gridVideosMap[video.wistiaId];
+                    return {
+                        ...video,
+                        // Update with grid data if video is in grid
+                        ...(gridData || {}),
+                        featured: video.wistiaId === featuredContent.videoId,
+                        // Use grid order if available, otherwise keep existing order
+                        order: gridData ? gridData.order : video.order
+                    };
+                }).sort((a, b) => a.order - b.order); // Sort by the new order
                 
                 const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map((tag, index) => ({
                     id: tag.dataset.category,
