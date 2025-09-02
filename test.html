@@ -2481,6 +2481,7 @@
             // Hide the video container with smooth animation
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.remove('active');
+            videoContainerElement.removeAttribute('data-platform');
             
             // Wait for animation to complete before clearing content
             setTimeout(() => {
@@ -2581,6 +2582,7 @@
             // Show video container
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'vimeo');
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `
@@ -2593,10 +2595,10 @@
                 </iframe>
             `;
             
-            // Update video title
+            // Hide title overlay for Vimeo (they have their own)
             const titleElement = document.getElementById('current-video-title');
             if (titleElement) {
-                titleElement.textContent = title;
+                titleElement.style.display = 'none';
             }
             
             // Update mobile title
@@ -2617,14 +2619,16 @@
             // Show video container
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'wistia');
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
             
-            // Update video title
+            // Update video title and ensure it's visible
             const titleElement = document.getElementById('current-video-title');
             if (titleElement) {
                 titleElement.textContent = title;
+                titleElement.style.display = ''; // Reset display to show it
             }
             
             // Update mobile title
