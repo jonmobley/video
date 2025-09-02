@@ -1105,6 +1105,7 @@
             border: 2px dashed transparent;
             border-radius: 8px;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .edit-mode .video-item:active {
@@ -1126,12 +1127,110 @@
             transform: scale(1.05);
         }
 
+        /* Arrow controls for repositioning */
+        .video-position-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .edit-mode .video-item:hover .video-position-controls {
+            display: block;
+        }
+
+        .position-arrow {
+            position: absolute;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0.9;
+            transition: all 0.2s ease;
+            pointer-events: all;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .position-arrow:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .position-arrow:active {
+            transform: scale(0.95);
+        }
+
+        .position-arrow.arrow-up {
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .position-arrow.arrow-down {
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .position-arrow.arrow-left {
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .position-arrow.arrow-right {
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .position-arrow:hover.arrow-up,
+        .position-arrow:hover.arrow-down {
+            transform: translateX(-50%) scale(1.1);
+        }
+
+        .position-arrow:hover.arrow-left,
+        .position-arrow:hover.arrow-right {
+            transform: translateY(-50%) scale(1.1);
+        }
+
         /* Drag placeholder */
         .drag-placeholder {
-            border: 2px dashed var(--accent-color);
+            border: 3px dashed var(--accent-color);
             background: var(--accent-light);
-            border-radius: 8px;
+            border-radius: 12px;
             transition: all 0.2s ease;
+            position: relative;
+            min-height: 100px;
+        }
+        
+        .drag-placeholder::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent-color);
+            opacity: 0.1;
+            border-radius: 12px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 0.1; }
         }
 
         /* Edit Video Overlay */
@@ -1227,14 +1326,16 @@
             transform: translate(-50%, -50%);
             width: 96px;
             height: 54px;
-            background: rgba(0, 143, 103, 0.6);
+            background: var(--accent-light);
+            backdrop-filter: blur(8px) saturate(1.5);
+            border: 1px solid var(--accent-color);
             border-radius: 8px;
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 20;
             transition: all 0.2s ease;
-            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 12px var(--accent-shadow);
         }
 
         .thumbnail-play-button::after {
@@ -1269,8 +1370,9 @@
             }
             
             .video-item:not(.active):hover .thumbnail-play-button:hover {
-                background: rgba(0, 122, 90, 0.8);
+                background: var(--accent-color);
                 transform: translate(-50%, -50%) scale(1.05);
+                box-shadow: 0 6px 20px var(--accent-shadow);
             }
         }
 
@@ -2371,8 +2473,28 @@
             console.log('🎬 DEBUG: Videos to render:', videosToDisplay.length);
             console.log('🎬 DEBUG: Featured video:', featuredContent.videoId);
             
+            // Calculate grid dimensions based on viewport width
+            const getGridColumns = () => {
+                const width = window.innerWidth;
+                if (width >= 1200) return 4;
+                if (width >= 768) return 3;
+                return 2;
+            };
+            
+            const columns = getGridColumns();
+            const totalVideos = videosToDisplay.length;
+            const rows = Math.ceil(totalVideos / columns);
+            
             const videoHTML = videosToDisplay.map((video, index) => {
                 console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videosToDisplay.length}:`, video);
+                
+                // Calculate position in grid
+                const row = Math.floor(index / columns);
+                const col = index % columns;
+                const isFirstRow = row === 0;
+                const isLastRow = row === rows - 1;
+                const isFirstCol = col === 0;
+                const isLastCol = col === columns - 1 || index === totalVideos - 1;
                 
                 // Handle both old format (category) and new format (tags array)
                 const videoTags = video.tags || [video.category];
@@ -2380,6 +2502,16 @@
                 const displayTags = videoTags.map(tag => 
                     `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
                 ).join('');
+                
+                // Generate arrow controls based on position
+                const arrowControls = `
+                    <div class="video-position-controls">
+                        ${!isFirstRow ? `<button class="position-arrow arrow-up" onclick="moveVideo(event, '${video.wistiaId}', 'up')" title="Move Up">↑</button>` : ''}
+                        ${!isLastRow ? `<button class="position-arrow arrow-down" onclick="moveVideo(event, '${video.wistiaId}', 'down')" title="Move Down">↓</button>` : ''}
+                        ${!isFirstCol ? `<button class="position-arrow arrow-left" onclick="moveVideo(event, '${video.wistiaId}', 'left')" title="Move Left">←</button>` : ''}
+                        ${!isLastCol ? `<button class="position-arrow arrow-right" onclick="moveVideo(event, '${video.wistiaId}', 'right')" title="Move Right">→</button>` : ''}
+                    </div>
+                `;
                 
                 const html = `
                     <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
@@ -2397,6 +2529,7 @@
                                 <button class="thumbnail-close-button" onclick="stopVideoAndClosePlayer()">Close</button>
                             </div>
                         </div>
+                        ${arrowControls}
                         <div class="item-info">
                             <div class="title-row">
                                 <div class="item-title">${video.title}</div>
@@ -3303,11 +3436,15 @@
             });
 
             // Add drag and drop for video reordering
+            const videoGrid = document.getElementById('videoGrid');
+            
+            // Add container-level event listeners for better drag handling
+            videoGrid.addEventListener('dragover', handleContainerDragOver);
+            videoGrid.addEventListener('drop', handleVideoDrop);
+            
             document.querySelectorAll('.video-item').forEach(item => {
                 item.draggable = true;
                 item.addEventListener('dragstart', handleVideoDragStart);
-                item.addEventListener('dragover', handleVideoDragOver);
-                item.addEventListener('drop', handleVideoDrop);
                 item.addEventListener('dragend', handleVideoDragEnd);
             });
 
@@ -3409,14 +3546,15 @@
         // Video Drag and Drop functionality
         let draggedVideoElement = null;
         let placeholder = null;
+        let lastPlaceholderPosition = null;
+        let dragOverTimer = null;
 
         function createPlaceholder(element) {
             const rect = element.getBoundingClientRect();
-            const ph = element.cloneNode(true);
-            ph.classList.add('drag-placeholder');
+            const ph = document.createElement('div');
+            ph.classList.add('drag-placeholder', 'video-item');
+            ph.style.width = rect.width + 'px';
             ph.style.height = rect.height + 'px';
-            ph.style.opacity = '0';
-            ph.innerHTML = '';
             return ph;
         }
 
@@ -3427,12 +3565,37 @@
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setDragImage(this, e.offsetX, e.offsetY);
             
-            // Create placeholder and insert it immediately after the dragged element
+            // Create placeholder but don't insert it yet
             placeholder = createPlaceholder(this);
-            this.parentNode.insertBefore(placeholder, this.nextSibling);
+            
+            // Hide the dragged element after a short delay to allow drag image to be created
+            setTimeout(() => {
+                this.style.visibility = 'hidden';
+                // Insert placeholder where the element was
+                this.parentNode.insertBefore(placeholder, this);
+            }, 0);
             
             // Add cursor style
             document.body.style.cursor = 'grabbing';
+        }
+
+        function updatePlaceholderPosition(e) {
+            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            
+            const grid = document.getElementById('videoGrid');
+            const afterElement = getDragAfterElement(grid, e.clientX, e.clientY);
+            
+            // Check if position actually changed
+            const newPosition = afterElement ? afterElement.previousElementSibling : null;
+            if (newPosition !== lastPlaceholderPosition) {
+                lastPlaceholderPosition = newPosition;
+                
+                if (afterElement == null) {
+                    grid.appendChild(placeholder);
+                } else {
+                    grid.insertBefore(placeholder, afterElement);
+                }
+            }
         }
 
         function handleVideoDragOver(e) {
@@ -3440,14 +3603,23 @@
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
-            const grid = document.getElementById('videoGrid');
-            const afterElement = getDragAfterElement(grid, e.clientX, e.clientY);
+            // Debounce the placeholder update to reduce flickering
+            clearTimeout(dragOverTimer);
+            dragOverTimer = setTimeout(() => {
+                updatePlaceholderPosition(e);
+            }, 50);
+        }
+        
+        function handleContainerDragOver(e) {
+            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
             
-            if (afterElement == null) {
-                grid.appendChild(placeholder);
-            } else {
-                grid.insertBefore(placeholder, afterElement);
-            }
+            // Debounce the placeholder update to reduce flickering
+            clearTimeout(dragOverTimer);
+            dragOverTimer = setTimeout(() => {
+                updatePlaceholderPosition(e);
+            }, 50);
         }
 
         function handleVideoDrop(e) {
@@ -3467,9 +3639,17 @@
 
         function handleVideoDragEnd(e) {
             if (!isEditMode) return;
-            this.classList.remove('dragging');
             
-            // Clean up
+            // Clear any pending timer
+            clearTimeout(dragOverTimer);
+            
+            // Show the element again
+            if (draggedVideoElement) {
+                draggedVideoElement.style.visibility = '';
+                draggedVideoElement.classList.remove('dragging');
+            }
+            
+            // Clean up placeholder
             if (placeholder && placeholder.parentNode) {
                 placeholder.parentNode.removeChild(placeholder);
             }
@@ -3482,41 +3662,158 @@
             // Reset cursor
             document.body.style.cursor = '';
             
+            // Reset variables
             draggedVideoElement = null;
             placeholder = null;
+            lastPlaceholderPosition = null;
+            dragOverTimer = null;
         }
 
         function getDragAfterElement(container, x, y) {
             const draggableElements = [...container.querySelectorAll('.video-item:not(.dragging):not(.drag-placeholder)')];
             
-            let closestElement = null;
-            let closestDistance = Number.POSITIVE_INFINITY;
+            // If no elements, return null
+            if (draggableElements.length === 0) return null;
             
-            draggableElements.forEach(child => {
-                const box = child.getBoundingClientRect();
-                const childCenterX = box.left + box.width / 2;
-                const childCenterY = box.top + box.height / 2;
+            // Find the element that the cursor is over or closest to
+            let targetElement = null;
+            let insertBefore = false;
+            
+            // First, check if we're directly over an element
+            for (const element of draggableElements) {
+                const box = element.getBoundingClientRect();
                 
-                // Calculate distance from mouse to center of element
-                const distance = Math.sqrt(
-                    Math.pow(x - childCenterX, 2) + 
-                    Math.pow(y - childCenterY, 2)
-                );
-                
-                // If mouse is to the left or above the center, insert before
-                if (distance < closestDistance) {
-                    closestDistance = distance;
+                if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+                    // We're over this element
+                    const centerX = box.left + box.width / 2;
+                    const centerY = box.top + box.height / 2;
                     
-                    // Determine if we should insert before or after this element
-                    if (x < childCenterX || (Math.abs(x - childCenterX) < box.width / 4 && y < childCenterY)) {
-                        closestElement = child;
+                    // Determine if we should insert before or after based on position
+                    // For grid layouts, consider both horizontal and vertical position
+                    if (y < centerY - box.height / 4) {
+                        // Clearly above center - insert before
+                        insertBefore = true;
+                    } else if (y > centerY + box.height / 4) {
+                        // Clearly below center - insert after
+                        insertBefore = false;
                     } else {
-                        closestElement = child.nextElementSibling;
+                        // In the middle band - use horizontal position
+                        insertBefore = x < centerX;
                     }
+                    
+                    targetElement = element;
+                    break;
                 }
-            });
+            }
             
-            return closestElement;
+            // If we're not directly over an element, find the closest one
+            if (!targetElement) {
+                let closestDistance = Number.POSITIVE_INFINITY;
+                
+                draggableElements.forEach(element => {
+                    const box = element.getBoundingClientRect();
+                    const centerX = box.left + box.width / 2;
+                    const centerY = box.top + box.height / 2;
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+                    );
+                    
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        targetElement = element;
+                        
+                        // For the closest element, determine position based on relative location
+                        if (y < box.top) {
+                            // Above the element
+                            insertBefore = true;
+                        } else if (y > box.bottom) {
+                            // Below the element
+                            insertBefore = false;
+                        } else {
+                            // Same row - use horizontal position
+                            insertBefore = x < centerX;
+                        }
+                    }
+                });
+            }
+            
+            if (!targetElement) return null;
+            
+            return insertBefore ? targetElement : targetElement.nextElementSibling;
+        }
+
+        // Move video using arrow controls
+        function moveVideo(event, wistiaId, direction) {
+            event.stopPropagation();
+            event.preventDefault();
+            
+            if (!isEditMode) return;
+            
+            const grid = document.getElementById('videoGrid');
+            const videoItems = Array.from(grid.querySelectorAll('.video-item'));
+            const currentItem = videoItems.find(item => item.dataset.wistia === wistiaId);
+            
+            if (!currentItem) return;
+            
+            const currentIndex = videoItems.indexOf(currentItem);
+            const columns = getGridColumns();
+            let targetIndex;
+            
+            switch (direction) {
+                case 'up':
+                    targetIndex = currentIndex - columns;
+                    break;
+                case 'down':
+                    targetIndex = currentIndex + columns;
+                    break;
+                case 'left':
+                    targetIndex = currentIndex - 1;
+                    break;
+                case 'right':
+                    targetIndex = currentIndex + 1;
+                    break;
+            }
+            
+            // Validate target index
+            if (targetIndex < 0 || targetIndex >= videoItems.length) return;
+            
+            // For left/right movement, check if we're crossing row boundaries
+            if (direction === 'left' || direction === 'right') {
+                const currentRow = Math.floor(currentIndex / columns);
+                const targetRow = Math.floor(targetIndex / columns);
+                if (currentRow !== targetRow) return;
+            }
+            
+            // Perform the swap
+            const targetItem = videoItems[targetIndex];
+            
+            // Animate the movement
+            currentItem.style.transition = 'all 0.3s ease';
+            targetItem.style.transition = 'all 0.3s ease';
+            
+            // Swap positions in DOM
+            if (targetIndex < currentIndex) {
+                grid.insertBefore(currentItem, targetItem);
+            } else {
+                grid.insertBefore(targetItem, currentItem);
+            }
+            
+            // Mark as changed
+            markUnsavedChanges();
+            
+            // Re-render to update arrow visibility
+            setTimeout(() => {
+                renderVideos();
+            }, 300);
+        }
+        
+        // Helper function to get grid columns (also used in moveVideo)
+        function getGridColumns() {
+            const width = window.innerWidth;
+            if (width >= 1200) return 4;
+            if (width >= 768) return 3;
+            return 2;
         }
 
         // Category Drag and Drop functionality
@@ -4381,8 +4678,6 @@
             // Add drag and drop
             videoElement.draggable = true;
             videoElement.addEventListener('dragstart', handleVideoDragStart);
-            videoElement.addEventListener('dragover', handleVideoDragOver);
-            videoElement.addEventListener('drop', handleVideoDrop);
             videoElement.addEventListener('dragend', handleVideoDragEnd);
             
             // Add inline editing

@@ -120,13 +120,14 @@ exports.handler = async (event, context) => {
     // Try to save to Supabase if available
     if (supabase) {
       try {
-        // Prepare data for Supabase
-        const supabaseCategories = categories.map(category => ({
-          id: category.id,
+        // Prepare data for Supabase with composite keys
+        const supabaseCategories = categories.map((category, index) => ({
+          id: `${page}-${category.id}`, // Create composite key with page prefix
           name: category.name,
           color: category.color || null,
-          order: category.order || 0,
-          page: page
+          order: category.order || index, // Use index if no order specified
+          page: page,
+          category_key: category.id // Store original category ID separately
         }));
 
         // Delete existing categories for this page and insert new ones
@@ -140,10 +141,13 @@ exports.handler = async (event, context) => {
           throw deleteError;
         }
 
-        // Insert new categories
+        // Insert new categories with upsert to handle any edge cases
         const { data, error } = await supabase
           .from('categories')
-          .insert(supabaseCategories);
+          .upsert(supabaseCategories, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          });
 
         if (error) {
           console.error('Error saving categories to Supabase:', error);

@@ -103,10 +103,20 @@ exports.handler = async (event, context) => {
 
         console.log(`Successfully fetched ${data.length} categories from Supabase for page: ${page}`);
         
+        // Transform data to use category_key as id if available
+        const transformedData = data.map(cat => ({
+          id: cat.category_key || cat.id.replace(`${page}-`, ''), // Use category_key or strip page prefix
+          name: cat.name,
+          color: cat.color,
+          order: cat.order,
+          page: cat.page,
+          icon: cat.icon
+        }));
+        
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify(data)
+          body: JSON.stringify(transformedData)
         };
       } catch (dbError) {
         console.error('Database query failed, using default categories:', dbError);
