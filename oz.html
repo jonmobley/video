@@ -3206,35 +3206,41 @@
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setDragImage(this, e.offsetX, e.offsetY);
             
-            // Create placeholder
+            // Create placeholder and insert it immediately after the dragged element
             placeholder = createPlaceholder(this);
+            this.parentNode.insertBefore(placeholder, this.nextSibling);
             
             // Add cursor style
             document.body.style.cursor = 'grabbing';
         }
 
         function handleVideoDragOver(e) {
-            if (!isEditMode || !draggedVideoElement) return;
+            if (!isEditMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
-            const afterElement = getDragAfterElement(document.getElementById('videoGrid'), e.clientX, e.clientY);
+            const grid = document.getElementById('videoGrid');
+            const afterElement = getDragAfterElement(grid, e.clientX, e.clientY);
             
             if (afterElement == null) {
-                document.getElementById('videoGrid').appendChild(placeholder);
+                grid.appendChild(placeholder);
             } else {
-                document.getElementById('videoGrid').insertBefore(placeholder, afterElement);
+                grid.insertBefore(placeholder, afterElement);
             }
         }
 
         function handleVideoDrop(e) {
-            if (!isEditMode || !draggedVideoElement) return;
+            if (!isEditMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
+            
+            // Don't drop on itself
+            if (e.target === draggedVideoElement) return;
             
             // Replace placeholder with actual element
             if (placeholder && placeholder.parentNode) {
                 placeholder.parentNode.replaceChild(draggedVideoElement, placeholder);
                 markUnsavedChanges();
+                console.log('Video dropped at new position');
             }
         }
 
@@ -3260,18 +3266,36 @@
         }
 
         function getDragAfterElement(container, x, y) {
-            const draggableElements = [...container.querySelectorAll('.video-item:not(.dragging)')];
+            const draggableElements = [...container.querySelectorAll('.video-item:not(.dragging):not(.drag-placeholder)')];
             
-            return draggableElements.reduce((closest, child) => {
+            let closestElement = null;
+            let closestDistance = Number.POSITIVE_INFINITY;
+            
+            draggableElements.forEach(child => {
                 const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
+                const childCenterX = box.left + box.width / 2;
+                const childCenterY = box.top + box.height / 2;
                 
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
+                // Calculate distance from mouse to center of element
+                const distance = Math.sqrt(
+                    Math.pow(x - childCenterX, 2) + 
+                    Math.pow(y - childCenterY, 2)
+                );
+                
+                // If mouse is to the left or above the center, insert before
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    
+                    // Determine if we should insert before or after this element
+                    if (x < childCenterX || (Math.abs(x - childCenterX) < box.width / 4 && y < childCenterY)) {
+                        closestElement = child;
+                    } else {
+                        closestElement = child.nextElementSibling;
+                    }
                 }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+            });
+            
+            return closestElement;
         }
 
         // Category Drag and Drop functionality
