@@ -55,7 +55,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const categories = JSON.parse(event.body);
+    const requestBody = JSON.parse(event.body);
+    
+    // Support both array of categories and object with categories and page
+    let categories, page;
+    if (Array.isArray(requestBody)) {
+      // Backward compatibility - if just an array is sent, default to 'oz' page
+      categories = requestBody;
+      page = 'oz';
+    } else {
+      // New format: { categories: [...], page: 'oz' }
+      categories = requestBody.categories || [];
+      page = requestBody.page || 'oz';
+    }
+    
+    console.log(`Saving ${categories.length} categories for page: ${page}`);
     
     // Validate category data
     if (!Array.isArray(categories)) {
@@ -89,14 +103,15 @@ exports.handler = async (event, context) => {
           id: category.id,
           name: category.name,
           color: category.color || null,
-          order: category.order || 0
+          order: category.order || 0,
+          page: page
         }));
 
-        // Delete existing categories and insert new ones (upsert)
+        // Delete existing categories for this page and insert new ones
         const { error: deleteError } = await supabase
           .from('categories')
           .delete()
-          .neq('id', ''); // Delete all records
+          .eq('page', page); // Delete only records for this page
 
         if (deleteError) {
           console.error('Error deleting existing categories:', deleteError);
@@ -118,7 +133,7 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, count: categories.length })
+          body: JSON.stringify({ success: true, count: categories.length, page: page, message: `Categories saved successfully for page: ${page}` })
         };
       } catch (dbError) {
         console.error('Database operation failed:', dbError);

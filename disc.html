@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grace | Oz Dance Videos</title>
+    <title>Grace | DISC Videos</title>
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="Watch Grace's dance videos from Oz performances. High-quality dance content featuring choreography, performances, and behind-the-scenes moments.">
@@ -1794,7 +1794,7 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
+            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">Grace Church DISC</h1>
         </div>
 
         <div class="video-container">
@@ -2233,7 +2233,7 @@
         async function loadVideosFromServer() {
             try {
                 console.log('Loading videos from server...');
-                const response = await fetch('/.netlify/functions/get-videos?page=oz');
+                const response = await fetch('/.netlify/functions/get-videos?page=disc');
                 if (response.ok) {
                     const videos = await response.json();
                     console.log('Videos loaded:', videos);
@@ -3296,7 +3296,7 @@
             
             try {
                 // Get current video data from server to ensure we save all videos
-                const getResponse = await fetch('/.netlify/functions/get-videos?page=oz');
+                const getResponse = await fetch('/.netlify/functions/get-videos?page=disc');
                 const allServerVideos = await getResponse.json();
                 
                 // Create a map of current grid videos for easy lookup
@@ -3333,7 +3333,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ videos: videos, page: 'oz' })
+                    body: JSON.stringify({ videos: videos, page: 'disc' })
                 });
                 
                 if (!videoResponse.ok) {
@@ -3356,7 +3356,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ categories: categories, page: 'oz' })
+                    body: JSON.stringify({ categories: categories, page: 'disc' })
                 });
                 
                 if (!categoryResponse.ok) {

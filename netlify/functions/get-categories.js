@@ -22,12 +22,18 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // Default categories for fallback
-const DEFAULT_CATEGORIES = [
-  { id: 'all', name: 'All Videos', order: 0 },
-  { id: 'chorus', name: 'Chorus', order: 1 },
-  { id: 'principals', name: 'Principals', order: 2 },
-  { id: 'dancers', name: 'Dancers', order: 3 }
-];
+const DEFAULT_CATEGORIES = {
+  'oz': [
+    { id: 'all', name: 'All Videos', order: 0, page: 'oz' },
+    { id: 'chorus', name: 'Chorus', order: 1, page: 'oz' },
+    { id: 'principals', name: 'Principals', order: 2, page: 'oz' },
+    { id: 'dancers', name: 'Dancers', order: 3, page: 'oz' }
+  ],
+  'disc': [
+    { id: 'all', name: 'All Videos', order: 0, page: 'disc' },
+    { id: 'disc', name: 'DISC', order: 1, page: 'disc' }
+  ]
+};
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -56,12 +62,18 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Extract page parameter from query string
+    const params = event.queryStringParameters || {};
+    const page = params.page || 'oz'; // Default to 'oz' for backward compatibility
+    
+    console.log(`Fetching categories for page: ${page}`);
     // Try to get categories from Supabase if available
     if (supabase) {
       try {
         const { data, error } = await supabase
           .from('categories')
           .select('*')
+          .eq('page', page)
           .order('order', { ascending: true });
 
         if (error) {
@@ -69,7 +81,7 @@ exports.handler = async (event, context) => {
           throw error;
         }
 
-        console.log(`Successfully fetched ${data.length} categories from Supabase`);
+        console.log(`Successfully fetched ${data.length} categories from Supabase for page: ${page}`);
         
         return {
           statusCode: 200,
@@ -82,7 +94,7 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify(DEFAULT_CATEGORIES)
+          body: JSON.stringify(DEFAULT_CATEGORIES[page] || [])
         };
       }
     } else {
@@ -92,7 +104,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify(DEFAULT_CATEGORIES)
+        body: JSON.stringify(DEFAULT_CATEGORIES[page] || [])
       };
     }
   } catch (error) {

@@ -22,40 +22,47 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // Default videos for fallback
-const DEFAULT_VIDEOS = [
-  {
-    id: 'ssgxvlsdmx',
-    wistiaId: 'ssgxvlsdmx',
-    title: 'Chorus and Kids Stage L',
-    category: 'chorus',
-    tags: ['chorus', 'kids'],
-    order: 0
-  },
-  {
-    id: '7kpm1d3mhv',
-    wistiaId: '7kpm1d3mhv',
-    title: 'Chorus and Kids Stage R',
-    category: 'chorus',
-    tags: ['chorus', 'kids'],
-    order: 1
-  },
-  {
-    id: 'eklwt6f33t',
-    wistiaId: 'eklwt6f33t',
-    title: 'Section One: Dancers',
-    category: 'dancers',
-    tags: ['dancers'],
-    order: 2
-  },
-  {
-    id: 'xqxp9qk6ab',
-    wistiaId: 'xqxp9qk6ab',
-    title: 'Section One: Stage R Chorus',
-    category: 'chorus',
-    tags: ['chorus'],
-    order: 3
-  }
-];
+const DEFAULT_VIDEOS = {
+  'oz': [
+    {
+      id: 'ssgxvlsdmx',
+      wistiaId: 'ssgxvlsdmx',
+      title: 'Chorus and Kids Stage L',
+      category: 'chorus',
+      tags: ['chorus', 'kids'],
+      order: 0,
+      page: 'oz'
+    },
+    {
+      id: '7kpm1d3mhv',
+      wistiaId: '7kpm1d3mhv',
+      title: 'Chorus and Kids Stage R',
+      category: 'chorus',
+      tags: ['chorus', 'kids'],
+      order: 1,
+      page: 'oz'
+    },
+    {
+      id: 'eklwt6f33t',
+      wistiaId: 'eklwt6f33t',
+      title: 'Section One: Dancers',
+      category: 'dancers',
+      tags: ['dancers'],
+      order: 2,
+      page: 'oz'
+    },
+    {
+      id: 'xqxp9qk6ab',
+      wistiaId: 'xqxp9qk6ab',
+      title: 'Section One: Stage R Chorus',
+      category: 'chorus',
+      tags: ['chorus'],
+      order: 3,
+      page: 'oz'
+    }
+  ],
+  'disc': [] // Empty array for disc page
+};
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -84,12 +91,18 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Extract page parameter from query string
+    const params = event.queryStringParameters || {};
+    const page = params.page || 'oz'; // Default to 'oz' for backward compatibility
+    
+    console.log(`Fetching videos for page: ${page}`);
     // Try to get videos from Supabase if available
     if (supabase) {
       try {
         const { data, error } = await supabase
           .from('videos')
           .select('*')
+          .eq('page', page)
           .order('order', { ascending: true });
 
         if (error) {
@@ -108,7 +121,7 @@ exports.handler = async (event, context) => {
           order: video.order
         }));
 
-        console.log(`Successfully fetched ${videos.length} videos from Supabase`);
+        console.log(`Successfully fetched ${videos.length} videos from Supabase for page: ${page}`);
         
         return {
           statusCode: 200,
@@ -121,7 +134,7 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify(DEFAULT_VIDEOS)
+          body: JSON.stringify(DEFAULT_VIDEOS[page] || [])
         };
       }
     } else {
@@ -131,7 +144,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify(DEFAULT_VIDEOS)
+        body: JSON.stringify(DEFAULT_VIDEOS[page] || [])
       };
     }
   } catch (error) {

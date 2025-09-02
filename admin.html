@@ -470,6 +470,18 @@
             <span id="statusText">Loading...</span>
         </div>
 
+        <!-- Page Selector -->
+        <div class="form-section" style="margin-bottom: var(--spacing-lg);">
+            <h2>Select Page</h2>
+            <div class="form-group">
+                <select id="pageSelector" style="font-size: 17px; font-weight: 600;">
+                    <option value="oz">Wizard of Oz</option>
+                    <option value="disc">DISC</option>
+                </select>
+                <small>Select which page you want to manage videos and categories for</small>
+            </div>
+        </div>
+
         <div class="success-message" id="successMessage">
             Video added successfully!
         </div>
@@ -556,11 +568,12 @@
         let videos = [];
         let categories = [];
         let editingCategoryId = null;
+        let currentPage = 'oz'; // Default to oz page
 
         // Load videos from Netlify Function
         async function loadVideosFromServer() {
             try {
-                const response = await fetch('/.netlify/functions/get-videos');
+                const response = await fetch(`/.netlify/functions/get-videos?page=${currentPage}`);
                 if (response.ok) {
                     videos = await response.json();
                 } else {
@@ -578,7 +591,7 @@
         // Load categories from Netlify Function
         async function loadCategoriesFromServer() {
             try {
-                const response = await fetch('/.netlify/functions/get-categories');
+                const response = await fetch(`/.netlify/functions/get-categories?page=${currentPage}`);
                 if (response.ok) {
                     categories = await response.json();
                 } else {
@@ -605,7 +618,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(videos)
+                    body: JSON.stringify({ videos: videos, page: currentPage })
                 });
                 
                 if (response.ok) {
@@ -633,7 +646,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(categories)
+                    body: JSON.stringify({ categories: categories, page: currentPage })
                 });
                 
                 if (response.ok) {
@@ -654,11 +667,17 @@
 
         // Default categories (updated to match current tag system)
         function getDefaultCategories() {
-            return [
-                { id: 'dancers', name: 'Dancers', color: '#4ecdc4', icon: null },
-                { id: 'kids', name: 'Kids', color: '#ff6b6b', icon: null },
-                { id: 'chorus', name: 'Chorus', color: '#ffd93d', icon: null }
-            ];
+            const defaultsByPage = {
+                'oz': [
+                    { id: 'dancers', name: 'Dancers', color: '#4ecdc4', icon: null, page: 'oz' },
+                    { id: 'kids', name: 'Kids', color: '#ff6b6b', icon: null, page: 'oz' },
+                    { id: 'chorus', name: 'Chorus', color: '#ffd93d', icon: null, page: 'oz' }
+                ],
+                'disc': [
+                    { id: 'disc', name: 'DISC', color: '#007AFF', icon: null, page: 'disc' }
+                ]
+            };
+            return defaultsByPage[currentPage] || [];
         }
 
         // Generate category ID from name
@@ -981,7 +1000,7 @@
                         <div class="video-details">
                             <h3>${video.title}</h3>
                             <p>Category: ${categoryName} | Tags: ${tags}</p>
-                            <p style="font-size: 14px; color: #666;">Wistia ID: ${video.wistiaId} | URL: /oz.html#${urlString}</p>
+                            <p style="font-size: 14px; color: #666;">Wistia ID: ${video.wistiaId} | URL: /${currentPage}.html#${urlString}</p>
                         </div>
                         <div class="video-actions">
                             <button class="btn btn-danger btn-small" onclick="deleteVideo(${index})">Delete</button>
@@ -1000,8 +1019,25 @@
             }
         }
 
+        // Page selector handler
+        document.getElementById('pageSelector').addEventListener('change', async (e) => {
+            currentPage = e.target.value;
+            
+            // Update the back link
+            document.querySelector('.main-page-link').href = `/${currentPage}.html`;
+            
+            // Reload data for the selected page
+            await Promise.all([
+                loadVideosFromServer(),
+                loadCategoriesFromServer()
+            ]);
+        });
+
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            // Set initial page from selector
+            currentPage = document.getElementById('pageSelector').value;
+            
             await Promise.all([
                 loadVideosFromServer(),
                 loadCategoriesFromServer()

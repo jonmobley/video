@@ -78,7 +78,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const videos = JSON.parse(event.body);
+    const requestBody = JSON.parse(event.body);
+    
+    // Support both array of videos and object with videos and page
+    let videos, page;
+    if (Array.isArray(requestBody)) {
+      // Backward compatibility - if just an array is sent, default to 'oz' page
+      videos = requestBody;
+      page = 'oz';
+    } else {
+      // New format: { videos: [...], page: 'oz' }
+      videos = requestBody.videos || [];
+      page = requestBody.page || 'oz';
+    }
+    
+    console.log(`Saving ${videos.length} videos for page: ${page}`);
     
     // Validate video data
     if (!Array.isArray(videos)) {
@@ -116,14 +130,15 @@ exports.handler = async (event, context) => {
           category: video.category,
           tags: video.tags || [],
           url_string: video.urlString,
-          order: video.order || 0
+          order: video.order || 0,
+          page: page
         }));
 
-        // Delete existing videos and insert new ones (upsert)
+        // Delete existing videos for this page and insert new ones
         const { error: deleteError } = await supabase
           .from('videos')
           .delete()
-          .neq('id', ''); // Delete all records
+          .eq('page', page); // Delete only records for this page
 
         if (deleteError) {
           console.error('Error deleting existing videos:', deleteError);
@@ -145,7 +160,7 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, count: videos.length, message: 'Videos saved successfully' })
+          body: JSON.stringify({ success: true, count: videos.length, page: page, message: `Videos saved successfully for page: ${page}` })
         };
       } catch (dbError) {
         console.error('Database operation failed:', dbError);
