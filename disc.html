@@ -48,51 +48,6 @@
             position: relative;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('./assets/wizard.jpg');
-            background-size: cover;
-            background-position: center top;
-            background-repeat: no-repeat;
-            opacity: 0.15;
-            filter: blur(3px);
-            z-index: -1;
-        }
-
-        /* Hide background on mobile */
-        @media screen and (max-width: 767px) {
-            body::before,
-            body::after {
-                display: none;
-            }
-        }
-
-        /* Tablet optimization */
-        @media screen and (min-width: 768px) and (max-width: 1024px) {
-            body::before {
-                background-position: center top;
-                opacity: 0.13;
-                filter: blur(2.5px);
-            }
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(15, 15, 15, 0.3) 60%, rgba(15, 15, 15, 0.7) 100%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
         .header {
             position: relative;
             background: transparent;
@@ -383,16 +338,18 @@
 
 
 
+        /* Dropdown removed - styles commented out
         .categories-dropdown {
             display: flex;
             align-items: center;
             position: relative;
             margin-top: 8px;
             flex-shrink: 0;
-        }
+        } */
 
 
 
+        /* Dropdown removed - styles commented out
         .category-select {
             background: #2a2a2a;
             color: white;
@@ -414,10 +371,11 @@
             min-width: 140px;
             height: 40px;
             box-sizing: border-box;
-        }
+        } */
 
 
 
+        /* Dropdown removed - styles commented out
         .category-select:hover {
             background: #333333;
             border-color: var(--accent-hover);
@@ -427,9 +385,10 @@
             background: #333333;
             border-color: var(--accent-hover);
             box-shadow: 0 0 0 2px var(--accent-shadow);
-        }
+        } */
 
         /* Custom dropdown arrow */
+        /* Dropdown removed - styles commented out
         .categories-dropdown::after {
             content: '▼';
             position: absolute;
@@ -446,7 +405,7 @@
             justify-content: center;
             width: 20px;
             height: 20px;
-        }
+        } */
 
         .tags {
             display: flex;
@@ -1128,10 +1087,28 @@
 
         /* Drag placeholder */
         .drag-placeholder {
-            border: 2px dashed var(--accent-color);
+            border: 3px dashed var(--accent-color);
             background: var(--accent-light);
-            border-radius: 8px;
+            border-radius: 12px;
             transition: all 0.2s ease;
+            position: relative;
+            min-height: 100px;
+        }
+        
+        .drag-placeholder::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent-color);
+            opacity: 0.1;
+            border-radius: 12px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 0.1; }
         }
 
         /* Edit Video Overlay */
@@ -1550,6 +1527,7 @@
                 display: none !important;
             }
 
+            /* Dropdown removed - mobile styles commented out
             /* Dropdown comes second in header */
             .categories-dropdown {
                 /* Remove order: 2 and let it follow naturally after page-header */
@@ -1577,7 +1555,7 @@
                 -webkit-appearance: auto;
                 -moz-appearance: auto;
                 padding-right: 16px; /* Reduce padding since we're using native arrow */
-            }
+            } */
             
             /* Video container comes third in header when active */
             .video-container {
@@ -1867,11 +1845,6 @@
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         <div class="tags-container">
-            <div class="categories-dropdown">
-                <select id="categoriesDropdown" class="category-select">
-                    <option value="all-songs" selected data-icon="star">★ DISC Heroes</option>
-                </select>
-            </div>
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
@@ -2094,35 +2067,35 @@
             checkForDirectVideoLink();
         });
 
-        // Function to update categories dropdown with icons
-        function updateCategoriesDropdown(categoriesData) {
-            const dropdown = document.getElementById('categoriesDropdown');
-            if (!dropdown) return;
-            
-            // Clear existing options except the default ones
-            const defaultOptions = Array.from(dropdown.options).filter(option => 
-                option.value === 'the-merry-land-of-oz' || option.value === ''
-            );
-            
-            dropdown.innerHTML = '';
-            
-            // Add back default options
-            defaultOptions.forEach(option => dropdown.appendChild(option));
-            
-            // Add category-based options if needed in the future
-            if (categoriesData && categoriesData.length > 0) {
-                categoriesData.forEach(category => {
-                    if (category.showInDropdown) {
-                        const option = document.createElement('option');
-                        option.value = category.id;
-                        const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
-                        option.textContent = icon + category.name;
-                        option.setAttribute('data-icon', category.icon || '');
-                        dropdown.appendChild(option);
-                    }
-                });
-            }
-        }
+        // Function to update categories dropdown with icons - REMOVED as dropdown is no longer used
+        // function updateCategoriesDropdown(categoriesData) {
+        //     const dropdown = document.getElementById('categoriesDropdown');
+        //     if (!dropdown) return;
+        //     
+        //     // Clear existing options except the default ones
+        //     const defaultOptions = Array.from(dropdown.options).filter(option => 
+        //         option.value === 'the-merry-land-of-oz' || option.value === ''
+        //     );
+        //     
+        //     dropdown.innerHTML = '';
+        //     
+        //     // Add back default options
+        //     defaultOptions.forEach(option => dropdown.appendChild(option));
+        //     
+        //     // Add category-based options if needed in the future
+        //     if (categoriesData && categoriesData.length > 0) {
+        //         categoriesData.forEach(category => {
+        //             if (category.showInDropdown) {
+        //                 const option = document.createElement('option');
+        //                 option.value = category.id;
+        //                 const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
+        //                 option.textContent = icon + category.name;
+        //                 option.setAttribute('data-icon', category.icon || '');
+        //                 dropdown.appendChild(option);
+        //             }
+        //         });
+        //     }
+        // }
 
         // Function to get icon HTML for admin interface
         function getIconHtml(iconKey) {
@@ -2187,11 +2160,11 @@
             // Stop video and close player
             stopVideoAndClosePlayer();
             
-            // Reset category dropdown to "DISC Heroes"
-            const dropdown = document.getElementById('categoriesDropdown');
-            if (dropdown) {
-                dropdown.value = 'all-songs';
-            }
+            // Dropdown removed - no longer need to reset it
+            // const dropdown = document.getElementById('categoriesDropdown');
+            // if (dropdown) {
+            //     dropdown.value = 'all-songs';
+            // }
             
             // Reset tag selection to "All"
             document.querySelectorAll('.tag').forEach(tag => tag.classList.remove('active'));
@@ -3300,11 +3273,15 @@
             });
 
             // Add drag and drop for video reordering
+            const videoGrid = document.getElementById('videoGrid');
+            
+            // Add container-level event listeners for better drag handling
+            videoGrid.addEventListener('dragover', handleContainerDragOver);
+            videoGrid.addEventListener('drop', handleVideoDrop);
+            
             document.querySelectorAll('.video-item').forEach(item => {
                 item.draggable = true;
                 item.addEventListener('dragstart', handleVideoDragStart);
-                item.addEventListener('dragover', handleVideoDragOver);
-                item.addEventListener('drop', handleVideoDrop);
                 item.addEventListener('dragend', handleVideoDragEnd);
             });
 
@@ -3409,11 +3386,10 @@
 
         function createPlaceholder(element) {
             const rect = element.getBoundingClientRect();
-            const ph = element.cloneNode(true);
-            ph.classList.add('drag-placeholder');
+            const ph = document.createElement('div');
+            ph.classList.add('drag-placeholder', 'video-item');
+            ph.style.width = rect.width + 'px';
             ph.style.height = rect.height + 'px';
-            ph.style.opacity = '0';
-            ph.innerHTML = '';
             return ph;
         }
 
@@ -3433,6 +3409,21 @@
         }
 
         function handleVideoDragOver(e) {
+            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            const grid = document.getElementById('videoGrid');
+            const afterElement = getDragAfterElement(grid, e.clientX, e.clientY);
+            
+            if (afterElement == null) {
+                grid.appendChild(placeholder);
+            } else {
+                grid.insertBefore(placeholder, afterElement);
+            }
+        }
+        
+        function handleContainerDragOver(e) {
             if (!isEditMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -3486,34 +3477,75 @@
         function getDragAfterElement(container, x, y) {
             const draggableElements = [...container.querySelectorAll('.video-item:not(.dragging):not(.drag-placeholder)')];
             
-            let closestElement = null;
-            let closestDistance = Number.POSITIVE_INFINITY;
+            // If no elements, return null
+            if (draggableElements.length === 0) return null;
             
-            draggableElements.forEach(child => {
-                const box = child.getBoundingClientRect();
-                const childCenterX = box.left + box.width / 2;
-                const childCenterY = box.top + box.height / 2;
+            // Find the element that the cursor is over or closest to
+            let targetElement = null;
+            let insertBefore = false;
+            
+            // First, check if we're directly over an element
+            for (const element of draggableElements) {
+                const box = element.getBoundingClientRect();
                 
-                // Calculate distance from mouse to center of element
-                const distance = Math.sqrt(
-                    Math.pow(x - childCenterX, 2) + 
-                    Math.pow(y - childCenterY, 2)
-                );
-                
-                // If mouse is to the left or above the center, insert before
-                if (distance < closestDistance) {
-                    closestDistance = distance;
+                if (x >= box.left && x <= box.right && y >= box.top && y <= box.bottom) {
+                    // We're over this element
+                    const centerX = box.left + box.width / 2;
+                    const centerY = box.top + box.height / 2;
                     
-                    // Determine if we should insert before or after this element
-                    if (x < childCenterX || (Math.abs(x - childCenterX) < box.width / 4 && y < childCenterY)) {
-                        closestElement = child;
+                    // Determine if we should insert before or after based on position
+                    // For grid layouts, consider both horizontal and vertical position
+                    if (y < centerY - box.height / 4) {
+                        // Clearly above center - insert before
+                        insertBefore = true;
+                    } else if (y > centerY + box.height / 4) {
+                        // Clearly below center - insert after
+                        insertBefore = false;
                     } else {
-                        closestElement = child.nextElementSibling;
+                        // In the middle band - use horizontal position
+                        insertBefore = x < centerX;
                     }
+                    
+                    targetElement = element;
+                    break;
                 }
-            });
+            }
             
-            return closestElement;
+            // If we're not directly over an element, find the closest one
+            if (!targetElement) {
+                let closestDistance = Number.POSITIVE_INFINITY;
+                
+                draggableElements.forEach(element => {
+                    const box = element.getBoundingClientRect();
+                    const centerX = box.left + box.width / 2;
+                    const centerY = box.top + box.height / 2;
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+                    );
+                    
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        targetElement = element;
+                        
+                        // For the closest element, determine position based on relative location
+                        if (y < box.top) {
+                            // Above the element
+                            insertBefore = true;
+                        } else if (y > box.bottom) {
+                            // Below the element
+                            insertBefore = false;
+                        } else {
+                            // Same row - use horizontal position
+                            insertBefore = x < centerX;
+                        }
+                    }
+                });
+            }
+            
+            if (!targetElement) return null;
+            
+            return insertBefore ? targetElement : targetElement.nextElementSibling;
         }
 
         // Category Drag and Drop functionality
@@ -4378,8 +4410,6 @@
             // Add drag and drop
             videoElement.draggable = true;
             videoElement.addEventListener('dragstart', handleVideoDragStart);
-            videoElement.addEventListener('dragover', handleVideoDragOver);
-            videoElement.addEventListener('drop', handleVideoDrop);
             videoElement.addEventListener('dragend', handleVideoDragEnd);
             
             // Add inline editing
