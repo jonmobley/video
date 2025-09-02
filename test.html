@@ -2278,9 +2278,8 @@
                     return `https://embed-ssl.wistia.com/deliveries/${videoId}.jpg`;
                     
                 case 'vimeo':
-                    // For Vimeo, we'll need to fetch the thumbnail via their API
-                    // For now, return a placeholder
-                    return `https://vumbnail.com/${videoId}.jpg`;
+                    // Return empty for Vimeo - we'll load it asynchronously
+                    return '';
                     
                 case 'youtube':
                     return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -2291,6 +2290,41 @@
                     
                 default:
                     return '';
+            }
+        }
+        
+        // Load Vimeo thumbnail and duration using oEmbed API
+        async function loadVimeoThumbnail(videoId, thumbnailId) {
+            try {
+                const response = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Load thumbnail
+                    if (data.thumbnail_url) {
+                        // Get high quality thumbnail
+                        const highQualityThumb = data.thumbnail_url.replace(/_\d+\./, '_640.');
+                        const imgElement = document.querySelector(`#${thumbnailId} img`);
+                        if (imgElement) {
+                            imgElement.src = highQualityThumb;
+                            imgElement.style.display = 'block';
+                        }
+                    }
+                    
+                    // Load duration
+                    if (data.duration) {
+                        const durationElement = document.querySelector(`#${thumbnailId} .thumbnail-duration`);
+                        if (durationElement) {
+                            const minutes = Math.floor(data.duration / 60);
+                            const seconds = Math.floor(data.duration % 60);
+                            const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                            durationElement.textContent = formattedDuration;
+                            durationElement.style.display = 'block';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading Vimeo data:', error);
             }
         }
         
@@ -2841,6 +2875,17 @@
             // Load durations for displayed videos only
             videosToDisplay.forEach(video => {
                 loadVideoDuration(video.wistiaId);
+            });
+            
+            // Load Vimeo thumbnails asynchronously
+            videosToDisplay.forEach(video => {
+                const platform = video.platform || detectVideoPlatform(video.video_url) || 'wistia';
+                if (platform === 'vimeo') {
+                    const videoId = extractVideoId(video.video_url, 'vimeo');
+                    if (videoId) {
+                        loadVimeoThumbnail(videoId, `thumb-${video.wistiaId}`);
+                    }
+                }
             });
             
             if (videos.length > 0) {
