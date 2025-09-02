@@ -1834,6 +1834,11 @@
                 <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
             </div>
             <div class="admin-banner-buttons">
+                <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
+                    <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
+                    <input type="color" id="adminAccentColor" value="#4d90db" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="adminAccentColorText" value="#4d90db" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
@@ -2698,6 +2703,29 @@
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha})` : null;
         }
+        
+        /**
+         * Apply accent color to the page immediately
+         * Used for live preview in edit mode
+         * @param {string} color - Hex color value
+         */
+        function applyAccentColor(color) {
+            const root = document.documentElement;
+            root.style.setProperty('--accent-color', color);
+            
+            // Calculate and set derived colors
+            const hoverColor = darkenColor(color, 0.1);
+            root.style.setProperty('--accent-hover', hoverColor);
+            
+            const lightColor = hexToRgba(color, 0.1);
+            root.style.setProperty('--accent-light', lightColor);
+            
+            const shadowColor = hexToRgba(color, 0.3);
+            root.style.setProperty('--accent-shadow', shadowColor);
+            
+            // Update meta theme color
+            document.getElementById('theme-color-meta').content = color;
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
@@ -2841,6 +2869,32 @@
                 e.preventDefault();
                 e.stopPropagation();
                 editPageTitle();
+            });
+            
+            // Load and set current accent color
+            const currentAccentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
+            if (currentAccentColor) {
+                document.getElementById('adminAccentColor').value = currentAccentColor;
+                document.getElementById('adminAccentColorText').value = currentAccentColor;
+            }
+            
+            // Add accent color synchronization
+            document.getElementById('adminAccentColor').addEventListener('input', function(e) {
+                const color = e.target.value;
+                document.getElementById('adminAccentColorText').value = color;
+                // Apply color immediately for preview
+                applyAccentColor(color);
+                showUnsavedIndicator();
+            });
+            
+            document.getElementById('adminAccentColorText').addEventListener('input', function(e) {
+                const color = e.target.value;
+                if (/^#[0-9A-Fa-f]{6}$/i.test(color)) {
+                    document.getElementById('adminAccentColor').value = color;
+                    // Apply color immediately for preview
+                    applyAccentColor(color);
+                    showUnsavedIndicator();
+                }
             });
             
             // Add save button listener
@@ -3649,6 +3703,29 @@
                 const categoryResult = await categoryResponse.json();
                 
                 console.log('Save results:', { videos: videoResult, categories: categoryResult });
+                
+                // Save accent color if it has changed
+                const currentAccentColor = document.getElementById('adminAccentColorText').value;
+                if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
+                    try {
+                        const colorResponse = await fetch('/.netlify/functions/save-page-config', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                page: 'disc',
+                                accent_color: currentAccentColor
+                            })
+                        });
+                        
+                        if (colorResponse.ok) {
+                            console.log('Successfully saved accent color');
+                        }
+                    } catch (colorError) {
+                        console.error('Failed to save accent color:', colorError);
+                    }
+                }
                 
                 // Show success state
                 saveBtn.textContent = 'Saved!';
