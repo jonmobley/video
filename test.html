@@ -143,6 +143,11 @@
             pointer-events: none;
             outline: none;
         }
+        
+        /* Remove aspect-ratio constraint for dynamically sized videos */
+        .video-container[data-platform] {
+            aspect-ratio: unset;
+        }
 
         .video-container:focus {
             outline: none;
@@ -2328,6 +2333,73 @@
             }
         }
         
+        // Adjust video container dimensions based on aspect ratio
+        function adjustVideoContainer(aspectRatio) {
+            const videoContainerElement = document.querySelector('.video-container');
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // On mobile, always use full width and adjust height
+                videoContainerElement.style.width = '100%';
+                videoContainerElement.style.height = 'auto';
+                videoContainerElement.style.aspectRatio = `${aspectRatio}`;
+                return;
+            }
+            
+            const maxWidth = 1000; // Maximum width in pixels
+            const maxHeight = window.innerHeight * 0.8; // 80% of viewport height
+            const viewportWidth = window.innerWidth - 40; // Account for padding
+            
+            let width, height;
+            
+            // Standard 16:9 ratio
+            const standardRatio = 16/9;
+            
+            if (aspectRatio > standardRatio) {
+                // Video is wider than 16:9 (like ultra-wide)
+                width = Math.min(maxWidth, viewportWidth);
+                height = width / aspectRatio;
+                
+                // Check if height is too small
+                if (height < 300) {
+                    height = 300;
+                    width = height * aspectRatio;
+                }
+            } else if (aspectRatio < standardRatio) {
+                // Video is taller than 16:9 (like vertical or square)
+                height = Math.min(maxHeight, maxWidth / aspectRatio);
+                width = height * aspectRatio;
+                
+                // Check if width is too small or exceeds viewport
+                if (width < 400) {
+                    width = 400;
+                    height = width / aspectRatio;
+                } else if (width > viewportWidth) {
+                    width = viewportWidth;
+                    height = width / aspectRatio;
+                }
+            } else {
+                // Standard 16:9
+                width = Math.min(maxWidth, viewportWidth);
+                height = width / aspectRatio;
+            }
+            
+            // Apply dimensions
+            videoContainerElement.style.width = `${width}px`;
+            videoContainerElement.style.height = `${height}px`;
+            videoContainerElement.style.maxWidth = `${maxWidth}px`;
+            videoContainerElement.style.aspectRatio = `${aspectRatio}`;
+        }
+        
+        // Reset video container to default dimensions
+        function resetVideoContainer() {
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.style.width = '';
+            videoContainerElement.style.height = '';
+            videoContainerElement.style.maxWidth = '';
+            videoContainerElement.style.aspectRatio = '';
+        }
+        
         // Available category icons
         const availableIcons = {
             'music-note': '♪',
@@ -2483,6 +2555,9 @@
             videoContainerElement.classList.remove('active');
             videoContainerElement.removeAttribute('data-platform');
             
+            // Reset container dimensions
+            resetVideoContainer();
+            
             // Wait for animation to complete before clearing content
             setTimeout(() => {
                 // Clear the video container content
@@ -2576,13 +2651,29 @@
         }
         
         // Load Vimeo video
-        function loadVimeoVideo(vimeoId, title) {
+        async function loadVimeoVideo(vimeoId, title) {
             console.log('Loading Vimeo video:', vimeoId, title);
             
             // Show video container
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
             videoContainerElement.setAttribute('data-platform', 'vimeo');
+            
+            // Get video dimensions from oEmbed API
+            try {
+                const response = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const aspectRatio = data.width / data.height;
+                    
+                    // Adjust container dimensions based on aspect ratio
+                    adjustVideoContainer(aspectRatio);
+                }
+            } catch (error) {
+                console.error('Error fetching Vimeo video dimensions:', error);
+                // Default to 16:9 if we can't get dimensions
+                adjustVideoContainer(16/9);
+            }
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `
@@ -2620,6 +2711,9 @@
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
             videoContainerElement.setAttribute('data-platform', 'wistia');
+            
+            // Reset to standard 16:9 for Wistia
+            resetVideoContainer();
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
