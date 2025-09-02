@@ -162,7 +162,9 @@ exports.handler = async (event, context) => {
           tags: video.tags || [],
           url_string: video.urlString,
           order: video.order || 0,
-          page: page
+          page: page,
+          video_url: video.video_url,
+          platform: video.platform || 'wistia'
         }));
 
         // Delete existing videos for this page and insert new ones

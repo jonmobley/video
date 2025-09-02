@@ -139,7 +139,9 @@ exports.handler = async (event, context) => {
           category: video.category,
           tags: video.tags || [],           // Ensure array even if null
           urlString: video.url_string,      // url_string -> urlString
-          order: video.order
+          order: video.order,
+          video_url: video.video_url,       // Keep snake_case for compatibility
+          platform: video.platform || 'wistia' // Default to wistia for backwards compatibility
         }));
 
         console.log(`Successfully fetched ${videos.length} videos from Supabase for page: ${page}`);
