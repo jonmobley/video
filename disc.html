@@ -278,7 +278,7 @@
             width: 100%;
             max-width: 1000px;
             margin: 0 auto;
-            padding: 16px 20px 0 20px;
+            padding: 16px 20px 24px 20px;
             display: grid;
             grid-template-columns: 1fr auto 1fr;
             align-items: center;
@@ -493,6 +493,11 @@
             .video-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 16px;
+            }
+            
+            /* Add more padding below header when video is present on desktop */
+            .page-header {
+                padding-bottom: 32px;
             }
         }
 
@@ -1067,10 +1072,14 @@
         }
 
         .edit-mode .video-item {
-            cursor: move;
+            cursor: grab;
             border: 2px dashed transparent;
             border-radius: 8px;
             transition: all 0.2s ease;
+        }
+
+        .edit-mode .video-item:active {
+            cursor: grabbing;
         }
 
         .edit-mode .video-item:hover {
@@ -1081,6 +1090,19 @@
         .edit-mode .video-item.dragging {
             opacity: 0.5;
             transform: rotate(2deg);
+            cursor: grabbing;
+        }
+
+        .edit-mode .video-item.drag-over {
+            transform: scale(1.05);
+        }
+
+        /* Drag placeholder */
+        .drag-placeholder {
+            border: 2px dashed #008f67;
+            background: rgba(0, 143, 103, 0.1);
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
 
         /* Edit Video Overlay */
@@ -3155,36 +3177,53 @@
 
         // Video Drag and Drop functionality
         let draggedVideoElement = null;
+        let placeholder = null;
+
+        function createPlaceholder(element) {
+            const rect = element.getBoundingClientRect();
+            const ph = element.cloneNode(true);
+            ph.classList.add('drag-placeholder');
+            ph.style.height = rect.height + 'px';
+            ph.style.opacity = '0';
+            ph.innerHTML = '';
+            return ph;
+        }
 
         function handleVideoDragStart(e) {
             if (!isEditMode) return;
             draggedVideoElement = this;
             this.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setDragImage(this, e.offsetX, e.offsetY);
+            
+            // Create placeholder
+            placeholder = createPlaceholder(this);
+            
+            // Add cursor style
+            document.body.style.cursor = 'grabbing';
         }
 
         function handleVideoDragOver(e) {
-            if (!isEditMode) return;
+            if (!isEditMode || !draggedVideoElement) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
+            
+            const afterElement = getDragAfterElement(document.getElementById('videoGrid'), e.clientX, e.clientY);
+            
+            if (afterElement == null) {
+                document.getElementById('videoGrid').appendChild(placeholder);
+            } else {
+                document.getElementById('videoGrid').insertBefore(placeholder, afterElement);
+            }
         }
 
         function handleVideoDrop(e) {
-            if (!isEditMode) return;
+            if (!isEditMode || !draggedVideoElement) return;
             e.preventDefault();
             
-            if (draggedVideoElement !== this) {
-                const grid = document.getElementById('videoGrid');
-                const draggedIndex = Array.from(grid.children).indexOf(draggedVideoElement);
-                const targetIndex = Array.from(grid.children).indexOf(this);
-                
-                if (draggedIndex < targetIndex) {
-                    this.parentNode.insertBefore(draggedVideoElement, this.nextSibling);
-                } else {
-                    this.parentNode.insertBefore(draggedVideoElement, this);
-                }
-                
-                console.log('Video reordered from position', draggedIndex, 'to', targetIndex);
+            // Replace placeholder with actual element
+            if (placeholder && placeholder.parentNode) {
+                placeholder.parentNode.replaceChild(draggedVideoElement, placeholder);
                 markUnsavedChanges();
             }
         }
@@ -3192,7 +3231,37 @@
         function handleVideoDragEnd(e) {
             if (!isEditMode) return;
             this.classList.remove('dragging');
+            
+            // Clean up
+            if (placeholder && placeholder.parentNode) {
+                placeholder.parentNode.removeChild(placeholder);
+            }
+            
+            // Remove all drag-over classes
+            document.querySelectorAll('.video-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            // Reset cursor
+            document.body.style.cursor = '';
+            
             draggedVideoElement = null;
+            placeholder = null;
+        }
+
+        function getDragAfterElement(container, x, y) {
+            const draggableElements = [...container.querySelectorAll('.video-item:not(.dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
         // Category Drag and Drop functionality
