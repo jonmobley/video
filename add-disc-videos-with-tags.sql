@@ -3,7 +3,7 @@
 
 -- First, ensure the DISC categories exist
 INSERT INTO categories (id, name, color, "order", page) VALUES
-('disc', 'DISC', '#007AFF', 0, 'disc'),
+('all', 'All', '#007AFF', 0, 'disc'),
 ('conflict', 'Conflict', '#FF3B30', 1, 'disc'),
 ('adapted', 'Adapted', '#34C759', 2, 'disc')
 ON CONFLICT (id) DO UPDATE SET 

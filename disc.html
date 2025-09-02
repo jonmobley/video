@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grace | DISC Videos</title>
+    <title>DISC Heroes | Videos</title>
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="Watch Grace's dance videos from Oz performances. High-quality dance content featuring choreography, performances, and behind-the-scenes moments.">
@@ -1794,7 +1794,7 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">Grace Church DISC</h1>
+            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">DISC Heroes</h1>
         </div>
 
         <div class="video-container">
@@ -1813,17 +1813,14 @@
         <div class="tags-container">
             <div class="categories-dropdown">
                 <select id="categoriesDropdown" class="category-select">
-                    <option value="all-songs" selected data-icon="music-note">♪ All Dance Videos</option>
-                    <option value="the-merry-land-of-oz" data-icon="music-note">♪ The Merry Land of Oz</option>
-                    <option value="" disabled>More coming soon!</option>
+                    <option value="all-songs" selected data-icon="star">★ DISC Heroes</option>
                 </select>
             </div>
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="dancers">Dancers</div>
-                <div class="tag" data-category="kids">Kids</div>
-                <div class="tag" data-category="chorus">Chorus</div>
+                <div class="tag" data-category="conflict">Conflict</div>
+                <div class="tag" data-category="adapted">Adapted</div>
             </div>
         </div>
     </div>
@@ -2132,7 +2129,7 @@
             // Stop video and close player
             stopVideoAndClosePlayer();
             
-            // Reset category dropdown to "All Dance Videos"
+            // Reset category dropdown to "DISC Heroes"
             const dropdown = document.getElementById('categoriesDropdown');
             if (dropdown) {
                 dropdown.value = 'all-songs';
