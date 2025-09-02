@@ -472,13 +472,28 @@
 
         <!-- Page Selector -->
         <div class="form-section" style="margin-bottom: var(--spacing-lg);">
-            <h2>Select Page</h2>
+            <h2>Page Settings</h2>
             <div class="form-group">
+                <label for="pageSelector">Select Page</label>
                 <select id="pageSelector" style="font-size: 17px; font-weight: 600;">
                     <option value="oz">Wizard of Oz</option>
                     <option value="disc">DISC</option>
                 </select>
                 <small>Select which page you want to manage videos and categories for</small>
+            </div>
+            <div class="form-row" style="margin-top: var(--spacing-lg);">
+                <div class="form-group">
+                    <label for="pageAccentColor">Accent Color</label>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                        <input type="color" id="pageAccentColor" value="#008f67" style="width: 80px; height: 48px;">
+                        <input type="text" id="pageAccentColorText" value="#008f67" placeholder="#008f67" style="width: 120px;" pattern="^#[0-9A-Fa-f]{6}$">
+                    </div>
+                    <small>This color will be used for buttons, borders, and active states</small>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn" id="savePageConfigBtn" style="margin-top: 4px;">Save Page Settings</button>
+                </div>
             </div>
         </div>
 
@@ -569,6 +584,7 @@
         let categories = [];
         let editingCategoryId = null;
         let currentPage = 'oz'; // Default to oz page
+        let pageConfig = {}; // Store page configurations
 
         // Load videos from Netlify Function
         async function loadVideosFromServer() {
@@ -1029,9 +1045,98 @@
             // Reload data for the selected page
             await Promise.all([
                 loadVideosFromServer(),
-                loadCategoriesFromServer()
+                loadCategoriesFromServer(),
+                loadPageConfig()
             ]);
         });
+
+        /**
+         * Load page configuration from server
+         * Fetches the current page's configuration including accent color and title
+         * Updates the UI controls with the loaded values
+         */
+        async function loadPageConfig() {
+            try {
+                const response = await fetch(`/.netlify/functions/get-page-config?page=${currentPage}`);
+                if (response.ok) {
+                    const config = await response.json();
+                    // Store config in memory for current page
+                    pageConfig[currentPage] = config;
+                    
+                    // Update UI with loaded config
+                    if (config.accent_color) {
+                        document.getElementById('pageAccentColor').value = config.accent_color;
+                        document.getElementById('pageAccentColorText').value = config.accent_color;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load page config:', error);
+                // UI will retain default values if load fails
+            }
+        }
+
+        /**
+         * Save page configuration to server
+         * Validates and saves the accent color for the current page
+         * Shows success/error messages to the user
+         */
+        async function savePageConfig() {
+            const accentColor = document.getElementById('pageAccentColorText').value;
+            
+            // Validate hex color format (#RRGGBB)
+            if (!/^#[0-9A-Fa-f]{6}$/.test(accentColor)) {
+                showError('Invalid color format. Please use hex format (e.g., #008f67)');
+                return;
+            }
+            
+            try {
+                const btn = document.getElementById('savePageConfigBtn');
+                btn.disabled = true;
+                btn.textContent = 'Saving...';
+                
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        page: currentPage,
+                        accent_color: accentColor
+                    })
+                });
+                
+                if (response.ok) {
+                    const config = await response.json();
+                    pageConfig[currentPage] = config;
+                    showSuccess('Page settings saved successfully!');
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save');
+                }
+            } catch (error) {
+                console.error('Failed to save page config:', error);
+                showError('Failed to save page settings: ' + error.message);
+            } finally {
+                const btn = document.getElementById('savePageConfigBtn');
+                btn.disabled = false;
+                btn.textContent = 'Save Page Settings';
+            }
+        }
+
+        // Color picker synchronization
+        document.getElementById('pageAccentColor').addEventListener('input', (e) => {
+            document.getElementById('pageAccentColorText').value = e.target.value;
+        });
+        
+        document.getElementById('pageAccentColorText').addEventListener('input', (e) => {
+            const value = e.target.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                document.getElementById('pageAccentColor').value = value;
+            }
+        });
+        
+        // Save page config button handler
+        document.getElementById('savePageConfigBtn').addEventListener('click', savePageConfig);
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1040,7 +1145,8 @@
             
             await Promise.all([
                 loadVideosFromServer(),
-                loadCategoriesFromServer()
+                loadCategoriesFromServer(),
+                loadPageConfig()
             ]);
         });
     </script>

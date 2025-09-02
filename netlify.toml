@@ -1,28 +1,35 @@
-[build]
-  publish = "."
-  functions = "netlify/functions"
+# Netlify Configuration for VidShare Video Management System
+# This file configures build settings, redirects, and security headers
 
+# Build configuration
+[build]
+  publish = "."                      # Serve files from root directory
+  functions = "netlify/functions"    # Location of serverless functions
+
+# URL redirects for cleaner URLs
 [[redirects]]
   from = "/admin"
   to = "/admin.html"
-  status = 200
+  status = 200                       # Rewrite (URL stays as /admin)
 
 [[redirects]]
   from = "/oz"
   to = "/oz.html"
-  status = 200
+  status = 200                       # Rewrite (URL stays as /oz)
 
+# Security headers for all pages
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"                              # Prevent clickjacking
+    X-XSS-Protection = "1; mode=block"                    # Enable XSS filter
+    X-Content-Type-Options = "nosniff"                    # Prevent MIME sniffing
+    Referrer-Policy = "strict-origin-when-cross-origin"   # Control referrer info
 
+# CORS headers for API functions
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Origin = "*"                     # Allow all origins (restrict in production)
+    Access-Control-Allow-Headers = "Content-Type"         # Allow Content-Type header
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"   # Allowed HTTP methods

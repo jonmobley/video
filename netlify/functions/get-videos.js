@@ -1,3 +1,21 @@
+/**
+ * Netlify Function: get-videos
+ * 
+ * Purpose: Retrieves video data for a specific page from Supabase
+ * 
+ * Query Parameters:
+ *   - page (optional): Page identifier ('oz' or 'disc'). Defaults to 'oz'
+ * 
+ * Returns:
+ *   - Array of video objects with transformed field names
+ *   - Falls back to hardcoded defaults if database is unavailable
+ * 
+ * Features:
+ *   - Multi-page support
+ *   - Graceful fallback to default videos
+ *   - Field name transformation (snake_case to camelCase)
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
@@ -22,6 +40,8 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // Default videos for fallback
+// These are used when Supabase is not configured or unavailable
+// Helps with local development and ensures the app doesn't break
 const DEFAULT_VIDEOS = {
   'oz': [
     {
@@ -111,13 +131,14 @@ exports.handler = async (event, context) => {
         }
 
         // Transform Supabase data to match expected format
+        // Converts snake_case database fields to camelCase for frontend
         const videos = data.map(video => ({
           id: video.id,
-          wistiaId: video.wistia_id,
+          wistiaId: video.wistia_id,        // wistia_id -> wistiaId
           title: video.title,
           category: video.category,
-          tags: video.tags || [],
-          urlString: video.url_string,
+          tags: video.tags || [],           // Ensure array even if null
+          urlString: video.url_string,      // url_string -> urlString
           order: video.order
         }));
 

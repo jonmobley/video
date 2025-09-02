@@ -31,7 +31,7 @@
     
     <!-- Additional Meta Tags -->
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#008f67">
+    <meta name="theme-color" content="var(--accent-color)" id="theme-color-meta">
     <link rel="canonical" href="https://vidsharepro.netlify.app/oz.html">
     <style>
         * {
@@ -272,7 +272,7 @@
         }
 
         .thumbnail-close-button:hover {
-            background: #008f67;
+            background: var(--accent-color);
             transform: scale(1.05);
         }
 
@@ -313,8 +313,15 @@
             opacity: 1.0;
         }
 
+        :root {
+            --accent-color: var(--accent-color);
+            --accent-hover: var(--accent-hover);
+            --accent-light: var(--accent-light);
+            --accent-shadow: var(--accent-shadow);
+        }
+
         .vid-green {
-            color: #008f67;
+            color: var(--accent-color);
         }
 
         .page-title {
@@ -328,7 +335,7 @@
         }
 
         .page-title:hover {
-            color: #008f67;
+            color: var(--accent-color);
             opacity: 0.8;
         }
 
@@ -389,7 +396,7 @@
         .category-select {
             background: #2a2a2a;
             color: white;
-            border: 2px solid #008f67;
+            border: 2px solid var(--accent-color);
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 14px;
@@ -413,13 +420,13 @@
 
         .category-select:hover {
             background: #333333;
-            border-color: #00a876;
+            border-color: var(--accent-hover);
         }
 
         .category-select:focus {
             background: #333333;
-            border-color: #00a876;
-            box-shadow: 0 0 0 2px rgba(0, 143, 103, 0.3);
+            border-color: var(--accent-hover);
+            box-shadow: 0 0 0 2px var(--accent-shadow);
         }
 
         /* Custom dropdown arrow */
@@ -429,7 +436,7 @@
             right: 12px;
             top: 50%;
             transform: translateY(-50%);
-            color: #008f67;
+            color: var(--accent-color);
             font-size: 12px;
             pointer-events: none;
             z-index: 2;
@@ -472,9 +479,9 @@
         }
 
         .tag.active {
-            background: #008f67;
+            background: var(--accent-color);
             color: #ffffff;
-            border-color: #007a5a;
+            border-color: var(--accent-hover);
         }
 
         .tag:hover {
@@ -482,7 +489,7 @@
         }
 
         .tag.active:hover {
-            background: #007a5a;
+            background: var(--accent-hover);
         }
 
         .content {
@@ -604,7 +611,7 @@
 
         .item-tag-pill {
             background: #333;
-            color: #008f67;
+            color: var(--accent-color);
             padding: 4px 8px;
             border-radius: 12px;
             font-size: 11px;
@@ -688,8 +695,8 @@
 
         .login-popup input:focus {
             outline: none;
-            border-color: #008f67;
-            box-shadow: 0 0 0 3px rgba(0, 143, 103, 0.2);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-shadow);
         }
 
         .login-buttons {
@@ -709,12 +716,12 @@
         }
 
         .btn-login {
-            background: #008f67;
+            background: var(--accent-color);
             color: white;
         }
 
         .btn-login:hover {
-            background: #007a5a;
+            background: var(--accent-hover);
         }
 
         .btn-cancel {
@@ -739,7 +746,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, #008f67, #007a5a);
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
             color: white;
             z-index: 1001;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
@@ -907,8 +914,8 @@
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #008f67;
-            box-shadow: 0 0 0 3px rgba(0, 143, 103, 0.2);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-shadow);
         }
 
         .form-group small {
@@ -936,12 +943,12 @@
         }
 
         .btn-add-video {
-            background: #008f67;
+            background: var(--accent-color);
             color: white;
         }
 
         .btn-add-video:hover {
-            background: #007a5a;
+            background: var(--accent-hover);
         }
 
         .btn-cancel-add {
@@ -1011,12 +1018,12 @@
         }
 
         .btn-save-video {
-            background: #008f67;
+            background: var(--accent-color);
             color: white;
         }
 
         .btn-save-video:hover {
-            background: #007a5a;
+            background: var(--accent-hover);
         }
 
         .btn-delete-video {
@@ -1054,6 +1061,21 @@
         }
 
         /* Edit Mode Styles */
+        /* Make page title editable in admin mode */
+        .edit-mode .page-title {
+            cursor: text;                           /* Show text cursor on hover */
+            border: 2px dashed transparent;         /* Invisible border for smooth transition */
+            padding: 4px 8px;                       /* Add padding for click target */
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        /* Visual feedback on hover in edit mode */
+        .edit-mode .page-title:hover {
+            border-color: var(--accent-color);      /* Show dashed border in accent color */
+            background: var(--accent-light);        /* Light background highlight */
+        }
+
         .edit-mode .item-title {
             cursor: pointer;
             border: 2px dashed transparent;
@@ -1063,8 +1085,8 @@
         }
 
         .edit-mode .item-title:hover {
-            border-color: #008f67;
-            background: rgba(0, 143, 103, 0.1);
+            border-color: var(--accent-color);
+            background: var(--accent-light);
         }
 
         .edit-mode .item-tag-pill {
@@ -1074,8 +1096,8 @@
         }
 
         .edit-mode .item-tag-pill:hover {
-            border-color: #008f67;
-            background: rgba(0, 143, 103, 0.1);
+            border-color: var(--accent-color);
+            background: var(--accent-light);
         }
 
         .edit-mode .video-item {
@@ -1090,8 +1112,8 @@
         }
 
         .edit-mode .video-item:hover {
-            border-color: #008f67;
-            background: rgba(0, 143, 103, 0.05);
+            border-color: var(--accent-color);
+            background: var(--accent-light);
         }
 
         .edit-mode .video-item.dragging {
@@ -1106,8 +1128,8 @@
 
         /* Drag placeholder */
         .drag-placeholder {
-            border: 2px dashed #008f67;
-            background: rgba(0, 143, 103, 0.1);
+            border: 2px dashed var(--accent-color);
+            background: var(--accent-light);
             border-radius: 8px;
             transition: all 0.2s ease;
         }
@@ -1133,7 +1155,7 @@
         }
 
         .video-edit-btn {
-            background: #008f67;
+            background: var(--accent-color);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -1142,11 +1164,11 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0, 143, 103, 0.3);
+            box-shadow: 0 4px 12px var(--accent-shadow);
         }
 
         .video-edit-btn:hover {
-            background: #007a5a;
+            background: var(--accent-hover);
             transform: translateY(-1px);
             box-shadow: 0 6px 16px rgba(0, 143, 103, 0.4);
         }
@@ -1157,7 +1179,7 @@
 
         /* Active video state */
         .video-item.active {
-            background: #008f67;
+            background: var(--accent-color);
             border-radius: 12px;
             overflow: hidden;
         }
@@ -1173,7 +1195,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 143, 103, 1.0);
+            background: var(--accent-color);
             color: white;
             padding: 8px 20px;
             border-radius: 20px;
@@ -1256,7 +1278,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #008f67;
+            background: var(--accent-color);
             color: white;
             padding: 8px 16px;
             border-radius: 20px;
@@ -1295,7 +1317,7 @@
 
         .category-editing {
             background: #2a2a2a !important;
-            border: 1px solid #008f67 !important;
+            border: 1px solid var(--accent-color) !important;
             outline: none;
             padding: 8px 16px;
             border-radius: 20px;
@@ -1451,7 +1473,7 @@
             display: flex !important;
             align-items: center;
             justify-content: center;
-            background: #008f67 !important;
+            background: var(--accent-color) !important;
             color: white !important;
             font-size: 18px !important;
             font-weight: bold !important;
@@ -1460,7 +1482,7 @@
         }
 
         .edit-mode .add-category-btn:hover {
-            background: #007a5a !important;
+            background: var(--accent-hover) !important;
         }
 
         .edit-mode .tag:not(.add-category-btn) {
@@ -1470,8 +1492,8 @@
         }
 
         .edit-mode .tag:not(.add-category-btn):hover {
-            border-color: #008f67;
-            background: rgba(0, 143, 103, 0.1);
+            border-color: var(--accent-color);
+            background: var(--accent-light);
         }
 
         .edit-mode .tag.dragging {
@@ -1823,7 +1845,7 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" onclick="resetToDefault()" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
+            <h1 class="page-title" id="pageTitle" onclick="resetToDefault()" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
         </div>
 
         <div class="video-container">
@@ -2156,6 +2178,8 @@
 
         // Reset page to default state (called when clicking page title)
         function resetToDefault() {
+            if (isEditMode) return; // Don't reset in edit mode
+            
             console.log('Resetting page to default state');
             
             // Stop video and close player
@@ -2332,7 +2356,7 @@
                     <div style="text-align: center; padding: 40px; color: #666;">
                         <h3>No videos yet</h3>
                         <p>Use the admin panel to add dance instruction videos</p>
-                        <a href="/admin.html" style="color: #008f67; text-decoration: none; margin-top: 12px; display: inline-block;">Go to Admin Panel</a>
+                        <a href="/admin.html" style="color: var(--accent-color); text-decoration: none; margin-top: 12px; display: inline-block;">Go to Admin Panel</a>
                     </div>
                 `;
                 return;
@@ -2536,7 +2560,7 @@
         function showError(message) {
             const videoGrid = document.getElementById('videoGrid');
             videoGrid.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #008f67;">
+                <div style="text-align: center; padding: 40px; color: var(--accent-color);">
                     <h3>Error: ${message}</h3>
                     <p style="color: #aaa; margin-top: 8px;">Please try refreshing the page</p>
                 </div>
@@ -2612,8 +2636,76 @@
             });
         }
 
+        /**
+         * Load page configuration including accent color and title
+         * Fetches configuration from the server and applies dynamic theming
+         * Updates CSS variables for accent colors and page title
+         */
+        async function loadPageConfig() {
+            try {
+                const response = await fetch('/.netlify/functions/get-page-config?page=oz');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config.accent_color) {
+                        // Update CSS variables
+                        const root = document.documentElement;
+                        root.style.setProperty('--accent-color', config.accent_color);
+                        
+                        // Calculate hover color (slightly darker)
+                        const hoverColor = darkenColor(config.accent_color, 0.1);
+                        root.style.setProperty('--accent-hover', hoverColor);
+                        
+                        // Calculate light variant
+                        const lightColor = hexToRgba(config.accent_color, 0.1);
+                        root.style.setProperty('--accent-light', lightColor);
+                        
+                        // Calculate shadow variant
+                        const shadowColor = hexToRgba(config.accent_color, 0.3);
+                        root.style.setProperty('--accent-shadow', shadowColor);
+                        
+                        // Update meta theme color
+                        document.getElementById('theme-color-meta').content = config.accent_color;
+                    }
+                    
+                    if (config.page_title) {
+                        document.getElementById('pageTitle').textContent = config.page_title;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load page config:', error);
+            }
+        }
+        
+        /**
+         * Helper function to darken a hex color
+         * @param {string} hex - Hex color value (e.g., '#008f67')
+         * @param {number} percent - Percentage to darken (0-1)
+         * @returns {string} Darkened hex color
+         */
+        function darkenColor(hex, percent) {
+            const num = parseInt(hex.slice(1), 16);
+            const amt = Math.round(2.55 * percent * 100);
+            const R = (num >> 16) - amt;
+            const G = ((num >> 8) & 0x00FF) - amt;
+            const B = (num & 0x0000FF) - amt;
+            return '#' + ((R < 0 ? 0 : R) * 0x10000 + (G < 0 ? 0 : G) * 0x100 + (B < 0 ? 0 : B)).toString(16).padStart(6, '0');
+        }
+        
+        /**
+         * Helper function to convert hex to rgba
+         * @param {string} hex - Hex color value (e.g., '#008f67')
+         * @param {number} alpha - Alpha transparency value (0-1)
+         * @returns {string} RGBA color string
+         */
+        function hexToRgba(hex, alpha) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha})` : null;
+        }
+
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load page config first to set colors
+            await loadPageConfig();
             loadVideosFromServer();
             attachTagListeners();
         });
@@ -2666,6 +2758,74 @@
             }
         });
 
+        /**
+         * Edit page title inline in admin mode
+         * Creates an input field to edit the title and saves changes to the database
+         * Handles Enter to save and Escape to cancel
+         */
+        function editPageTitle() {
+            const titleElement = document.getElementById('pageTitle');
+            const currentTitle = titleElement.textContent;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.style.cssText = titleElement.style.cssText;
+            input.style.fontSize = getComputedStyle(titleElement).fontSize;
+            input.style.fontWeight = getComputedStyle(titleElement).fontWeight;
+            input.style.textAlign = 'center';
+            input.style.width = '100%';
+            input.style.background = 'rgba(0, 0, 0, 0.8)';
+            input.style.color = 'white';
+            input.style.border = '2px solid var(--accent-color)';
+            input.style.padding = '4px 8px';
+            input.style.borderRadius = '4px';
+            
+            titleElement.style.display = 'none';
+            titleElement.parentNode.insertBefore(input, titleElement);
+            input.focus();
+            input.select();
+            
+            async function saveTitle() {
+                const newTitle = input.value.trim();
+                if (newTitle && newTitle !== currentTitle) {
+                    try {
+                        const response = await fetch('/.netlify/functions/save-page-config', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                page: 'oz',
+                                page_title: newTitle
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            titleElement.textContent = newTitle;
+                            showUnsavedIndicator();
+                        }
+                    } catch (error) {
+                        console.error('Failed to save page title:', error);
+                    }
+                }
+                
+                input.remove();
+                titleElement.style.display = '';
+            }
+            
+            input.addEventListener('blur', saveTitle);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveTitle();
+                } else if (e.key === 'Escape') {
+                    input.value = currentTitle;
+                    input.blur();
+                }
+            });
+        }
+
         // Edit Mode Functions
         function enterEditMode() {
             isEditMode = true;
@@ -2678,6 +2838,13 @@
             
             // Add category edit listeners
             addCategoryEditListeners();
+            
+            // Add page title edit listener
+            document.getElementById('pageTitle').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                editPageTitle();
+            });
             
             // Add save button listener
             document.getElementById('adminSaveBtn').addEventListener('click', saveAllChanges);
@@ -2819,7 +2986,7 @@
                 left: 50%;
                 transform: translate(-50%, -50%);
                 background: #2a2a2a;
-                border: 2px solid #008f67;
+                border: 2px solid var(--accent-color);
                 border-radius: 12px;
                 padding: 20px;
                 z-index: 1000;
@@ -2829,16 +2996,16 @@
             `;
             
             popup.innerHTML = `
-                <h3 style="margin: 0 0 15px 0; color: #008f67;">Choose Category Icon</h3>
+                <h3 style="margin: 0 0 15px 0; color: var(--accent-color);">Choose Category Icon</h3>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-                    <button class="icon-option" data-icon="" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === '' ? '#008f67' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer;">None</button>
+                    <button class="icon-option" data-icon="" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === '' ? 'var(--accent-color)' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer;">None</button>
                     ${Object.entries(availableIcons).map(([key, icon]) => 
-                        `<button class="icon-option" data-icon="${key}" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === key ? '#008f67' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer; font-size: 18px;">${icon} ${key.replace('-', ' ')}</button>`
+                        `<button class="icon-option" data-icon="${key}" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === key ? 'var(--accent-color)' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer; font-size: 18px;">${icon} ${key.replace('-', ' ')}</button>`
                     ).join('')}
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button id="cancelIconEdit" style="padding: 8px 16px; background: #666; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
-                    <button id="saveIconEdit" style="padding: 8px 16px; background: #008f67; border: none; border-radius: 6px; color: white; cursor: pointer;">Save</button>
+                    <button id="saveIconEdit" style="padding: 8px 16px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer;">Save</button>
                 </div>
             `;
             
@@ -2850,7 +3017,7 @@
             popup.querySelectorAll('.icon-option').forEach(btn => {
                 btn.addEventListener('click', function() {
                     popup.querySelectorAll('.icon-option').forEach(b => b.style.borderColor = 'transparent');
-                    this.style.borderColor = '#008f67';
+                    this.style.borderColor = 'var(--accent-color)';
                     selectedIcon = this.dataset.icon;
                 });
             });
@@ -3109,7 +3276,7 @@
             input.type = 'text';
             input.value = currentTitle;
             input.style.background = '#2a2a2a';
-            input.style.border = '1px solid #008f67';
+            input.style.border = '1px solid var(--accent-color)';
             input.style.borderRadius = '4px';
             input.style.padding = '4px 8px';
             input.style.color = '#ffffff';
@@ -3147,7 +3314,7 @@
             const currentCategory = tagElement.textContent.toLowerCase();
             const select = document.createElement('select');
             select.style.background = '#2a2a2a';
-            select.style.border = '1px solid #008f67';
+            select.style.border = '1px solid var(--accent-color)';
             select.style.borderRadius = '4px';
             select.style.padding = '4px 8px';
             select.style.color = '#ffffff';

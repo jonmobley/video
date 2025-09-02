@@ -1,3 +1,21 @@
+/**
+ * Netlify Function: get-categories
+ * 
+ * Purpose: Retrieves category data for organizing videos by type
+ * 
+ * Query Parameters:
+ *   - page (optional): Page identifier ('oz' or 'disc'). Defaults to 'oz'
+ * 
+ * Returns:
+ *   - Array of category objects with id, name, order, and color
+ *   - Falls back to hardcoded defaults if database is unavailable
+ * 
+ * Features:
+ *   - Multi-page support with page-specific categories
+ *   - Ordered by 'order' field for consistent display
+ *   - Graceful fallback behavior
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
@@ -22,6 +40,8 @@ if (supabaseUrl && supabaseKey) {
 }
 
 // Default categories for fallback
+// Used when Supabase is unavailable or not configured
+// Ensures basic functionality during development and outages
 const DEFAULT_CATEGORIES = {
   'oz': [
     { id: 'all', name: 'All Videos', order: 0, page: 'oz' },

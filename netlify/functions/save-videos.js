@@ -1,3 +1,28 @@
+/**
+ * Netlify Function: save-videos
+ * 
+ * Purpose: Saves video data to Supabase, replacing existing videos for a page
+ * 
+ * Request Body:
+ *   - Legacy format: Array of video objects (defaults to 'oz' page)
+ *   - New format: { videos: Array, page: String }
+ * 
+ * Video Object Requirements:
+ *   - id: Unique identifier
+ *   - wistiaId: Wistia platform ID
+ *   - title: Display title
+ *   - category: Category ID reference
+ *   - tags (optional): Array of tag strings
+ *   - urlString (optional): Generated if not provided
+ *   - order (optional): Display order
+ * 
+ * Features:
+ *   - Automatic URL string generation for direct video links
+ *   - Multi-page support with page isolation
+ *   - Validates video data before saving
+ *   - Replaces all videos for the specified page
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
@@ -21,7 +46,13 @@ if (supabaseUrl && supabaseKey) {
   }
 }
 
-// Function to generate a persistent random string for a video
+/**
+ * Generate a persistent URL string for a video based on its Wistia ID
+ * This creates a consistent, short URL-friendly string for direct video links
+ * 
+ * @param {string} wistiaId - The Wistia video ID
+ * @returns {string} A consistent 6-8 character alphanumeric string
+ */
 function generateVideoUrlString(wistiaId) {
   // Create a simple hash from the wistiaId to ensure consistency
   let hash = 0;

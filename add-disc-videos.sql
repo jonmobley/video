@@ -1,12 +1,18 @@
--- Add DISC videos to the database
--- Run this after the add-page-support.sql migration
+-- Migration script to add DISC videos (simplified version)
+-- Author: VidShare Admin System
+-- Purpose: Populates the database with DISC behavioral assessment videos
+-- Dependencies: Requires add-page-support.sql to be run first
+-- Note: This is a simpler version that puts all videos in one category
+--       For categorized version, use add-disc-videos-with-tags.sql instead
 
 -- First, ensure the DISC category exists
+-- Creates a single category for all DISC videos
 INSERT INTO categories (id, name, color, "order", page) 
-VALUES ('disc', 'DISC', '#007AFF', 0, 'disc')
+VALUES ('disc', 'DISC', '#007AFF', 0, 'disc')  -- Blue color for DISC branding
 ON CONFLICT (id) DO UPDATE SET page = 'disc';
 
 -- Insert all DISC videos
+-- All videos are placed in the 'disc' category without sub-categorization
 INSERT INTO videos (id, wistia_id, title, category, tags, url_string, featured, "order", page) VALUES
 ('vqb0pfo4zw', 'vqb0pfo4zw', 'Bathroom', 'disc', '{disc}', 'zexm3j', false, 0, 'disc'),
 ('5vqqwph6wq', '5vqqwph6wq', 'Cookies', 'disc', '{disc}', '4dykji', false, 1, 'disc'),

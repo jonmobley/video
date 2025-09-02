@@ -1,11 +1,19 @@
--- Add DISC videos to the database with appropriate tags
--- Run this after the add-page-support.sql migration
+-- Migration script to add DISC videos with tags
+-- Author: VidShare Admin System
+-- Purpose: Populates the database with DISC behavioral assessment videos
+-- Dependencies: Requires add-page-support.sql to be run first for multi-page support
+-- 
+-- This migration:
+-- 1. Creates categories specific to DISC page
+-- 2. Inserts all DISC videos with appropriate categorization
+-- 3. Uses ON CONFLICT to allow re-running without errors
 
 -- First, ensure the DISC categories exist
+-- These categories represent different behavioral scenarios and adaptations
 INSERT INTO categories (id, name, color, "order", page) VALUES
-('all', 'All', '#007AFF', 0, 'disc'),
-('conflict', 'Conflict', '#FF3B30', 1, 'disc'),
-('adapted', 'Adapted', '#34C759', 2, 'disc')
+('all', 'All', '#007AFF', 0, 'disc'),          -- Default category to show all videos
+('conflict', 'Conflict', '#FF3B30', 1, 'disc'), -- Red color for conflict scenarios
+('adapted', 'Adapted', '#34C759', 2, 'disc')    -- Green color for adapted/resolved scenarios
 ON CONFLICT (id) DO UPDATE SET 
   name = EXCLUDED.name,
   color = EXCLUDED.color,
@@ -13,6 +21,8 @@ ON CONFLICT (id) DO UPDATE SET
   page = EXCLUDED.page;
 
 -- Insert all DISC videos with appropriate tags
+-- Each video represents a workplace scenario showing either conflict or adapted behavior
+-- The videos are paired (e.g., "Kitchen" conflict vs "Kitchen Adapt" resolution)
 INSERT INTO videos (id, wistia_id, title, category, tags, url_string, featured, "order", page) VALUES
 ('vqb0pfo4zw', 'vqb0pfo4zw', 'Bathroom', 'conflict', '{conflict}', 'zexm3j', false, 0, 'disc'),
 ('5vqqwph6wq', '5vqqwph6wq', 'Cookies', 'conflict', '{conflict}', '4dykji', false, 1, 'disc'),
@@ -24,6 +34,8 @@ INSERT INTO videos (id, wistia_id, title, category, tags, url_string, featured, 
 ('3u992i78fk', '3u992i78fk', 'Returning Home', 'conflict', '{conflict}', 'ls0xk1', false, 7, 'disc'),
 ('7i7k3gmrzh', '7i7k3gmrzh', 'TV Adapt', 'adapted', '{adapted}', '679o3x', false, 8, 'disc'),
 ('5emj65bgp7', '5emj65bgp7', 'TV', 'conflict', '{conflict}', 'u28f9k', false, 9, 'disc')
+-- Use ON CONFLICT to handle re-running the migration
+-- Updates existing videos if they already exist for this page
 ON CONFLICT (wistia_id, page) DO UPDATE SET 
   title = EXCLUDED.title,
   category = EXCLUDED.category,

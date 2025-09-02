@@ -1,3 +1,25 @@
+/**
+ * Netlify Function: save-categories
+ * 
+ * Purpose: Saves category data to Supabase, replacing existing categories for a page
+ * 
+ * Request Body:
+ *   - Legacy format: Array of category objects (defaults to 'oz' page)
+ *   - New format: { categories: Array, page: String }
+ * 
+ * Category Object Requirements:
+ *   - id: Unique identifier (e.g., 'dancers', 'chorus')
+ *   - name: Display name (e.g., 'Dancers', 'Chorus')
+ *   - color (optional): Hex color for visual styling (#RRGGBB)
+ *   - order (optional): Display order in navigation
+ * 
+ * Features:
+ *   - Validates hex color format
+ *   - Multi-page support with page isolation
+ *   - Replaces all categories for the specified page
+ *   - Maintains referential integrity with videos
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
