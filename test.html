@@ -2263,7 +2263,8 @@
                     
                 case 'youtube':
                     // YouTube URLs: https://www.youtube.com/watch?v=xxxxx or https://youtu.be/xxxxx
-                    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+                    // Also handle embedded URLs: https://www.youtube.com/embed/xxxxx
+                    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
                     videoId = ytMatch ? ytMatch[1] : null;
                     break;
                     
@@ -2287,7 +2288,10 @@
                     return '';
                     
                 case 'youtube':
-                    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+                    // YouTube provides multiple thumbnail qualities
+                    // maxresdefault (1280x720) might not exist for all videos
+                    // sddefault (640x480) is more reliable
+                    return `https://img.youtube.com/vi/${videoId}/sddefault.jpg`;
                     
                 case 'dropbox':
                     // For Dropbox, we'll need to handle differently
@@ -2682,6 +2686,58 @@
             // Set active video state
             setActiveVideo(vimeoId);
             currentlyPlayingVideoId = vimeoId;
+        }
+        
+        // Load YouTube video
+        function loadYouTubeVideo(youtubeId, title) {
+            console.log('Loading YouTube video:', youtubeId, title);
+            
+            // Show video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'youtube');
+            
+            // YouTube doesn't provide dimensions via API without authentication
+            // Default to 16:9 for most YouTube videos
+            adjustVideoContainer(16/9);
+            
+            // Clear any existing content and load new video
+            // YouTube embed parameters:
+            // - autoplay=1: Start playing immediately
+            // - rel=0: Don't show related videos from other channels
+            // - modestbranding=1: Minimal YouTube branding
+            // - controls=1: Show player controls
+            // - disablekb=0: Allow keyboard controls
+            // - fs=1: Allow fullscreen
+            // - iv_load_policy=3: Hide video annotations
+            // - loop=0: Don't loop the video
+            // - showinfo=0: Hide video title and uploader (deprecated but still works)
+            // - playsinline=1: Play inline on iOS
+            videoContainer.innerHTML = `
+                <iframe 
+                    src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1&controls=1&disablekb=0&fs=1&iv_load_policy=3&loop=0&showinfo=0&playsinline=1"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            `;
+            
+            // Hide title overlay for YouTube (they have their own)
+            const titleElement = document.getElementById('current-video-title');
+            if (titleElement) {
+                titleElement.style.display = 'none';
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = title;
+            }
+            
+            // Set active video state
+            setActiveVideo(youtubeId);
+            currentlyPlayingVideoId = youtubeId;
         }
         
         // Load Wistia video (original function)
@@ -5057,8 +5113,15 @@
                             return;
                             
                         case 'youtube':
+                            // For YouTube, we could use their API but it requires an API key
+                            // For now, manual entry
+                            titleInput.placeholder = 'Enter video title...';
+                            titleInput.disabled = false;
+                            titleInput.focus();
+                            return;
+                            
                         case 'dropbox':
-                            // For YouTube and Dropbox, manual entry for now
+                            // For Dropbox, manual entry
                             titleInput.placeholder = 'Enter video title...';
                             titleInput.disabled = false;
                             titleInput.focus();
