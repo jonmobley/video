@@ -2410,9 +2410,7 @@
          */
         async function loadVimeoThumbnail(videoId, thumbnailId) {
             try {
-                const response = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
-                if (response.ok) {
-                    const data = await response.json();
+                const data = await fetchWithCache(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
                     
                     // Load thumbnail
                     if (data.thumbnail_url) {
@@ -2789,14 +2787,11 @@
             
             // Get video dimensions from oEmbed API
             try {
-                const response = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const aspectRatio = data.width / data.height;
-                    
-                    // Adjust container dimensions based on aspect ratio
-                    adjustVideoContainer(aspectRatio);
-                }
+                const data = await fetchWithCache(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`);
+                const aspectRatio = data.width / data.height;
+                
+                // Adjust container dimensions based on aspect ratio
+                adjustVideoContainer(aspectRatio);
             } catch (error) {
                 console.error('Error fetching Vimeo video dimensions:', error);
                 // Default to 16:9 if we can't get dimensions
@@ -2972,10 +2967,8 @@
         async function loadVideosFromServer() {
             try {
                 console.log('Loading videos from server...');
-                const response = await fetch('/.netlify/functions/get-videos?page=disc');
-                if (response.ok) {
-                    const videos = await response.json();
-                    console.log('Videos loaded:', videos);
+                const videos = await fetchWithCache('/.netlify/functions/get-videos?page=disc');
+                console.log('Videos loaded:', videos);
                     
                     // Check if there's a featured video saved
                     const featuredVideo = videos.find(v => v.featured === true);
@@ -2993,12 +2986,8 @@
                             videoPlayer.style.display = 'block';
                         }
                     }
-                    
-                    renderVideoGrid(videos);
-                } else {
-                    console.error('Server response not ok:', response.status);
-                    showError('Failed to load videos from server');
-                }
+                
+                renderVideoGrid(videos);
             } catch (error) {
                 console.log('Server not available:', error);
                 showErrorMessage('Unable to connect to server. Videos temporarily unavailable.');
@@ -3400,10 +3389,8 @@
          */
         async function loadPageConfig() {
             try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=disc');
-                if (response.ok) {
-                    const config = await response.json();
-                    if (config.accent_color) {
+                const config = await fetchWithCache('/.netlify/functions/get-page-config?page=disc');
+                if (config.accent_color) {
                         // Update CSS variables
                         const root = document.documentElement;
                         root.style.setProperty('--accent-color', config.accent_color);
@@ -5561,6 +5548,66 @@
         // Current active category state
         let currentActiveCategory = 'all';
 
+        // ====================================================================
+        // PERFORMANCE UTILITIES
+        // ====================================================================
+        
+        /**
+         * Debounce function to limit how often a function can be called
+         * @param {Function} func - The function to debounce
+         * @param {number} wait - The delay in milliseconds
+         * @returns {Function} The debounced function
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Cache for API responses
+        const apiCache = new Map();
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        
+        /**
+         * Fetches data with caching
+         * @param {string} url - The URL to fetch
+         * @param {Object} options - Fetch options
+         * @returns {Promise} The response data
+         */
+        async function fetchWithCache(url, options = {}) {
+            const cacheKey = url + JSON.stringify(options);
+            const cached = apiCache.get(cacheKey);
+            
+            if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+                return cached.data;
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) {
+                    const data = await response.json();
+                    apiCache.set(cacheKey, {
+                        data,
+                        timestamp: Date.now()
+                    });
+                    return data;
+                }
+                throw new Error(`HTTP ${response.status}`);
+            } catch (error) {
+                // If we have cached data, return it even if expired
+                if (cached) {
+                    return cached.data;
+                }
+                throw error;
+            }
+        }
+        
         // ====================================================================
         // ERROR HANDLING AND USER MESSAGING
         // ====================================================================
