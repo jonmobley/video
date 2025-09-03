@@ -2055,6 +2055,7 @@
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
+                <button class="admin-add-video-btn" id="adminPageSettingsBtn">Page Settings</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
                 <button class="admin-exit-btn" id="adminExitBtn">Exit Edit</button>
             </div>
@@ -2201,6 +2202,89 @@
                 </div>
             </form>
             <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Page Settings Popup -->
+    <div class="add-video-overlay" id="pageSettingsOverlay" style="display: none;">
+        <div class="add-video-popup" style="max-width: 600px;">
+            <h3>Page Settings</h3>
+            <form id="pageSettingsForm">
+                <!-- Basic Settings -->
+                <div class="form-section">
+                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">Basic Settings</h4>
+                    
+                    <div class="form-group">
+                        <label for="pageTitle">Page Title</label>
+                        <input type="text" id="pageTitle" placeholder="Enter page title...">
+                        <small>This appears in the browser tab</small>
+                    </div>
+                </div>
+
+                <!-- SEO Settings -->
+                <div class="form-section">
+                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">SEO Settings</h4>
+                    
+                    <div class="form-group">
+                        <label for="metaDescription">Meta Description</label>
+                        <textarea id="metaDescription" rows="3" placeholder="Enter meta description..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <small>Recommended: 150-160 characters</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="metaKeywords">Meta Keywords</label>
+                        <input type="text" id="metaKeywords" placeholder="keyword1, keyword2, keyword3...">
+                        <small>Comma-separated keywords</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="canonicalUrl">Canonical URL</label>
+                        <input type="url" id="canonicalUrl" placeholder="https://example.com/page">
+                        <small>Leave empty to use default</small>
+                    </div>
+                </div>
+
+                <!-- Social Media Settings -->
+                <div class="form-section">
+                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">Social Media Sharing</h4>
+                    
+                    <div class="form-group">
+                        <label for="ogTitle">Open Graph Title</label>
+                        <input type="text" id="ogTitle" placeholder="Title for social media...">
+                        <small>Leave empty to use page title</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ogDescription">Open Graph Description</label>
+                        <textarea id="ogDescription" rows="3" placeholder="Description for social media..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <small>Leave empty to use meta description</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ogImageUrl">Open Graph Image URL</label>
+                        <input type="url" id="ogImageUrl" placeholder="https://example.com/image.jpg">
+                        <small>Recommended: 1200x630px</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="twitterTitle">Twitter Title</label>
+                        <input type="text" id="twitterTitle" placeholder="Twitter-specific title...">
+                        <small>Leave empty to use Open Graph title</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="twitterDescription">Twitter Description</label>
+                        <textarea id="twitterDescription" rows="2" placeholder="Twitter-specific description..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <small>Leave empty to use Open Graph description</small>
+                    </div>
+                </div>
+
+                <div class="add-video-buttons">
+                    <button type="submit" class="btn-add-video">Save Settings</button>
+                    <button type="button" class="btn-cancel-add" id="cancelPageSettings">Cancel</button>
+                </div>
+            </form>
+            <div class="add-video-error" id="pageSettingsError" style="display: none;"></div>
         </div>
     </div>
 
@@ -3395,6 +3479,13 @@
             await loadPageConfig();
             loadVideosFromServer();
             attachTagListeners();
+            
+            // Page Settings form handlers
+            document.getElementById('pageSettingsForm').addEventListener('submit', savePageSettings);
+            document.getElementById('cancelPageSettings').addEventListener('click', function() {
+                document.getElementById('pageSettingsOverlay').style.display = 'none';
+                document.getElementById('pageSettingsError').style.display = 'none';
+            });
         });
 
         // Auto-refresh removed to prevent flickering
@@ -3567,6 +3658,9 @@
             
             // Set featured button listener
             document.getElementById('adminSetFeaturedBtn').addEventListener('click', openSetFeaturedDialog);
+            
+            // Page settings button listener
+            document.getElementById('adminPageSettingsBtn').addEventListener('click', openPageSettingsModal);
             
             // Exit edit button listener
             document.getElementById('adminExitBtn').addEventListener('click', function() {
@@ -5443,6 +5537,90 @@
         // Current active category state
         let currentActiveCategory = 'all';
 
+        // ====================================================================
+        // PAGE SETTINGS FUNCTIONALITY
+        // ====================================================================
+        
+        /**
+         * Opens the page settings modal and loads current settings
+         */
+        async function openPageSettingsModal() {
+            try {
+                // Load current page config
+                const response = await fetch('/.netlify/functions/get-page-config?page=disc');
+                if (response.ok) {
+                    const config = await response.json();
+                    
+                    // Populate form fields
+                    document.getElementById('pageTitle').value = config.page_title || '';
+                    document.getElementById('metaDescription').value = config.meta_description || '';
+                    document.getElementById('metaKeywords').value = config.meta_keywords || '';
+                    document.getElementById('canonicalUrl').value = config.canonical_url || '';
+                    document.getElementById('ogTitle').value = config.og_title || '';
+                    document.getElementById('ogDescription').value = config.og_description || '';
+                    document.getElementById('ogImageUrl').value = config.og_image_url || '';
+                    document.getElementById('twitterTitle').value = config.twitter_title || '';
+                    document.getElementById('twitterDescription').value = config.twitter_description || '';
+                }
+            } catch (error) {
+                console.error('Failed to load page settings:', error);
+            }
+            
+            // Show the modal
+            document.getElementById('pageSettingsOverlay').style.display = 'flex';
+        }
+        
+        /**
+         * Saves page settings to the server
+         */
+        async function savePageSettings(e) {
+            e.preventDefault();
+            
+            const settings = {
+                page: 'disc',
+                page_title: document.getElementById('pageTitle').value.trim(),
+                meta_description: document.getElementById('metaDescription').value.trim(),
+                meta_keywords: document.getElementById('metaKeywords').value.trim(),
+                canonical_url: document.getElementById('canonicalUrl').value.trim(),
+                og_title: document.getElementById('ogTitle').value.trim(),
+                og_description: document.getElementById('ogDescription').value.trim(),
+                og_image_url: document.getElementById('ogImageUrl').value.trim(),
+                twitter_title: document.getElementById('twitterTitle').value.trim(),
+                twitter_description: document.getElementById('twitterDescription').value.trim()
+            };
+            
+            try {
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    // Close modal
+                    document.getElementById('pageSettingsOverlay').style.display = 'none';
+                    
+                    // Update page title immediately
+                    if (settings.page_title) {
+                        document.title = settings.page_title;
+                    }
+                    
+                    // Mark changes as saved
+                    markUnsavedChanges();
+                    
+                    alert('Page settings saved successfully!');
+                } else {
+                    throw new Error('Failed to save settings');
+                }
+            } catch (error) {
+                console.error('Error saving page settings:', error);
+                document.getElementById('pageSettingsError').textContent = 'Failed to save settings. Please try again.';
+                document.getElementById('pageSettingsError').style.display = 'block';
+            }
+        }
+        
         // Function to activate a category and filter videos
         function activateCategory(categoryName) {
             // Prevent overlapping operations
