@@ -386,6 +386,8 @@
             --accent-hover: #007a5a;
             --accent-light: rgba(0, 143, 103, 0.3);
             --accent-shadow: rgba(0, 143, 103, 0.3);
+            --accent-medium: rgba(0, 143, 103, 0.6);
+            --accent-heavy: rgba(0, 143, 103, 0.8);
         }
 
         .vid-green {
@@ -1473,7 +1475,7 @@
             transform: translate(-50%, -50%);
             width: 96px;
             height: 54px;
-            background: var(--accent-light);
+            background: var(--accent-medium);
             backdrop-filter: blur(8px) saturate(1.5);
             border: 1px solid var(--accent-color);
             border-radius: 8px;
@@ -1517,7 +1519,7 @@
             }
             
             .video-item:not(.active):hover .thumbnail-play-button:hover {
-                background: var(--accent-color);
+                background: var(--accent-heavy);
                 transform: translate(-50%, -50%) scale(1.05);
                 box-shadow: 0 6px 20px var(--accent-shadow);
             }
