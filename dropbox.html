@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidShare - Dropbox Integration Test</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f0f0f;
+            color: #ffffff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #008f67;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #999;
+            font-size: 1rem;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: #1a1a1a;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 12px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section h3 {
+            color: #008f67;
+            margin-bottom: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        button {
+            background: #008f67;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #007a5a;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #3a3a3a;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: #4a4a4a;
+        }
+
+        button.secondary:hover {
+            background: #5a5a5a;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        button.danger:hover {
+            background: #c82333;
+        }
+
+        /* URL Input Section */
+        .url-input-section {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #008f67;
+        }
+
+        .example-urls {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .example-urls code {
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* Video Player */
+        .video-player-container {
+            background: #1a1a1a;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            display: none;
+        }
+
+        .video-player-container.active {
+            display: block;
+        }
+
+        .video-header {
+            padding: 16px 20px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .video-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .close-button {
+            background: #dc3545;
+            padding: 6px 16px;
+            font-size: 14px;
+        }
+
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            background: #000;
+        }
+
+        .video-wrapper video,
+        .video-wrapper .wistia_embed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Video Grid */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .video-item {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            position: relative;
+        }
+
+        .video-item:hover {
+            transform: scale(1.02);
+        }
+
+        .video-item.active {
+            outline: 3px solid #008f67;
+        }
+
+        .thumbnail {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #2a2a2a;
+            overflow: hidden;
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumbnail-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .platform-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .platform-badge.wistia {
+            background: rgba(77, 144, 219, 0.9);
+        }
+
+        .platform-badge.dropbox {
+            background: rgba(0, 143, 103, 0.9);
+        }
+
+        .video-info {
+            padding: 12px 16px;
+        }
+
+        .video-item-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .video-meta {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .video-controls {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            display: none;
+            gap: 8px;
+        }
+
+        .edit-mode .video-controls {
+            display: flex;
+        }
+
+        .video-controls button {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Status Messages */
+        .status-message {
+            margin: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: rgba(0, 143, 103, 0.2);
+            border: 1px solid #008f67;
+            color: #00ff99;
+        }
+
+        .status-message.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff3333;
+            color: #ff6666;
+        }
+
+        .status-message.info {
+            background: rgba(77, 144, 219, 0.2);
+            border: 1px solid #4d90db;
+            color: #66aaff;
+        }
+
+        /* Edit Mode Styles */
+        body.edit-mode {
+            border: 4px solid #008f67;
+        }
+
+        .edit-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #008f67;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+        }
+
+        body.edit-mode .edit-indicator {
+            display: block;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: #008f67;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .url-input-group {
+                flex-direction: column;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="page-title">VidShare - Dropbox Integration</h1>
+        <p class="subtitle">Test page for Wistia + Dropbox video platform</p>
+    </div>
+
+    <div class="edit-indicator">EDIT MODE</div>
+
+    <div class="control-panel">
+        <div class="control-section">
+            <h3>Mode Controls</h3>
+            <div class="button-group">
+                <button id="toggle-edit-btn" onclick="toggleEditMode()">Enter Edit Mode</button>
+                <button onclick="saveVideos()" id="save-btn" style="display: none;">Save Changes</button>
+                <button onclick="loadVideos()" class="secondary">Reload Videos</button>
+            </div>
+        </div>
+
+        <div class="control-section" id="edit-controls" style="display: none;">
+            <h3>Add Videos</h3>
+            
+            <!-- Wistia Video Input -->
+            <div class="url-input-section">
+                <h4 style="color: #4d90db; margin-bottom: 12px;">Add Wistia Video</h4>
+                <div class="url-input-group">
+                    <input type="text" id="wistia-id-input" placeholder="Enter Wistia Video ID (e.g., abc123)">
+                    <input type="text" id="wistia-title-input" placeholder="Video Title">
+                    <button onclick="addWistiaVideo()">Add Wistia</button>
+                </div>
+            </div>
+
+            <!-- Dropbox URL Input -->
+            <div class="url-input-section">
+                <h4 style="color: #008f67; margin-bottom: 12px;">Add Dropbox Video</h4>
+                <div class="url-input-group">
+                    <input type="text" id="dropbox-url-input" placeholder="Paste Dropbox sharing link">
+                    <button onclick="addDropboxVideo()">Add Dropbox</button>
+                </div>
+                <div class="example-urls">
+                    Example: <code>https://www.dropbox.com/s/xxxxx/video.mp4?dl=0</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-message" class="status-message"></div>
+
+    <!-- Video Player -->
+    <div class="video-player-container" id="video-player-container">
+        <div class="video-header">
+            <div class="video-title" id="current-video-title">Video Title</div>
+            <button class="close-button" onclick="closeVideoPlayer()">Close</button>
+        </div>
+        <div class="video-wrapper" id="video-wrapper">
+            <!-- Video content will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Video Grid -->
+    <div class="video-grid" id="video-grid">
+        <!-- Videos will be rendered here -->
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Video</h2>
+                <button onclick="closeEditModal()">×</button>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px;">Title:</label>
+                <input type="text" id="edit-title" style="width: 100%;">
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px;">Category:</label>
+                <input type="text" id="edit-category" style="width: 100%;" value="all">
+            </div>
+            <div class="button-group">
+                <button onclick="saveVideoEdit()">Save</button>
+                <button class="secondary" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Scripts -->
+    <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+    <script src="js/dropbox-url-handler.js"></script>
+    <script src="js/video-platform.js"></script>
+    
+    <script>
+        // Global variables
+        let videos = [];
+        let isEditMode = false;
+        let currentVideoId = null;
+        let editingVideoId = null;
+        let platformManager = null;
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Initialize platform manager
+            platformManager = new VideoPlatformManager();
+            await platformManager.init();
+            
+            // Load videos
+            loadVideos();
+        });
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            document.body.classList.toggle('edit-mode');
+            
+            const editBtn = document.getElementById('toggle-edit-btn');
+            const editControls = document.getElementById('edit-controls');
+            const saveBtn = document.getElementById('save-btn');
+            
+            if (isEditMode) {
+                editBtn.textContent = 'Exit Edit Mode';
+                editControls.style.display = 'block';
+                saveBtn.style.display = 'inline-block';
+            } else {
+                editBtn.textContent = 'Enter Edit Mode';
+                editControls.style.display = 'none';
+                saveBtn.style.display = 'none';
+            }
+            
+            renderVideos();
+        }
+
+        // Load videos from localStorage (simulating database)
+        function loadVideos() {
+            const stored = localStorage.getItem('dropbox_test_videos');
+            if (stored) {
+                videos = JSON.parse(stored);
+            } else {
+                // Default test videos
+                videos = [
+                    {
+                        id: 'test1',
+                        wistiaId: 'test1',
+                        platform: 'wistia',
+                        title: 'Sample Wistia Video',
+                        category: 'all',
+                        tags: [],
+                        order: 0
+                    }
+                ];
+            }
+            renderVideos();
+        }
+
+        // Save videos to localStorage
+        function saveVideos() {
+            localStorage.setItem('dropbox_test_videos', JSON.stringify(videos));
+            showStatus('success', 'Videos saved successfully!');
+        }
+
+        // Add Wistia video
+        function addWistiaVideo() {
+            const idInput = document.getElementById('wistia-id-input');
+            const titleInput = document.getElementById('wistia-title-input');
+            
+            const wistiaId = idInput.value.trim();
+            const title = titleInput.value.trim() || 'Untitled Video';
+            
+            if (!wistiaId) {
+                showStatus('error', 'Please enter a Wistia video ID');
+                return;
+            }
+            
+            const video = {
+                id: 'wistia_' + Date.now(),
+                wistiaId: wistiaId,
+                platform: 'wistia',
+                title: title,
+                category: 'all',
+                tags: [],
+                order: videos.length
+            };
+            
+            videos.push(video);
+            renderVideos();
+            
+            // Clear inputs
+            idInput.value = '';
+            titleInput.value = '';
+            
+            showStatus('success', 'Wistia video added!');
+        }
+
+        // Add Dropbox video
+        async function addDropboxVideo() {
+            const urlInput = document.getElementById('dropbox-url-input');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showStatus('error', 'Please enter a Dropbox URL');
+                return;
+            }
+            
+            try {
+                // Process the Dropbox URL
+                const videoData = platformManager.processDropboxUrl(url);
+                
+                // Add to videos array
+                videoData.order = videos.length;
+                videos.push(videoData);
+                
+                renderVideos();
+                
+                // Clear input
+                urlInput.value = '';
+                
+                showStatus('success', 'Dropbox video added!');
+            } catch (error) {
+                showStatus('error', 'Invalid Dropbox URL: ' + error.message);
+            }
+        }
+
+        // Render video grid
+        function renderVideos() {
+            const grid = document.getElementById('video-grid');
+            
+            if (videos.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">No videos yet. Enter edit mode to add videos.</div>';
+                return;
+            }
+            
+            grid.innerHTML = videos.map(video => {
+                const isActive = currentVideoId === video.wistiaId;
+                const thumbnailUrl = platformManager.getThumbnailUrl(video);
+                
+                return `
+                    <div class="video-item ${isActive ? 'active' : ''}" data-id="${video.id}" onclick="playVideo('${video.id}')">
+                        <div class="thumbnail">
+                            ${video.platform === 'dropbox' ? 
+                                `<div class="thumbnail-placeholder">Dropbox Video</div>` :
+                                `<img src="${thumbnailUrl}" alt="${video.title}" onerror="this.style.display='none'">`
+                            }
+                            <div class="platform-badge ${video.platform}">${video.platform}</div>
+                        </div>
+                        <div class="video-controls">
+                            <button onclick="editVideo(event, '${video.id}')">Edit</button>
+                            <button class="danger" onclick="deleteVideo(event, '${video.id}')">Delete</button>
+                        </div>
+                        <div class="video-info">
+                            <div class="video-item-title">${video.title}</div>
+                            <div class="video-meta">Order: ${video.order}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Play video
+        function playVideo(videoId) {
+            if (isEditMode) return;
+            
+            const video = videos.find(v => v.id === videoId);
+            if (!video) return;
+            
+            currentVideoId = video.wistiaId;
+            
+            // Show player
+            const playerContainer = document.getElementById('video-player-container');
+            const videoWrapper = document.getElementById('video-wrapper');
+            const titleElement = document.getElementById('current-video-title');
+            
+            playerContainer.classList.add('active');
+            titleElement.textContent = video.title;
+            
+            // Load video using platform manager
+            platformManager.loadVideo(video, videoWrapper);
+            
+            // Update grid to show active state
+            renderVideos();
+        }
+
+        // Close video player
+        function closeVideoPlayer() {
+            const playerContainer = document.getElementById('video-player-container');
+            const videoWrapper = document.getElementById('video-wrapper');
+            
+            // Stop current video
+            platformManager.stopCurrentVideo();
+            
+            // Clear player
+            videoWrapper.innerHTML = '';
+            playerContainer.classList.remove('active');
+            currentVideoId = null;
+            
+            // Update grid
+            renderVideos();
+        }
+
+        // Edit video
+        function editVideo(event, videoId) {
+            event.stopPropagation();
+            
+            const video = videos.find(v => v.id === videoId);
+            if (!video) return;
+            
+            editingVideoId = videoId;
+            
+            // Open modal
+            document.getElementById('edit-modal').classList.add('active');
+            document.getElementById('edit-title').value = video.title;
+            document.getElementById('edit-category').value = video.category || 'all';
+        }
+
+        // Save video edit
+        function saveVideoEdit() {
+            const video = videos.find(v => v.id === editingVideoId);
+            if (!video) return;
+            
+            video.title = document.getElementById('edit-title').value;
+            video.category = document.getElementById('edit-category').value;
+            
+            closeEditModal();
+            renderVideos();
+            showStatus('success', 'Video updated!');
+        }
+
+        // Close edit modal
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+            editingVideoId = null;
+        }
+
+        // Delete video
+        function deleteVideo(event, videoId) {
+            event.stopPropagation();
+            
+            if (!confirm('Delete this video?')) return;
+            
+            videos = videos.filter(v => v.id !== videoId);
+            renderVideos();
+            showStatus('success', 'Video deleted!');
+        }
+
+        // Show status message
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.className = `status-message ${type}`;
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
