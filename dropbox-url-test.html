@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropbox URL Test - VidShare</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #ffffff;
+        }
+        
+        h1 {
+            color: #008f67;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #2a2a2a;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #008f67;
+        }
+        
+        button {
+            background: #008f67;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            background: #007a5a;
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background: #3a3a3a;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .video-player {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .info-panel {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .info-panel h3 {
+            margin: 0 0 12px 0;
+            color: #008f67;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #999;
+        }
+        
+        .info-value {
+            color: #fff;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: rgba(0, 143, 103, 0.2);
+            border: 1px solid #008f67;
+            color: #00ff99;
+        }
+        
+        .status.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff3333;
+            color: #ff6666;
+        }
+        
+        .status.info {
+            background: rgba(77, 144, 219, 0.2);
+            border: 1px solid #4d90db;
+            color: #66aaff;
+        }
+        
+        .thumbnail-preview {
+            margin-top: 16px;
+            text-align: center;
+        }
+        
+        .thumbnail-preview img {
+            max-width: 320px;
+            border-radius: 8px;
+            border: 1px solid #3a3a3a;
+        }
+        
+        .examples {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(77, 144, 219, 0.1);
+            border-radius: 8px;
+            border: 1px solid #4d90db;
+        }
+        
+        .examples h4 {
+            margin: 0 0 12px 0;
+            color: #4d90db;
+        }
+        
+        .examples code {
+            display: block;
+            background: #2a2a2a;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #3a3a3a;
+            border-top-color: #008f67;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 12px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Dropbox Public URL Test</h1>
+    
+    <div class="section">
+        <h2>Test Dropbox Video URL</h2>
+        <p>Paste a public Dropbox video sharing link below. The system will convert it to a direct streaming URL.</p>
+        
+        <div class="input-group">
+            <input type="text" id="dropbox-url" placeholder="https://www.dropbox.com/s/xxxxx/video.mp4?dl=0" />
+            <button onclick="testDropboxUrl()">Test URL</button>
+        </div>
+        
+        <div class="examples">
+            <h4>Example Dropbox URL formats:</h4>
+            <code>https://www.dropbox.com/s/xxxxx/video.mp4?dl=0</code>
+            <code>https://www.dropbox.com/scl/fi/xxxxx/video.mp4?rlkey=xxxxx&dl=0</code>
+        </div>
+        
+        <div id="status-message" style="display: none;"></div>
+    </div>
+    
+    <div class="section" id="url-info" style="display: none;">
+        <h2>URL Conversion Result</h2>
+        <div class="info-panel">
+            <h3>URL Information</h3>
+            <div class="info-item">
+                <span class="info-label">Original URL:</span>
+                <span class="info-value" id="original-url"></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Direct URL:</span>
+                <span class="info-value" id="direct-url"></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Filename:</span>
+                <span class="info-value" id="filename"></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Title:</span>
+                <span class="info-value" id="title"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section" id="video-section" style="display: none;">
+        <h2>Video Preview</h2>
+        <div class="video-player">
+            <video id="test-video" controls></video>
+        </div>
+        
+        <div class="info-panel" id="video-info" style="display: none;">
+            <h3>Video Information</h3>
+            <div class="info-item">
+                <span class="info-label">Duration:</span>
+                <span class="info-value" id="video-duration">Loading...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Resolution:</span>
+                <span class="info-value" id="video-resolution">Loading...</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Video ID:</span>
+                <span class="info-value" id="video-id">Loading...</span>
+            </div>
+        </div>
+        
+        <div class="thumbnail-preview" id="thumbnail-preview" style="display: none;">
+            <h3>Generated Thumbnail</h3>
+            <img id="thumbnail-img" alt="Video thumbnail" />
+        </div>
+    </div>
+    
+    <script src="js/dropbox-url-handler.js"></script>
+    <script>
+        async function testDropboxUrl() {
+            const input = document.getElementById('dropbox-url');
+            const url = input.value.trim();
+            
+            if (!url) {
+                showStatus('error', 'Please enter a Dropbox URL');
+                return;
+            }
+            
+            showStatus('info', 'Processing URL...<span class="loading"></span>');
+            
+            try {
+                // Convert URL
+                const converted = DropboxURLHandler.convertToDirectUrl(url);
+                console.log('Converted:', converted);
+                
+                // Display URL info
+                document.getElementById('url-info').style.display = 'block';
+                document.getElementById('original-url').textContent = converted.originalUrl;
+                document.getElementById('direct-url').textContent = converted.directUrl;
+                document.getElementById('filename').textContent = converted.filename;
+                document.getElementById('title').textContent = converted.title;
+                
+                // Check if it's a supported video format
+                if (!DropboxURLHandler.isSupportedVideoFormat(url)) {
+                    showStatus('error', 'Warning: This may not be a supported video format');
+                }
+                
+                // Extract full metadata
+                const metadata = DropboxURLHandler.extractMetadata(url);
+                console.log('Metadata:', metadata);
+                
+                // Load video
+                const videoSection = document.getElementById('video-section');
+                const video = document.getElementById('test-video');
+                
+                videoSection.style.display = 'block';
+                video.src = converted.directUrl;
+                
+                // Set up video event handlers
+                video.onloadedmetadata = async () => {
+                    showStatus('success', 'Video loaded successfully!');
+                    
+                    // Display video info
+                    document.getElementById('video-info').style.display = 'block';
+                    document.getElementById('video-duration').textContent = formatDuration(video.duration);
+                    document.getElementById('video-resolution').textContent = `${video.videoWidth} × ${video.videoHeight}`;
+                    document.getElementById('video-id').textContent = metadata.id;
+                    
+                    // Try to get more video info (including thumbnail)
+                    showStatus('info', 'Generating thumbnail...<span class="loading"></span>');
+                    const videoInfo = await DropboxURLHandler.getVideoInfo(converted.directUrl);
+                    
+                    if (videoInfo.thumbnail) {
+                        document.getElementById('thumbnail-preview').style.display = 'block';
+                        document.getElementById('thumbnail-img').src = videoInfo.thumbnail;
+                        showStatus('success', 'Video loaded and thumbnail generated successfully!');
+                    } else {
+                        showStatus('success', 'Video loaded successfully! (Thumbnail generation failed)');
+                    }
+                };
+                
+                video.onerror = (e) => {
+                    console.error('Video error:', e);
+                    showStatus('error', 'Failed to load video. The URL may be invalid or the video may not be publicly accessible.');
+                };
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('error', error.message || 'Failed to process URL');
+            }
+        }
+        
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds)) return 'Unknown';
+            
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function showStatus(type, message) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.className = `status ${type}`;
+            statusEl.innerHTML = message;
+            statusEl.style.display = 'block';
+        }
+        
+        // Allow Enter key to submit
+        document.getElementById('dropbox-url').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                testDropboxUrl();
+            }
+        });
+    </script>
+</body>
+</html>

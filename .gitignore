@@ -2,4 +2,3 @@
 .netlify
 .env
 node_modules/
-config.js

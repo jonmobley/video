@@ -4,44 +4,38 @@ This document describes the Dropbox video integration for VidShare.
 
 ## Overview
 
-The Dropbox integration allows users to add videos from their Dropbox accounts directly to the VidShare library. Videos are streamed directly from Dropbox using HTML5 video players.
+The Dropbox integration allows users to add videos by pasting public Dropbox sharing links. Videos are streamed directly from Dropbox using HTML5 video players. No Dropbox account or authentication is required.
+
+## How It Works
+
+1. User copies a public Dropbox sharing link (e.g., from their Dropbox account)
+2. User pastes the link in VidShare's edit mode
+3. The system converts the sharing link to a direct streaming URL
+4. Video is played using HTML5 video player
 
 ## Setup Instructions
 
-### 1. Create a Dropbox App
+No setup required! The integration works out of the box.
 
-1. Go to [Dropbox App Console](https://www.dropbox.com/developers/apps/create)
-2. Click "Create App"
-3. Choose:
-   - API: "Scoped access"
-   - Access: "Full Dropbox"
-   - Name: "VidShare" (or similar)
-4. After creation, copy the **App Key**
+### Testing
 
-### 2. Configure VidShare
-
-1. Copy `config-example.js` to `config.js`
-2. Add your Dropbox App Key:
-   ```javascript
-   window.VidShareConfig = {
-       dropboxAppKey: 'YOUR_APP_KEY_HERE',
-       enableDropbox: true
-   };
-   ```
-
-### 3. Test the Integration
-
-1. Open `dropbox-test.html` in your browser
-2. Enter your App Key and test the integration
-3. Once working, the integration will be available in the main pages
+1. Open `dropbox-url-test.html` in your browser
+2. Paste any public Dropbox video link
+3. The system will convert it and play the video
 
 ## Architecture
 
 ### Components
 
-1. **Video Platform Manager** (`js/video-platform.js`)
+1. **Dropbox URL Handler** (`js/dropbox-url-handler.js`)
+   - Converts Dropbox sharing URLs to direct streaming URLs
+   - Validates video formats
+   - Generates video metadata
+   - Creates thumbnails from video frames
+
+2. **Video Platform Manager** (`js/video-platform.js`)
    - Abstracts video playback for both Wistia and Dropbox
-   - Handles SDK loading and video player creation
+   - Handles video player creation
    - Provides unified API for video operations
 
 2. **Database Schema**
@@ -57,59 +51,71 @@ The Dropbox integration allows users to add videos from their Dropbox accounts d
 ## Features
 
 ### Current
-- Single and multiple video selection from Dropbox
+- Paste public Dropbox sharing URLs
+- Automatic URL conversion to direct streaming links
 - HTML5 video playback for Dropbox videos
 - Platform detection and appropriate player loading
-- Test page for integration verification
+- Client-side thumbnail generation from video frames
+- Video duration extraction
+- Test page for URL validation
 
 ### Planned
-- Thumbnail generation for Dropbox videos
-- Video duration extraction
-- Automatic link refresh (Dropbox links expire)
-- Batch import functionality
-- Progress indicators for large files
+- Batch URL import (paste multiple URLs)
+- Automatic link refresh (Dropbox links may expire)
+- URL validation before saving
+- Thumbnail caching
 
 ## Integration Points
 
 ### oz.html and disc.html
 The following updates are needed:
 
-1. Include configuration and platform manager:
+1. Include the scripts:
    ```html
-   <script src="config.js"></script>
+   <script src="js/dropbox-url-handler.js"></script>
    <script src="js/video-platform.js"></script>
    ```
 
 2. Initialize platform manager:
    ```javascript
    const platformManager = new VideoPlatformManager();
-   if (window.VidShareConfig && window.VidShareConfig.enableDropbox) {
-       platformManager.init(window.VidShareConfig.dropboxAppKey);
-   }
+   await platformManager.init();
    ```
 
 3. Update video loading logic to use platform manager
-4. Add "Add from Dropbox" button in edit mode
-5. Update thumbnail display logic
+4. Add "Add Dropbox URL" button/input in edit mode
+5. Update thumbnail display logic to handle both platforms
 
 ### Backend (Netlify Functions)
 - Already supports platform field in database
 - No changes needed for basic functionality
 
+## URL Format Support
+
+### Supported Dropbox URL Formats
+- `https://www.dropbox.com/s/xxxxx/filename.mp4?dl=0`
+- `https://www.dropbox.com/scl/fi/xxxxx/filename.mp4?rlkey=xxxxx&dl=0`
+
+### How URL Conversion Works
+1. Changes `dl=0` to `raw=1` for direct streaming
+2. Or replaces `www.dropbox.com` with `dl.dropboxusercontent.com`
+3. Maintains HTTPS for security
+
 ## Security Considerations
 
-1. **App Key**: Should be kept in config.js (gitignored)
-2. **Direct Links**: Dropbox direct links expire after 4 hours
-3. **Access Control**: Videos are only accessible to users with Dropbox access
+1. **Public Links Only**: Only public Dropbox links are supported
+2. **Link Expiration**: Some Dropbox direct links may expire over time
+3. **CORS**: Videos must be publicly accessible for browser playback
 
 ## Usage
 
 ### Adding Videos from Dropbox
 
-1. Enter edit mode
-2. Click "Add from Dropbox"
-3. Select video files from Dropbox
-4. Videos are automatically added to the library
+1. Get a public sharing link from Dropbox for your video
+2. Enter edit mode in VidShare
+3. Click "Add Dropbox URL" (or use the input field)
+4. Paste the Dropbox sharing link
+5. Video is automatically converted and added to the library
 
 ### Playing Dropbox Videos
 

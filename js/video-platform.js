@@ -7,109 +7,42 @@ class VideoPlatformManager {
     constructor() {
         this.currentPlatform = null;
         this.currentVideoId = null;
-        this.dropboxAppKey = null;
-        this.isDropboxLoaded = false;
     }
 
     /**
      * Initialize the video platform manager
-     * @param {string} dropboxAppKey - Optional Dropbox app key
      */
-    async init(dropboxAppKey = null) {
-        // Load Dropbox SDK if app key is provided
-        if (dropboxAppKey) {
-            this.dropboxAppKey = dropboxAppKey;
-            await this.loadDropboxSDK();
+    async init() {
+        // Load Dropbox URL handler if not already loaded
+        if (typeof window.DropboxURLHandler === 'undefined') {
+            await this.loadDropboxURLHandler();
         }
     }
 
     /**
-     * Load Dropbox SDK dynamically
+     * Load Dropbox URL Handler script
      */
-    async loadDropboxSDK() {
-        if (this.isDropboxLoaded || !this.dropboxAppKey) {
-            return;
-        }
-
+    async loadDropboxURLHandler() {
         return new Promise((resolve, reject) => {
-            // Remove existing script if any
-            const existingScript = document.getElementById('dropboxjs');
-            if (existingScript) {
-                existingScript.remove();
-            }
-
             const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
-            script.id = 'dropboxjs';
-            script.setAttribute('data-app-key', this.dropboxAppKey);
-
-            script.onload = () => {
-                this.isDropboxLoaded = true;
-                console.log('Dropbox SDK loaded successfully');
-                resolve();
-            };
-
-            script.onerror = () => {
-                console.error('Failed to load Dropbox SDK');
-                reject(new Error('Failed to load Dropbox SDK'));
-            };
-
+            script.src = 'js/dropbox-url-handler.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load Dropbox URL Handler'));
             document.head.appendChild(script);
         });
     }
 
     /**
-     * Open Dropbox file chooser
-     * @param {Object} options - Chooser options
-     * @returns {Promise<Array>} Selected files
-     */
-    openDropboxChooser(options = {}) {
-        return new Promise((resolve, reject) => {
-            if (typeof Dropbox === 'undefined') {
-                reject(new Error('Dropbox SDK not loaded'));
-                return;
-            }
-
-            const defaultOptions = {
-                linkType: 'direct',
-                multiselect: false,
-                extensions: ['.mp4', '.mov', '.webm', '.avi', '.mkv'],
-                folderselect: false
-            };
-
-            Dropbox.choose({
-                ...defaultOptions,
-                ...options,
-                success: (files) => {
-                    resolve(files);
-                },
-                cancel: () => {
-                    resolve([]);
-                }
-            });
-        });
-    }
-
-    /**
-     * Convert Dropbox file to video data format
-     * @param {Object} dropboxFile - File object from Dropbox chooser
+     * Process a Dropbox URL and convert to video data
+     * @param {string} url - Dropbox sharing URL
      * @returns {Object} Video data object
      */
-    convertDropboxFileToVideo(dropboxFile) {
-        const videoId = 'dropbox_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    processDropboxUrl(url) {
+        if (typeof window.DropboxURLHandler === 'undefined') {
+            throw new Error('Dropbox URL Handler not loaded');
+        }
         
-        return {
-            id: videoId,
-            wistiaId: videoId, // Use same ID for compatibility
-            platform: 'dropbox',
-            title: dropboxFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
-            video_url: dropboxFile.link,
-            thumbnailUrl: dropboxFile.thumbnailLink || null,
-            category: 'all',
-            tags: [],
-            order: 0
-        };
+        return window.DropboxURLHandler.extractMetadata(url);
     }
 
     /**
