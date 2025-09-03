@@ -2346,48 +2346,35 @@
                 return;
             }
             
-            const maxWidth = 1000; // Maximum width in pixels
-            const maxHeight = window.innerHeight * 0.8; // 80% of viewport height
-            const viewportWidth = window.innerWidth - 40; // Account for padding
+            // Original maximum container dimensions (16:9 at 1000px width)
+            const maxContainerWidth = 1000;
+            const maxContainerHeight = maxContainerWidth / (16/9); // ~562.5px
             
             let width, height;
             
-            // Standard 16:9 ratio
-            const standardRatio = 16/9;
-            
-            if (aspectRatio > standardRatio) {
-                // Video is wider than 16:9 (like ultra-wide)
-                width = Math.min(maxWidth, viewportWidth);
+            // Calculate dimensions that fit within the max container while maintaining aspect ratio
+            if (aspectRatio > (maxContainerWidth / maxContainerHeight)) {
+                // Video is wider than container ratio - fit to width
+                width = maxContainerWidth;
                 height = width / aspectRatio;
-                
-                // Check if height is too small
-                if (height < 300) {
-                    height = 300;
-                    width = height * aspectRatio;
-                }
-            } else if (aspectRatio < standardRatio) {
-                // Video is taller than 16:9 (like vertical or square)
-                height = Math.min(maxHeight, maxWidth / aspectRatio);
-                width = height * aspectRatio;
-                
-                // Check if width is too small or exceeds viewport
-                if (width < 400) {
-                    width = 400;
-                    height = width / aspectRatio;
-                } else if (width > viewportWidth) {
-                    width = viewportWidth;
-                    height = width / aspectRatio;
-                }
             } else {
-                // Standard 16:9
-                width = Math.min(maxWidth, viewportWidth);
+                // Video is taller than container ratio - fit to height
+                height = maxContainerHeight;
+                width = height * aspectRatio;
+            }
+            
+            // Ensure we don't exceed viewport width
+            const viewportWidth = window.innerWidth - 40;
+            if (width > viewportWidth) {
+                width = viewportWidth;
                 height = width / aspectRatio;
             }
             
             // Apply dimensions
             videoContainerElement.style.width = `${width}px`;
             videoContainerElement.style.height = `${height}px`;
-            videoContainerElement.style.maxWidth = `${maxWidth}px`;
+            videoContainerElement.style.maxWidth = `${maxContainerWidth}px`;
+            videoContainerElement.style.maxHeight = `${maxContainerHeight}px`;
             videoContainerElement.style.aspectRatio = `${aspectRatio}`;
         }
         
@@ -2397,6 +2384,7 @@
             videoContainerElement.style.width = '';
             videoContainerElement.style.height = '';
             videoContainerElement.style.maxWidth = '';
+            videoContainerElement.style.maxHeight = '';
             videoContainerElement.style.aspectRatio = '';
         }
         
