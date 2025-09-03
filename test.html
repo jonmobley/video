@@ -3001,7 +3001,7 @@
                 }
             } catch (error) {
                 console.log('Server not available:', error);
-                showError('Videos temporarily unavailable');
+                showErrorMessage('Unable to connect to server. Videos temporarily unavailable.');
             }
         }
 
@@ -4798,6 +4798,9 @@
                 saveBtn.style.background = 'rgba(255, 59, 48, 0.3)';
                 saveBtn.style.borderColor = 'rgba(255, 59, 48, 0.5)';
                 
+                // Show user-friendly error message
+                showErrorMessage('Unable to save changes. Please check your connection and try again.');
+                
                 // Reset button after 3 seconds
                 setTimeout(() => {
                     saveBtn.textContent = originalText;
@@ -5559,6 +5562,89 @@
         let currentActiveCategory = 'all';
 
         // ====================================================================
+        // ERROR HANDLING AND USER MESSAGING
+        // ====================================================================
+        
+        /**
+         * Shows a user-friendly error message
+         * @param {string} message - The error message to display
+         * @param {number} duration - How long to show the message (ms)
+         */
+        function showErrorMessage(message, duration = 5000) {
+            // Create or update error toast
+            let errorToast = document.getElementById('errorToast');
+            if (!errorToast) {
+                errorToast = document.createElement('div');
+                errorToast.id = 'errorToast';
+                errorToast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: #ff3b30;
+                    color: white;
+                    padding: 16px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    font-size: 14px;
+                    max-width: 400px;
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: all 0.3s ease;
+                `;
+                document.body.appendChild(errorToast);
+            }
+            
+            errorToast.textContent = message;
+            errorToast.style.opacity = '1';
+            errorToast.style.transform = 'translateY(0)';
+            
+            setTimeout(() => {
+                errorToast.style.opacity = '0';
+                errorToast.style.transform = 'translateY(20px)';
+            }, duration);
+        }
+        
+        /**
+         * Shows a success message
+         * @param {string} message - The success message to display
+         * @param {number} duration - How long to show the message (ms)
+         */
+        function showSuccessMessage(message, duration = 3000) {
+            let successToast = document.getElementById('successToast');
+            if (!successToast) {
+                successToast = document.createElement('div');
+                successToast.id = 'successToast';
+                successToast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: #34c759;
+                    color: white;
+                    padding: 16px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    font-size: 14px;
+                    max-width: 400px;
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: all 0.3s ease;
+                `;
+                document.body.appendChild(successToast);
+            }
+            
+            successToast.textContent = message;
+            successToast.style.opacity = '1';
+            successToast.style.transform = 'translateY(0)';
+            
+            setTimeout(() => {
+                successToast.style.opacity = '0';
+                successToast.style.transform = 'translateY(20px)';
+            }, duration);
+        }
+        
+        // ====================================================================
         // PAGE SETTINGS FUNCTIONALITY
         // ====================================================================
         
@@ -5587,6 +5673,7 @@
                 }
             } catch (error) {
                 console.error('Failed to load page settings:', error);
+                showErrorMessage('Unable to load page settings. Please try again.');
             }
             
             // Show the modal
@@ -5639,14 +5726,13 @@
                     // Mark changes as saved
                     markUnsavedChanges();
                     
-                    alert('Page settings saved successfully!');
+                    showSuccessMessage('Page settings saved successfully!');
                 } else {
                     throw new Error('Failed to save settings');
                 }
             } catch (error) {
                 console.error('Error saving page settings:', error);
-                document.getElementById('pageSettingsError').textContent = 'Failed to save settings. Please try again.';
-                document.getElementById('pageSettingsError').style.display = 'block';
+                showErrorMessage('Unable to save settings. Please check your connection and try again.');
             }
         }
         
