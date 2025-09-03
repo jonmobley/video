@@ -2219,6 +2219,15 @@
                         <input type="text" id="pageTitle" placeholder="Enter page title...">
                         <small>This appears in the browser tab</small>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="accentColor">Accent Color</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="accentColor" value="#ff6b6b" style="width: 60px; height: 40px; padding: 4px; cursor: pointer;">
+                            <input type="text" id="accentColorText" placeholder="#ff6b6b" pattern="^#[0-9A-Fa-f]{6}$" style="flex: 1;">
+                        </div>
+                        <small>Theme color for buttons and highlights</small>
+                    </div>
                 </div>
 
                 <!-- SEO Settings -->
@@ -3485,6 +3494,18 @@
             document.getElementById('cancelPageSettings').addEventListener('click', function() {
                 document.getElementById('pageSettingsOverlay').style.display = 'none';
                 document.getElementById('pageSettingsError').style.display = 'none';
+            });
+            
+            // Color picker sync
+            document.getElementById('accentColor').addEventListener('input', function(e) {
+                document.getElementById('accentColorText').value = e.target.value;
+            });
+            
+            document.getElementById('accentColorText').addEventListener('input', function(e) {
+                const color = e.target.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                    document.getElementById('accentColor').value = color;
+                }
             });
         });
 
@@ -5553,6 +5574,8 @@
                     
                     // Populate form fields
                     document.getElementById('pageTitle').value = config.page_title || '';
+                    document.getElementById('accentColor').value = config.accent_color || '#ff6b6b';
+                    document.getElementById('accentColorText').value = config.accent_color || '#ff6b6b';
                     document.getElementById('metaDescription').value = config.meta_description || '';
                     document.getElementById('metaKeywords').value = config.meta_keywords || '';
                     document.getElementById('canonicalUrl').value = config.canonical_url || '';
@@ -5578,6 +5601,7 @@
             
             const settings = {
                 page: 'disc',
+                accent_color: document.getElementById('accentColorText').value.trim() || document.getElementById('accentColor').value,
                 page_title: document.getElementById('pageTitle').value.trim(),
                 meta_description: document.getElementById('metaDescription').value.trim(),
                 meta_keywords: document.getElementById('metaKeywords').value.trim(),
@@ -5605,6 +5629,11 @@
                     // Update page title immediately
                     if (settings.page_title) {
                         document.title = settings.page_title;
+                    }
+                    
+                    // Apply accent color immediately
+                    if (settings.accent_color) {
+                        applyAccentColor(settings.accent_color);
                     }
                     
                     // Mark changes as saved
