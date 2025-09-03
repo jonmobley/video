@@ -30,7 +30,7 @@ A mobile-first video sharing platform for theater groups to share dance instruct
 ```
 your-project/
 ├── index.html                    # Main video page
-├── admin.html                    # Admin panel  
+├── [removed - admin features now in page edit mode]  
 ├── package.json                  # Node.js config
 ├── netlify.toml                  # Netlify configuration
 ├── README.md                     # This file
@@ -50,11 +50,12 @@ your-project/
 3. Tap any video to play in the header
 4. Rotate phone to landscape for fullscreen viewing
 
-### For Instructors (Admin Panel)
-1. Visit `/admin.html` or click "+ Add Videos" button
-2. Add video title, Wistia Video ID, and category
-3. Changes appear instantly for all cast members
-4. Delete videos as needed
+### For Instructors (Edit Mode)
+1. Click "Login" on any page and enter your password
+2. In edit mode, click "Add Video" to add new videos
+3. Paste video URLs from Wistia, Vimeo, or YouTube
+4. Manage categories, set featured videos, edit page settings
+5. Changes appear instantly for all visitors
 
 ### Getting Wistia Video IDs
 1. Go to your Wistia dashboard
@@ -71,10 +72,10 @@ In Netlify dashboard:
 3. Follow DNS setup instructions
 
 ### Categories
-Edit the categories in both `index.html` and `admin.html`:
-```html
-<option value="your-category">Your Category</option>
-```
+Categories can be managed directly in edit mode:
+1. Click "Login" and enter edit mode
+2. Click the "+" button next to categories
+3. Add, edit, or delete categories as needed
 
 ### Styling
 All styles are inline in the HTML files for easy customization. Key color variables:
