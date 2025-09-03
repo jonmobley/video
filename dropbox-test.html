@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropbox Video Integration Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #ffffff;
+        }
+        
+        h1 {
+            color: #008f67;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #2a2a2a;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #008f67;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            background: #007a5a;
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background: #3a3a3a;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .video-player {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .video-info {
+            background: #2a2a2a;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+        
+        .video-info h3 {
+            margin: 0 0 12px 0;
+            color: #008f67;
+        }
+        
+        .video-info p {
+            margin: 4px 0;
+            color: #999;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .video-item {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .video-item:hover {
+            transform: scale(1.02);
+        }
+        
+        .video-thumbnail {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            position: relative;
+        }
+        
+        .video-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .platform-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .video-title {
+            padding: 12px;
+            font-weight: 500;
+        }
+        
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background: rgba(0, 143, 103, 0.2);
+            border: 1px solid #008f67;
+            color: #00ff99;
+        }
+        
+        .status.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff3333;
+            color: #ff6666;
+        }
+        
+        .status.info {
+            background: rgba(77, 144, 219, 0.2);
+            border: 1px solid #4d90db;
+            color: #66aaff;
+        }
+        
+        #app-key-input {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 16px;
+        }
+        
+        .instructions {
+            background: rgba(77, 144, 219, 0.1);
+            border: 1px solid #4d90db;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #4d90db;
+        }
+        
+        .instructions ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+        }
+        
+        .instructions code {
+            background: #2a2a2a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dropbox Video Integration Test</h1>
+    
+    <div class="section instructions">
+        <h3>Setup Instructions:</h3>
+        <ol>
+            <li>Go to <a href="https://www.dropbox.com/developers/apps/create" target="_blank" style="color: #4d90db;">Dropbox App Console</a></li>
+            <li>Create a new app with <strong>Full Dropbox</strong> access</li>
+            <li>Name it something like <code>VidShare-Test</code></li>
+            <li>Copy the <strong>App Key</strong> and paste it below</li>
+            <li>Add <code>http://localhost</code> and your domain to the app's redirect URIs</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h2>Configuration</h2>
+        <label for="app-key-input">Dropbox App Key:</label><br>
+        <input type="text" id="app-key-input" placeholder="Enter your Dropbox App Key" />
+        <div class="button-group">
+            <button id="save-key-btn" onclick="saveAppKey()">Save App Key</button>
+            <button id="load-sdk-btn" onclick="loadDropboxSDK()" disabled>Load Dropbox SDK</button>
+        </div>
+        <div id="config-status"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Test Dropbox Chooser</h2>
+        <div class="button-group">
+            <button id="dropbox-chooser-btn" onclick="openDropboxChooser()" disabled>
+                Choose Video from Dropbox
+            </button>
+            <button id="dropbox-multi-chooser-btn" onclick="openDropboxMultiChooser()" disabled>
+                Choose Multiple Videos
+            </button>
+        </div>
+        <div id="chooser-status"></div>
+    </div>
+    
+    <div class="section" id="video-player-section" style="display: none;">
+        <h2>Video Player</h2>
+        <div class="video-player">
+            <video id="test-video-player" controls></video>
+        </div>
+        <div class="video-info" id="video-info"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Selected Videos</h2>
+        <div class="video-grid" id="video-grid"></div>
+    </div>
+    
+    <script>
+        let appKey = '';
+        let selectedVideos = [];
+        
+        // Check if app key is saved in localStorage
+        window.onload = function() {
+            const savedKey = localStorage.getItem('dropbox_app_key');
+            if (savedKey) {
+                document.getElementById('app-key-input').value = savedKey;
+                appKey = savedKey;
+                document.getElementById('load-sdk-btn').disabled = false;
+                showStatus('config-status', 'info', 'App key loaded from storage. Click "Load Dropbox SDK" to continue.');
+            }
+        };
+        
+        function saveAppKey() {
+            const input = document.getElementById('app-key-input');
+            appKey = input.value.trim();
+            
+            if (!appKey) {
+                showStatus('config-status', 'error', 'Please enter a valid app key');
+                return;
+            }
+            
+            localStorage.setItem('dropbox_app_key', appKey);
+            document.getElementById('load-sdk-btn').disabled = false;
+            showStatus('config-status', 'success', 'App key saved! Now click "Load Dropbox SDK".');
+        }
+        
+        function loadDropboxSDK() {
+            if (!appKey) {
+                showStatus('config-status', 'error', 'Please save an app key first');
+                return;
+            }
+            
+            // Remove existing script if any
+            const existingScript = document.getElementById('dropboxjs');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            // Create and load the Dropbox SDK script
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://www.dropbox.com/static/api/2/dropins.js';
+            script.id = 'dropboxjs';
+            script.setAttribute('data-app-key', appKey);
+            
+            script.onload = function() {
+                showStatus('config-status', 'success', 'Dropbox SDK loaded successfully!');
+                document.getElementById('dropbox-chooser-btn').disabled = false;
+                document.getElementById('dropbox-multi-chooser-btn').disabled = false;
+                
+                // Check if Dropbox object is available
+                if (typeof Dropbox !== 'undefined') {
+                    console.log('Dropbox SDK loaded:', Dropbox);
+                }
+            };
+            
+            script.onerror = function() {
+                showStatus('config-status', 'error', 'Failed to load Dropbox SDK. Check your app key.');
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        function openDropboxChooser() {
+            if (typeof Dropbox === 'undefined') {
+                showStatus('chooser-status', 'error', 'Dropbox SDK not loaded');
+                return;
+            }
+            
+            Dropbox.choose({
+                success: function(files) {
+                    console.log('Selected files:', files);
+                    handleSelectedFiles(files);
+                },
+                cancel: function() {
+                    showStatus('chooser-status', 'info', 'File selection cancelled');
+                },
+                linkType: 'direct', // Direct link for streaming
+                multiselect: false,
+                extensions: ['.mp4', '.mov', '.webm', '.avi', '.mkv'],
+                folderselect: false
+            });
+        }
+        
+        function openDropboxMultiChooser() {
+            if (typeof Dropbox === 'undefined') {
+                showStatus('chooser-status', 'error', 'Dropbox SDK not loaded');
+                return;
+            }
+            
+            Dropbox.choose({
+                success: function(files) {
+                    console.log('Selected files:', files);
+                    handleSelectedFiles(files);
+                },
+                cancel: function() {
+                    showStatus('chooser-status', 'info', 'File selection cancelled');
+                },
+                linkType: 'direct',
+                multiselect: true,
+                extensions: ['.mp4', '.mov', '.webm', '.avi', '.mkv'],
+                folderselect: false
+            });
+        }
+        
+        function handleSelectedFiles(files) {
+            if (files.length === 0) {
+                showStatus('chooser-status', 'error', 'No files selected');
+                return;
+            }
+            
+            showStatus('chooser-status', 'success', `Selected ${files.length} video(s)`);
+            
+            // Add files to our collection
+            files.forEach(file => {
+                // Generate a unique ID for the video
+                const videoId = 'dropbox_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                
+                const videoData = {
+                    id: videoId,
+                    platform: 'dropbox',
+                    title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+                    url: file.link,
+                    thumbnailUrl: file.thumbnailLink || null,
+                    size: file.bytes,
+                    icon: file.icon,
+                    name: file.name
+                };
+                
+                selectedVideos.push(videoData);
+            });
+            
+            // If single file, play it immediately
+            if (files.length === 1) {
+                playVideo(selectedVideos[selectedVideos.length - 1]);
+            }
+            
+            // Update the grid
+            renderVideoGrid();
+        }
+        
+        function playVideo(video) {
+            const playerSection = document.getElementById('video-player-section');
+            const videoPlayer = document.getElementById('test-video-player');
+            const videoInfo = document.getElementById('video-info');
+            
+            playerSection.style.display = 'block';
+            
+            // Set video source
+            videoPlayer.src = video.url;
+            videoPlayer.load();
+            
+            // Update video info
+            videoInfo.innerHTML = `
+                <h3>${video.title}</h3>
+                <p><strong>Platform:</strong> ${video.platform}</p>
+                <p><strong>File:</strong> ${video.name}</p>
+                <p><strong>Size:</strong> ${formatFileSize(video.size)}</p>
+                <p><strong>ID:</strong> ${video.id}</p>
+                <p><strong>URL:</strong> <code style="word-break: break-all;">${video.url}</code></p>
+            `;
+            
+            // Scroll to player
+            playerSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function renderVideoGrid() {
+            const grid = document.getElementById('video-grid');
+            
+            grid.innerHTML = selectedVideos.map(video => `
+                <div class="video-item" onclick="playVideo(${JSON.stringify(video).replace(/"/g, '&quot;')})">
+                    <div class="video-thumbnail">
+                        ${video.thumbnailUrl ? 
+                            `<img src="${video.thumbnailUrl}" alt="${video.title}">` : 
+                            '<div>No Thumbnail</div>'
+                        }
+                        <div class="platform-badge">Dropbox</div>
+                    </div>
+                    <div class="video-title">${video.title}</div>
+                </div>
+            `).join('');
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function showStatus(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${type}`;
+            element.textContent = message;
+            element.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

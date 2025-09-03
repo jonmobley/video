@@ -121,3 +121,4 @@ Thank you to all users who provided feedback on multi-page support and customiza
 **Installation**: Follow the standard deployment process. No special steps required.
 
 **Support**: Open an issue on GitHub if you encounter any problems.
+
