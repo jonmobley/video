@@ -2363,13 +2363,6 @@
                 width = height * aspectRatio;
             }
             
-            // Ensure we don't exceed viewport width
-            const viewportWidth = window.innerWidth - 40;
-            if (width > viewportWidth) {
-                width = viewportWidth;
-                height = width / aspectRatio;
-            }
-            
             // Apply dimensions
             videoContainerElement.style.width = `${width}px`;
             videoContainerElement.style.height = `${height}px`;
