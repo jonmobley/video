@@ -3452,6 +3452,12 @@
          * @param {string} color - Hex color value
          */
         function applyAccentColor(color) {
+            // Validate color format
+            if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                console.error('Invalid color format:', color);
+                return;
+            }
+            
             const root = document.documentElement;
             root.style.setProperty('--accent-color', color);
             
@@ -3507,7 +3513,9 @@
 
         // Edit Mode and Login Functionality
         let isEditMode = false;
-        const ADMIN_PASSWORD = 'admin123'; // In production, this should be more secure
+        // TODO: Move to environment variable for production
+        // This should be set in Netlify environment variables as ADMIN_PASSWORD
+        const ADMIN_PASSWORD = 'admin123'; // SECURITY WARNING: Change this password!
 
         // Login functionality
         document.getElementById('loginLink').addEventListener('click', function() {
@@ -5373,6 +5381,13 @@
                 return;
             }
             
+            // Validate video ID format
+            if (!validateVideoId(videoId, platform)) {
+                document.getElementById('addVideoError').textContent = 'Invalid video ID format';
+                document.getElementById('addVideoError').style.display = 'block';
+                return;
+            }
+            
             // For non-Wistia platforms, use the video ID as wistiaId for now
             const wistiaId = platform === 'wistia' ? videoId : `${platform}_${videoId}`;
             
@@ -5548,6 +5563,60 @@
         // Current active category state
         let currentActiveCategory = 'all';
 
+        // ====================================================================
+        // SECURITY UTILITIES
+        // ====================================================================
+        
+        /**
+         * Escapes HTML special characters to prevent XSS
+         * @param {string} str - The string to escape
+         * @returns {string} The escaped string
+         */
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        /**
+         * Sanitizes a URL to ensure it's safe
+         * @param {string} url - The URL to sanitize
+         * @returns {string} The sanitized URL or empty string if invalid
+         */
+        function sanitizeUrl(url) {
+            if (!url) return '';
+            try {
+                const parsed = new URL(url);
+                // Only allow http, https protocols
+                if (!['http:', 'https:'].includes(parsed.protocol)) {
+                    return '';
+                }
+                return url;
+            } catch (e) {
+                // If URL parsing fails, it's not a valid URL
+                return '';
+            }
+        }
+        
+        /**
+         * Validates video ID format for different platforms
+         * @param {string} videoId - The video ID to validate
+         * @param {string} platform - The platform (wistia, vimeo, youtube)
+         * @returns {boolean} True if valid
+         */
+        function validateVideoId(videoId, platform) {
+            if (!videoId) return false;
+            
+            const patterns = {
+                wistia: /^[a-zA-Z0-9]{10}$/,
+                vimeo: /^[0-9]+$/,
+                youtube: /^[a-zA-Z0-9_-]{11}$/
+            };
+            
+            return patterns[platform]?.test(videoId) || false;
+        }
+        
         // ====================================================================
         // PERFORMANCE UTILITIES
         // ====================================================================
@@ -5739,10 +5808,10 @@
                 page_title: document.getElementById('pageTitle').value.trim(),
                 meta_description: document.getElementById('metaDescription').value.trim(),
                 meta_keywords: document.getElementById('metaKeywords').value.trim(),
-                canonical_url: document.getElementById('canonicalUrl').value.trim(),
+                canonical_url: sanitizeUrl(document.getElementById('canonicalUrl').value.trim()),
                 og_title: document.getElementById('ogTitle').value.trim(),
                 og_description: document.getElementById('ogDescription').value.trim(),
-                og_image_url: document.getElementById('ogImageUrl').value.trim(),
+                og_image_url: sanitizeUrl(document.getElementById('ogImageUrl').value.trim()),
                 twitter_title: document.getElementById('twitterTitle').value.trim(),
                 twitter_description: document.getElementById('twitterDescription').value.trim()
             };
