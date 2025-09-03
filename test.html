@@ -2211,11 +2211,19 @@
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
+        // ====================================================================
+        // GLOBAL STATE VARIABLES
+        // ====================================================================
+        
         // Track currently playing video
         let currentlyPlayingVideoId = null;
 
-        // Store video URL mappings
+        // Store video URL mappings for direct linking
         let videoUrlMappings = {};
+        
+        // ====================================================================
+        // VIDEO PLATFORM DETECTION AND HANDLING
+        // ====================================================================
         
         // Video platform detection function
         function detectVideoPlatform(url) {
@@ -2302,7 +2310,11 @@
             }
         }
         
-        // Load Vimeo thumbnail and duration using oEmbed API
+        /**
+         * Loads Vimeo thumbnail and duration using oEmbed API
+         * @param {string} videoId - The Vimeo video ID
+         * @param {string} thumbnailId - The HTML element ID for the thumbnail container
+         */
         async function loadVimeoThumbnail(videoId, thumbnailId) {
             try {
                 const response = await fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`);
@@ -2385,6 +2397,10 @@
             videoContainerElement.style.aspectRatio = '';
         }
         
+        // ====================================================================
+        // UI COMPONENTS AND CONFIGURATION
+        // ====================================================================
+        
         // Available category icons
         const availableIcons = {
             'music-note': '♪',
@@ -2395,9 +2411,17 @@
             'spade': '♠'
         };
         
+        // ====================================================================
+        // CATEGORY AND VIDEO MANAGEMENT
+        // ====================================================================
+        
         // Category management
         let categories = [];
 
+        /**
+         * Sets the active video state and updates UI accordingly
+         * @param {string|null} wistiaId - The ID of the video to set as active, or null to clear
+         */
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
             document.querySelectorAll('.video-item').forEach(item => {
@@ -2426,6 +2450,10 @@
             }
         }
 
+        /**
+         * Updates the browser URL hash with the video's unique string for direct linking
+         * @param {string} wistiaId - The ID of the video
+         */
         function updateBrowserUrl(wistiaId) {
             const video = videoUrlMappings[wistiaId];
             if (video && video.urlString) {
@@ -2435,12 +2463,19 @@
             }
         }
 
+        /**
+         * Clears the URL hash when no video is playing
+         */
         function clearBrowserUrl() {
             // Remove hash from URL
             const newUrl = window.location.pathname + window.location.search;
             window.history.replaceState(null, '', newUrl);
         }
 
+        /**
+         * Builds bidirectional mappings between video IDs and URL strings
+         * @param {Array} videos - Array of video objects
+         */
         function buildVideoUrlMappings(videos) {
             // Clear existing mappings
             videoUrlMappings = {};
@@ -2457,6 +2492,9 @@
             console.log('🔗 Built video URL mappings:', Object.keys(videoUrlMappings).length / 2, 'videos');
         }
 
+        /**
+         * Checks if URL contains a direct video link hash and loads it
+         */
         function checkForDirectVideoLink() {
             const hash = window.location.hash.substring(1); // Remove # symbol
             if (hash) {
@@ -2517,6 +2555,10 @@
 
 
 
+        /**
+         * Stops the current video and closes the player container
+         * Handles cleanup for all video platforms (Wistia, Vimeo, YouTube)
+         */
         function stopVideoAndClosePlayer() {
             console.log('Stopping video and closing player');
             
@@ -2573,6 +2615,10 @@
         }
 
         // Reset page to default state (called when clicking page title)
+        /**
+         * Resets the page to default state - closes video, clears search, shows all videos
+         * Called when clicking the page title
+         */
         function resetToDefault() {
             if (isEditMode) return; // Don't reset in edit mode
             
@@ -2601,6 +2647,10 @@
             });
         }
 
+        // ====================================================================
+        // VIDEO LOADING FUNCTIONS
+        // ====================================================================
+        
         // Generic video loading function
         function loadVideo(videoUrl, title, platform = null) {
             // If platform not provided, detect it
@@ -2822,7 +2872,10 @@
             }
         }
 
-        // Load videos from Netlify Functions
+        /**
+         * Loads videos from the server via Netlify Functions
+         * Fetches videos for the current page (disc) and renders the grid
+         */
         async function loadVideosFromServer() {
             try {
                 console.log('Loading videos from server...');
@@ -2859,6 +2912,10 @@
             }
         }
 
+        // ====================================================================
+        // VIDEO GRID RENDERING AND DISPLAY
+        // ====================================================================
+        
         // Fix orphaned words in video titles
         function fixOrphanedWords() {
             document.querySelectorAll('.item-title').forEach(titleElement => {
@@ -3028,7 +3085,11 @@
             }
         }
 
-        // Load video duration from Wistia oEmbed API
+        /**
+         * Loads video duration from Wistia oEmbed API
+         * Tries multiple API endpoints for better compatibility
+         * @param {string} wistiaId - The Wistia video ID
+         */
         async function loadVideoDuration(wistiaId) {
             console.log('🕐 DEBUG: === LOADING DURATION FOR:', wistiaId, '===');
             
@@ -3142,7 +3203,10 @@
             }
         }
 
-        // Show error message
+        /**
+         * Displays an error message in the video container
+         * @param {string} message - The error message to display
+         */
         function showError(message) {
             const videoGrid = document.getElementById('videoGrid');
             videoGrid.innerHTML = `
@@ -3197,6 +3261,10 @@
 
 
 
+        // ====================================================================
+        // EVENT HANDLING AND FILTERING
+        // ====================================================================
+        
         // Debouncing for category clicks
         let categoryClickTimeout = null;
         let isFilteringInProgress = false;
@@ -3232,6 +3300,10 @@
          * Load page configuration including accent color and title
          * Fetches configuration from the server and applies dynamic theming
          * Updates CSS variables for accent colors and page title
+         */
+        /**
+         * Loads page configuration from the server
+         * Sets accent colors and other page-specific settings
          */
         async function loadPageConfig() {
             try {
@@ -3519,6 +3591,10 @@
             console.log('Edit mode disabled');
         }
 
+        // ====================================================================
+        // EDIT MODE FUNCTIONALITY
+        // ====================================================================
+        
         // Unsaved changes tracking
         let hasUnsavedChanges = false;
 
@@ -4287,7 +4363,12 @@
             });
         }
 
-        // Move video using arrow controls
+        /**
+         * Moves a video in the grid using arrow controls
+         * @param {Event} event - The click event
+         * @param {string} wistiaId - The ID of the video to move
+         * @param {string} direction - Direction to move: 'up', 'down', 'left', 'right'
+         */
         function moveVideo(event, wistiaId, direction) {
             event.stopPropagation();
             event.preventDefault();
@@ -4352,7 +4433,10 @@
             }, 300);
         }
         
-        // Helper function to get grid columns (also used in moveVideo)
+        /**
+         * Gets the number of columns in the video grid based on viewport width
+         * @returns {number} Number of columns (1, 2, or 3)
+         */
         function getGridColumns() {
             const width = window.innerWidth;
             if (width >= 1200) return 4;
@@ -4859,6 +4943,12 @@
         // Edit Video Popup Functions
         let currentEditingVideoId = null;
 
+        /**
+         * Opens the edit video popup with current video details
+         * @param {string} wistiaId - The ID of the video to edit
+         * @param {string} title - Current video title
+         * @param {string} category - Current video category
+         */
         function openEditVideoPopup(wistiaId, title, category) {
             currentEditingVideoId = wistiaId;
             
@@ -4959,6 +5049,9 @@
         });
 
         // Add Video Popup Functions
+        /**
+         * Opens the add video popup and initializes the form
+         */
         function openAddVideoPopup() {
             console.log('🎬 DEBUG: === OPENING ADD VIDEO POPUP ===');
             
