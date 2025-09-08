@@ -2449,6 +2449,9 @@
 
         // Store video URL mappings
         let videoUrlMappings = {};
+
+        // Global videos array
+        let videos = [];
         
         // Available category icons
         const availableIcons = {
@@ -2779,7 +2782,7 @@
                 console.log('Loading videos from server...');
                 const response = await fetch('/.netlify/functions/get-videos?page=disc');
                 if (response.ok) {
-                    const videos = await response.json();
+                    videos = await response.json(); // Populate global videos array
                     console.log('Videos loaded:', videos);
                     
                     // Check if there's a featured video saved
@@ -5183,6 +5186,9 @@
             if (isEditMode) {
                 addEditListenersToVideo(videoElement);
             }
+            
+            // Add video to global videos array
+            videos.push(video);
             
             // Update tags visibility since we added a video
             const allVideos = Array.from(document.querySelectorAll('.video-item')).map(el => ({
