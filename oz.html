@@ -3249,6 +3249,18 @@
         }
 
         /**
+         * Load saved page title from localStorage
+         */
+        function loadPageTitle() {
+            const savedTitle = localStorage.getItem('oz_page_title');
+            if (savedTitle) {
+                document.getElementById('pageTitle').textContent = savedTitle;
+                return true; // Indicates title was loaded from localStorage
+            }
+            return false; // No saved title found
+        }
+
+        /**
          * Load page configuration including accent color and title
          * Fetches configuration from the server and applies dynamic theming
          * Updates CSS variables for accent colors and page title
@@ -3281,10 +3293,20 @@
                     
                     if (config.page_title) {
                         document.getElementById('pageTitle').textContent = config.page_title;
+                        // Also save to localStorage for future fallback
+                        localStorage.setItem('oz_page_title', config.page_title);
+                    } else {
+                        // If no server title, try localStorage
+                        loadPageTitle();
                     }
+                } else {
+                    // If server request fails, try localStorage
+                    loadPageTitle();
                 }
             } catch (error) {
                 console.error('Failed to load page config:', error);
+                // If server is unreachable, try localStorage
+                loadPageTitle();
             }
         }
 
@@ -3429,6 +3451,7 @@
                 const newTitle = input.value.trim();
                 if (newTitle && newTitle !== currentTitle) {
                     try {
+                        // Save to server first
                         const response = await fetch('/.netlify/functions/save-page-config', {
                             method: 'POST',
                             headers: {
@@ -3442,10 +3465,21 @@
                         
                         if (response.ok) {
                             titleElement.textContent = newTitle;
+                            // Also save to localStorage as backup
+                            localStorage.setItem('oz_page_title', newTitle);
                             showUnsavedIndicator();
+                        } else {
+                            // If server save fails, still save to localStorage
+                            localStorage.setItem('oz_page_title', newTitle);
+                            titleElement.textContent = newTitle;
+                            console.warn('Server save failed, saved to localStorage only');
                         }
                     } catch (error) {
                         console.error('Failed to save page title:', error);
+                        // Fallback to localStorage if server is unreachable
+                        localStorage.setItem('oz_page_title', newTitle);
+                        titleElement.textContent = newTitle;
+                        console.warn('Server unreachable, saved to localStorage only');
                     }
                 }
                 
