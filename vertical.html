@@ -4246,7 +4246,7 @@
                 markUnsavedChanges();
                 
                 // Re-render the video grid
-                renderVideos();
+                renderVideoGrid(videos);
                 
                 // Remove dialog
                 document.body.removeChild(dialog);
@@ -4328,7 +4328,7 @@
             
             // Re-render to update arrow visibility
             setTimeout(() => {
-                renderVideos();
+                renderVideoGrid(videos);
             }, 300);
         }
         
