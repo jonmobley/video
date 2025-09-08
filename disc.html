@@ -2286,8 +2286,6 @@
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="conflict">Conflict</div>
-                <div class="tag" data-category="adapted">Adapted</div>
             </div>
         </div>
     </div>
@@ -2437,6 +2435,10 @@
 
     <!-- Wistia JavaScript API -->
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+    
+    <!-- Multi-platform video support -->
+    <script src="js/dropbox-url-handler.js"></script>
+    <script src="js/video-platform.js"></script>
     
     <script>
         let currentWistiaVideo = null;
@@ -2731,6 +2733,46 @@
             }
         }
 
+        // Hide tags container if there are no videos or no meaningful tags for filtering
+        function hideTagsIfEmpty(videos) {
+            const tagsContainer = document.querySelector('.tags-container');
+            if (!tagsContainer) return;
+            
+            // If no videos, hide the entire tags container (including "All")
+            if (!videos || videos.length === 0) {
+                tagsContainer.style.display = 'none';
+                console.log('Tags container hidden: no videos found');
+                return;
+            }
+            
+            // Get unique tags from videos (excluding 'all' and empty tags)
+            // Tags are used for filtering, categories are for dropdown organization
+            const meaningfulTags = new Set();
+            videos.forEach(video => {
+                // Check tags array if it exists (new format)
+                if (video.tags && Array.isArray(video.tags)) {
+                    video.tags.forEach(tag => {
+                        if (tag && tag !== 'all' && tag.trim() !== '') {
+                            meaningfulTags.add(tag);
+                        }
+                    });
+                }
+                // Fallback to category as tag (old format)
+                else if (video.category && video.category !== 'all' && video.category.trim() !== '') {
+                    meaningfulTags.add(video.category);
+                }
+            });
+            
+            // If no meaningful tags for filtering, hide the entire tags container (including "All")
+            if (meaningfulTags.size === 0) {
+                tagsContainer.style.display = 'none';
+                console.log('Tags container hidden: no meaningful tags found for filtering');
+            } else {
+                tagsContainer.style.display = 'block';
+                console.log('Tags container shown: found tags for filtering:', Array.from(meaningfulTags));
+            }
+        }
+
         // Load videos from Netlify Functions
         async function loadVideosFromServer() {
             try {
@@ -2756,6 +2798,9 @@
                             videoPlayer.style.display = 'block';
                         }
                     }
+                    
+                    // Hide tags container if no videos or no meaningful categories
+                    hideTagsIfEmpty(videos);
                     
                     renderVideoGrid(videos);
                 } else {
@@ -4159,6 +4204,13 @@
                 // Re-render the video grid
                 renderVideos();
                 
+                // Update tags visibility after deletion
+                const remainingVideos = Array.from(document.querySelectorAll('.video-item')).map(el => ({
+                    category: el.dataset.category,
+                    tags: el.dataset.tags ? el.dataset.tags.split(',') : []
+                }));
+                hideTagsIfEmpty(remainingVideos);
+                
                 // Remove dialog
                 document.body.removeChild(dialog);
                 
@@ -4835,6 +4887,18 @@
             if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
                 const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
                 if (videoItem) {
+                    // Remove from videos array
+                    const index = videos.findIndex(v => v.wistiaId === currentEditingVideoId);
+                    if (index !== -1) {
+                        videos.splice(index, 1);
+                    }
+                    
+                    // If this was the featured video, clear featured status
+                    if (featuredContent.videoId === currentEditingVideoId) {
+                        featuredContent.videoId = null;
+                        featuredContent.category = null;
+                    }
+                    
                     videoItem.remove();
                     console.log('Video deleted:', currentEditingVideoId);
                     
@@ -5119,6 +5183,13 @@
             if (isEditMode) {
                 addEditListenersToVideo(videoElement);
             }
+            
+            // Update tags visibility since we added a video
+            const allVideos = Array.from(document.querySelectorAll('.video-item')).map(el => ({
+                category: el.dataset.category,
+                tags: el.dataset.tags ? el.dataset.tags.split(',') : []
+            }));
+            hideTagsIfEmpty(allVideos);
             
             // Mark as having unsaved changes
             markUnsavedChanges();
