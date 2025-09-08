@@ -325,6 +325,11 @@
             border: 4px solid #008f67;
         }
 
+        body.edit-mode .page-title:hover {
+            background: rgba(0, 143, 103, 0.1);
+            border-color: #008f67 !important;
+        }
+
         .edit-indicator {
             position: fixed;
             top: 20px;
@@ -405,7 +410,7 @@
 </head>
 <body>
     <div class="header">
-        <h1 class="page-title">VidShare - Dropbox Integration</h1>
+        <h1 class="page-title" id="pageTitle" style="cursor: pointer;">VidShare - Dropbox Integration</h1>
         <p class="subtitle">Test page for Wistia + Dropbox video platform</p>
     </div>
 
@@ -501,11 +506,92 @@
         let editingVideoId = null;
         let platformManager = null;
 
+        /**
+         * Edit page title inline in edit mode
+         * Creates an input field to edit the title and saves changes to localStorage
+         * Handles Enter to save and Escape to cancel
+         */
+        function editPageTitle() {
+            const titleElement = document.getElementById('pageTitle');
+            const currentTitle = titleElement.textContent;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.style.cssText = titleElement.style.cssText;
+            input.style.fontSize = getComputedStyle(titleElement).fontSize;
+            input.style.fontWeight = getComputedStyle(titleElement).fontWeight;
+            input.style.textAlign = 'center';
+            input.style.width = '100%';
+            input.style.background = 'rgba(0, 0, 0, 0.8)';
+            input.style.color = 'white';
+            input.style.border = '2px solid #008f67';
+            input.style.padding = '4px 8px';
+            input.style.borderRadius = '4px';
+            
+            titleElement.style.display = 'none';
+            titleElement.parentNode.insertBefore(input, titleElement);
+            input.focus();
+            input.select();
+            
+            async function saveTitle() {
+                const newTitle = input.value.trim();
+                if (newTitle && newTitle !== currentTitle) {
+                    try {
+                        // Save to localStorage for this test page
+                        localStorage.setItem('dropbox_page_title', newTitle);
+                        titleElement.textContent = newTitle;
+                        showUnsavedIndicator();
+                        showStatus('success', 'Page title updated!');
+                    } catch (error) {
+                        console.error('Failed to save page title:', error);
+                        showStatus('error', 'Failed to save page title');
+                    }
+                }
+                
+                input.remove();
+                titleElement.style.display = '';
+            }
+            
+            input.addEventListener('blur', saveTitle);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveTitle();
+                } else if (e.key === 'Escape') {
+                    input.value = currentTitle;
+                    input.blur();
+                }
+            });
+        }
+
+        /**
+         * Show unsaved changes indicator
+         */
+        function showUnsavedIndicator() {
+            // For this test page, we'll just show a brief status message
+            // In a full implementation, this might show a persistent indicator
+            console.log('Page title changes saved to localStorage');
+        }
+
+        /**
+         * Load saved page title from localStorage
+         */
+        function loadPageTitle() {
+            const savedTitle = localStorage.getItem('dropbox_page_title');
+            if (savedTitle) {
+                document.getElementById('pageTitle').textContent = savedTitle;
+            }
+        }
+
         // Initialize
         window.addEventListener('DOMContentLoaded', async () => {
             // Initialize platform manager
             platformManager = new VideoPlatformManager();
             await platformManager.init();
+            
+            // Load saved page title
+            loadPageTitle();
             
             // Load videos
             loadVideos();
@@ -519,15 +605,39 @@
             const editBtn = document.getElementById('toggle-edit-btn');
             const editControls = document.getElementById('edit-controls');
             const saveBtn = document.getElementById('save-btn');
+            const pageTitle = document.getElementById('pageTitle');
             
             if (isEditMode) {
                 editBtn.textContent = 'Exit Edit Mode';
                 editControls.style.display = 'block';
                 saveBtn.style.display = 'inline-block';
+                
+                // Add page title edit listener
+                pageTitle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    editPageTitle();
+                });
+                
+                // Add visual indication that title is clickable
+                pageTitle.style.border = '2px dashed transparent';
+                pageTitle.style.padding = '4px 8px';
+                pageTitle.style.borderRadius = '4px';
+                pageTitle.title = 'Click to edit page title';
             } else {
                 editBtn.textContent = 'Enter Edit Mode';
                 editControls.style.display = 'none';
                 saveBtn.style.display = 'none';
+                
+                // Remove page title edit listener by cloning the element
+                const newPageTitle = pageTitle.cloneNode(true);
+                pageTitle.parentNode.replaceChild(newPageTitle, pageTitle);
+                
+                // Remove visual indication
+                newPageTitle.style.border = '';
+                newPageTitle.style.padding = '';
+                newPageTitle.style.borderRadius = '';
+                newPageTitle.title = '';
             }
             
             renderVideos();
