@@ -4687,43 +4687,54 @@
         }
 
         function populateAddCategoryDropdown() {
-            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN AND TAGS ===');
+            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN ===');
             
             const select = document.getElementById('newVideoCategory');
             console.log('📋 DEBUG: Found category select element:', select);
             
-            const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
-                id: tag.dataset.category,
-                name: tag.textContent
-            }));
-            console.log('📋 DEBUG: Found categories:', categories);
+            // Get unique categories from loaded video data
+            const uniqueCategories = new Set();
+            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
+                window.loadedVideos.forEach(video => {
+                    if (video.category && video.category !== 'all') {
+                        uniqueCategories.add(video.category);
+                    }
+                });
+            }
             
-            console.log('📋 DEBUG: Setting default option');
+            console.log('📋 DEBUG: Found categories from video data:', Array.from(uniqueCategories));
+            
+            // Clear and set default option
             select.innerHTML = '<option value="">Select Category</option>';
             
-            console.log('📋 DEBUG: Adding categories to dropdown');
-            categories.forEach(cat => {
-                if (cat.id !== 'all') {
-                    console.log('📋 DEBUG: Adding category:', cat);
-                    const option = document.createElement('option');
-                    option.value = cat.id;
-                    option.textContent = cat.name;
-                    select.appendChild(option);
-                }
+            // Add categories to dropdown
+            uniqueCategories.forEach(categoryId => {
+                console.log('📋 DEBUG: Adding category:', categoryId);
+                const option = document.createElement('option');
+                option.value = categoryId;
+                // Convert category ID to display name (capitalize and format)
+                option.textContent = categoryId === 'the-merry-land-of-oz' ? 'The Merry Land of Oz' : 
+                                  categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                select.appendChild(option);
             });
             
-            console.log('📋 DEBUG: Category dropdown populated with', select.children.length, 'options');
+            console.log('📋 DEBUG: Category dropdown populated with', select.children.length - 1, 'categories');
             
-            // Also populate tag selection
+            // Also populate tag selection (using tags, not categories)
             const tagContainer = document.getElementById('tagSelectionContainer');
             tagContainer.innerHTML = '';
             
-            categories.forEach(cat => {
-                if (cat.id !== 'all') {
+            const tags = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
+                id: tag.dataset.category,
+                name: tag.textContent
+            }));
+            
+            tags.forEach(tag => {
+                if (tag.id !== 'all') {
                     const tagSelector = document.createElement('div');
                     tagSelector.className = 'tag-selector';
-                    tagSelector.dataset.tagId = cat.id;
-                    tagSelector.textContent = cat.name;
+                    tagSelector.dataset.tagId = tag.id;
+                    tagSelector.textContent = tag.name;
                     tagSelector.addEventListener('click', function() {
                         this.classList.toggle('selected');
                     });

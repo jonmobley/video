@@ -45,13 +45,14 @@ if (supabaseUrl && supabaseKey) {
 const DEFAULT_CATEGORIES = {
   'oz': [
     { id: 'all', name: 'All Videos', order: 0, page: 'oz' },
-    { id: 'chorus', name: 'Chorus', order: 1, page: 'oz' },
-    { id: 'principals', name: 'Principals', order: 2, page: 'oz' },
-    { id: 'dancers', name: 'Dancers', order: 3, page: 'oz' }
+    { id: 'dancers', name: 'Dancers', order: 1, page: 'oz' },
+    { id: 'kids', name: 'Kids', order: 2, page: 'oz' },
+    { id: 'chorus', name: 'Chorus', order: 3, page: 'oz' }
   ],
   'disc': [
     { id: 'all', name: 'All Videos', order: 0, page: 'disc' },
-    { id: 'disc', name: 'DISC', order: 1, page: 'disc' }
+    { id: 'conflict', name: 'Conflict', order: 1, page: 'disc' },
+    { id: 'adapted', name: 'Adapted', order: 2, page: 'disc' }
   ]
 };
 

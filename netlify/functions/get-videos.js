@@ -48,7 +48,7 @@ const DEFAULT_VIDEOS = {
       id: 'ssgxvlsdmx',
       wistiaId: 'ssgxvlsdmx',
       title: 'Chorus and Kids Stage L',
-      category: 'chorus',
+      category: 'the-merry-land-of-oz',
       tags: ['chorus', 'kids'],
       order: 0,
       page: 'oz'
@@ -57,7 +57,7 @@ const DEFAULT_VIDEOS = {
       id: '7kpm1d3mhv',
       wistiaId: '7kpm1d3mhv',
       title: 'Chorus and Kids Stage R',
-      category: 'chorus',
+      category: 'the-merry-land-of-oz',
       tags: ['chorus', 'kids'],
       order: 1,
       page: 'oz'
@@ -66,7 +66,7 @@ const DEFAULT_VIDEOS = {
       id: 'eklwt6f33t',
       wistiaId: 'eklwt6f33t',
       title: 'Section One: Dancers',
-      category: 'dancers',
+      category: 'the-merry-land-of-oz',
       tags: ['dancers'],
       order: 2,
       page: 'oz'
@@ -75,7 +75,7 @@ const DEFAULT_VIDEOS = {
       id: 'xqxp9qk6ab',
       wistiaId: 'xqxp9qk6ab',
       title: 'Section One: Stage R Chorus',
-      category: 'chorus',
+      category: 'the-merry-land-of-oz',
       tags: ['chorus'],
       order: 3,
       page: 'oz'
