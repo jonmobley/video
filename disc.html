@@ -1184,15 +1184,42 @@
             margin-bottom: 0;
         }
 
-        .category-drag-handle {
-            cursor: grab;
-            color: #666;
-            font-size: 16px;
-            user-select: none;
+        .category-reorder-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
-        .category-drag-handle:active {
-            cursor: grabbing;
+        .category-arrow-btn {
+            background: #444;
+            color: #ccc;
+            border: none;
+            width: 24px;
+            height: 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .category-arrow-btn:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .category-arrow-btn:disabled {
+            background: #333;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        .category-arrow-btn:disabled:hover {
+            background: #333;
+            color: #555;
         }
 
         .category-item input {
@@ -5354,6 +5381,9 @@
                 addCategoryItemToList(categoryId, categoryId === 'the-merry-land-of-oz' ? 'The Merry Land of Oz' : 
                     categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '), index);
             });
+            
+            // Update arrow states after all items are added
+            updateCategoryArrowStates();
         }
 
         function addCategoryItemToList(id, name, order) {
@@ -5365,7 +5395,10 @@
             categoryItem.dataset.order = order;
             
             categoryItem.innerHTML = `
-                <span class="category-drag-handle">⋮⋮</span>
+                <div class="category-reorder-buttons">
+                    <button type="button" class="category-arrow-btn category-up-btn" title="Move up">▲</button>
+                    <button type="button" class="category-arrow-btn category-down-btn" title="Move down">▼</button>
+                </div>
                 <input type="text" value="${name}" placeholder="Category name..." />
                 <button type="button" class="category-remove-btn">×</button>
             `;
@@ -5373,9 +5406,20 @@
             // Add remove functionality
             categoryItem.querySelector('.category-remove-btn').addEventListener('click', () => {
                 categoryItem.remove();
+                updateCategoryArrowStates();
+            });
+            
+            // Add reorder functionality
+            categoryItem.querySelector('.category-up-btn').addEventListener('click', () => {
+                moveCategoryUp(categoryItem);
+            });
+            
+            categoryItem.querySelector('.category-down-btn').addEventListener('click', () => {
+                moveCategoryDown(categoryItem);
             });
             
             categoriesList.appendChild(categoryItem);
+            updateCategoryArrowStates();
         }
 
         function addNewCategoryItem() {
@@ -5388,6 +5432,37 @@
                 newInput.focus();
                 newInput.select();
             }
+        }
+
+        function moveCategoryUp(categoryItem) {
+            const previousSibling = categoryItem.previousElementSibling;
+            if (previousSibling) {
+                categoryItem.parentNode.insertBefore(categoryItem, previousSibling);
+                updateCategoryArrowStates();
+            }
+        }
+
+        function moveCategoryDown(categoryItem) {
+            const nextSibling = categoryItem.nextElementSibling;
+            if (nextSibling) {
+                categoryItem.parentNode.insertBefore(nextSibling, categoryItem);
+                updateCategoryArrowStates();
+            }
+        }
+
+        function updateCategoryArrowStates() {
+            const categoryItems = document.querySelectorAll('.category-item');
+            
+            categoryItems.forEach((item, index) => {
+                const upBtn = item.querySelector('.category-up-btn');
+                const downBtn = item.querySelector('.category-down-btn');
+                
+                // Disable up button for first item
+                upBtn.disabled = (index === 0);
+                
+                // Disable down button for last item
+                downBtn.disabled = (index === categoryItems.length - 1);
+            });
         }
 
         function saveCategories() {
