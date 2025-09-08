@@ -2399,7 +2399,7 @@
                 <div class="form-group">
                     <label for="newVideoCategory">Category</label>
                     <select id="newVideoCategory" required>
-                        <option value="">Select Category</option>
+                        <option value="">Select Tag</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -2433,7 +2433,7 @@
                 <div class="form-group">
                     <label for="editVideoCategory">Category</label>
                     <select id="editVideoCategory" required>
-                        <option value="">Select Category</option>
+                        <option value="">Select Tag</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -2806,6 +2806,9 @@
                     }
                     
                     renderVideoGrid(videos);
+                    
+                    // Hide categories dropdown if all videos have 'all' category
+                    hideCategoriesDropdownIfAllVideosAreAll(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
                     showError('Failed to load videos from server');
@@ -3094,6 +3097,31 @@
                     <p style="color: #aaa; margin-top: 8px;">Please try refreshing the page</p>
                 </div>
             `;
+        }
+
+        // Hide categories dropdown if all videos have 'all' category
+        function hideCategoriesDropdownIfAllVideosAreAll(videos) {
+            const categoriesDropdown = document.querySelector('.categories-dropdown');
+            if (!categoriesDropdown) return;
+            
+            // If no videos, show the dropdown
+            if (!videos || videos.length === 0) {
+                categoriesDropdown.style.display = 'flex';
+                return;
+            }
+            
+            // Check if all videos have 'all' category
+            const allVideosHaveAllCategory = videos.every(video => 
+                video.category === 'all' || !video.category
+            );
+            
+            if (allVideosHaveAllCategory) {
+                categoriesDropdown.style.display = 'none';
+                console.log('Categories dropdown hidden: all videos have "all" category');
+            } else {
+                categoriesDropdown.style.display = 'flex';
+                console.log('Categories dropdown shown: videos have different categories');
+            }
         }
 
         // Attach event listeners to video items
@@ -3528,7 +3556,7 @@
                     editCategoryName(this);
                 });
                 
-                // Click on X to delete category
+                // Click on X to delete tag
                 tag.addEventListener('click', function(e) {
                     if (!isEditMode) return;
                     
@@ -3694,10 +3722,10 @@
             
             if (videosInCategory.length === 0) {
                 // No videos, safe to delete
-                if (confirm(`Delete category "${categoryName}"?`)) {
+                if (confirm(`Delete tag "${categoryName}"?`)) {
                     categoryElement.remove();
                     markUnsavedChanges();
-                    console.log('Category deleted:', categoryName);
+                    console.log('Tag deleted:', categoryName);
                 }
                 return;
             }
@@ -3708,7 +3736,7 @@
                 .map(tag => ({ id: tag.dataset.category, name: tag.textContent }));
             
             if (availableCategories.length === 0) {
-                alert('Cannot delete the last category. Create another category first.');
+                alert('Cannot delete the last tag. Create another tag first.');
                 return;
             }
             
@@ -3726,13 +3754,13 @@
             
             dialog.innerHTML = `
                 <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 400px;">
-                    <h3 style="color: white; margin: 0 0 16px 0;">Delete Category</h3>
+                    <h3 style="color: white; margin: 0 0 16px 0;">Delete Tag</h3>
                     <p style="color: #aaa; margin: 0 0 16px 0;">
                         "${categoryName}" has ${videosInCategory.length} video(s). 
-                        Choose a category to reassign them to:
+                        Choose a tag to reassign them to:
                     </p>
                     <select id="reassignSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; margin-bottom: 20px;">
-                        <option value="">Select category...</option>
+                        <option value="">Select tag...</option>
                         ${reassignmentOptions}
                     </select>
                     <div style="display: flex; gap: 12px;">
@@ -3747,7 +3775,7 @@
             dialog.querySelector('#confirmDelete').addEventListener('click', function() {
                 const newCategoryId = dialog.querySelector('#reassignSelect').value;
                 if (!newCategoryId) {
-                    alert('Please select a category for reassignment.');
+                    alert('Please select a tag for reassignment.');
                     return;
                 }
                 
@@ -3780,7 +3808,7 @@
                 categoryElement.remove();
                 markUnsavedChanges();
                 
-                console.log(`Category "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
+                console.log(`Tag "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
                 document.body.removeChild(dialog);
             });
             
@@ -4205,7 +4233,11 @@
                 markUnsavedChanges();
                 
                 // Re-render the video grid
-                renderVideos();
+                const allVideoElements = document.querySelectorAll('.video-item');
+                const currentVideos = Array.from(allVideoElements).map(element => ({
+                    category: element.dataset.category || 'all'
+                }));
+                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
                 
                 // Remove dialog
                 document.body.removeChild(dialog);
@@ -4285,9 +4317,13 @@
             // Mark as changed
             markUnsavedChanges();
             
-            // Re-render to update arrow visibility
+            // Re-render to update arrow visibility and dropdown
             setTimeout(() => {
-                renderVideos();
+                const allVideoElements = document.querySelectorAll('.video-item');
+                const currentVideos = Array.from(allVideoElements).map(element => ({
+                    category: element.dataset.category || 'all'
+                }));
+                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
             }, 300);
         }
         
@@ -4821,7 +4857,7 @@
                 name: tag.textContent
             }));
             
-            select.innerHTML = '<option value="">Select Category</option>';
+            select.innerHTML = '<option value="">Select Tag</option>';
             categories.forEach(cat => {
                 if (cat.id !== 'all') {
                     const option = document.createElement('option');
@@ -4937,7 +4973,14 @@
             console.log('📋 DEBUG: Found categories from video data:', Array.from(uniqueCategories));
             
             // Clear and set default option
-            select.innerHTML = '<option value="">Select Category</option>';
+            select.innerHTML = '<option value="">Select Tag</option>';
+            
+            // Add "All" as the default selected option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = 'All';
+            allOption.selected = true;
+            select.appendChild(allOption);
             
             // Add categories to dropdown
             uniqueCategories.forEach(categoryId => {
@@ -5171,6 +5214,13 @@
             
             // Mark as having unsaved changes
             markUnsavedChanges();
+            
+            // Update dropdown visibility based on all current videos
+            const allVideoElements = document.querySelectorAll('.video-item');
+            const currentVideos = Array.from(allVideoElements).map(element => ({
+                category: element.dataset.category || 'all'
+            }));
+            hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
         }
 
         function addVideoEventListeners(videoElement) {
