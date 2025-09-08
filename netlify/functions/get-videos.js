@@ -81,7 +81,8 @@ const DEFAULT_VIDEOS = {
       page: 'oz'
     }
   ],
-  'disc': [] // Empty array for disc page
+  'disc': [], // Empty array for disc page
+  'vertical': [] // Empty array for vertical page
 };
 
 exports.handler = async (event, context) => {

@@ -53,6 +53,9 @@ const DEFAULT_CATEGORIES = {
     { id: 'all', name: 'All Videos', order: 0, page: 'disc' },
     { id: 'conflict', name: 'Conflict', order: 1, page: 'disc' },
     { id: 'adapted', name: 'Adapted', order: 2, page: 'disc' }
+  ],
+  'vertical': [
+    { id: 'all', name: 'All Videos', order: 0, page: 'vertical' }
   ]
 };
 
