@@ -1300,6 +1300,34 @@
             transform: scale(1.1);
         }
 
+        .category-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        .category-show-checkbox {
+            margin: 0;
+        }
+
+        .category-predefined-label {
+            font-size: 12px;
+            color: #888;
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .category-item input[readonly] {
+            background: #333;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
         .btn-add-category {
             background: var(--accent-color);
             color: white;
@@ -2325,9 +2353,7 @@
         <div class="tags-container">
             <div class="categories-dropdown">
                 <select id="categoriesDropdown" class="category-select">
-                    <option value="all-songs" selected data-icon="music-note">♪ All Dance Videos</option>
-                    <option value="the-merry-land-of-oz" data-icon="music-note">♪ The Merry Land of Oz</option>
-                    <option value="" disabled>More coming soon!</option>
+                    <!-- Categories will be populated dynamically -->
                 </select>
             </div>
             <div class="tags">
@@ -2590,24 +2616,51 @@
         });
 
         // Function to update categories dropdown with icons
-        function updateCategoriesDropdown(categoriesData) {
+        function updateCategoriesDropdown(categoriesData = null) {
             const dropdown = document.getElementById('categoriesDropdown');
             if (!dropdown) return;
             
-            // Clear existing options except the default ones
-            const defaultOptions = Array.from(dropdown.options).filter(option => 
-                option.value === 'the-merry-land-of-oz' || option.value === ''
-            );
-            
             dropdown.innerHTML = '';
             
-            // Add back default options
-            defaultOptions.forEach(option => dropdown.appendChild(option));
+            // Build dropdown from predefined categories and user preferences
+            predefinedCategories.forEach(category => {
+                // Check if this category should be shown in dropdown
+                let showInDropdown = category.showInDropdown;
+                
+                // Override with user preference if available
+                if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                }
+                
+                if (showInDropdown) {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    
+                    // Add icon if available
+                    const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
+                    option.textContent = icon + category.name;
+                    option.setAttribute('data-icon', category.icon || '');
+                    
+                    // Set as selected if it's the default "All Dance Videos"
+                    if (category.id === 'all-songs') {
+                        option.selected = true;
+                    }
+                    
+                    // Disable if it's the "More Coming Soon!" option
+                    if (category.disabled) {
+                        option.disabled = true;
+                    }
+                    
+                    dropdown.appendChild(option);
+                }
+            });
             
-            // Add category-based options if needed in the future
+            // Add any additional categories from video data (future enhancement)
             if (categoriesData && categoriesData.length > 0) {
                 categoriesData.forEach(category => {
-                    if (category.showInDropdown) {
+                    // Only add if not already in predefined categories
+                    const isPredefined = predefinedCategories.some(pred => pred.id === category.id);
+                    if (!isPredefined && category.showInDropdown) {
                         const option = document.createElement('option');
                         option.value = category.id;
                         const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
@@ -2892,9 +2945,11 @@
                 // Handle both old format (category) and new format (tags array)
                 const videoTags = video.tags || [video.category];
                 const tagsString = videoTags.join(',');
-                const displayTags = videoTags.map(tag => 
-                    `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
-                ).join('');
+                const displayTags = videoTags
+                    .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
+                    .map(tag => 
+                        `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                    ).join('');
                 
                 // Generate arrow controls based on position
                 const arrowControls = `
@@ -3288,6 +3343,8 @@
             await loadPageConfig();
             // Load category preferences (including custom "All" label)
             loadCategoryPreferences();
+            // Initialize categories dropdown
+            updateCategoriesDropdown();
             loadVideosFromServer();
             attachTagListeners();
         });
@@ -4897,7 +4954,12 @@
                 // Update tags container with new pill structure
                 const tagsContainer = videoItem.querySelector('.item-tags');
                 if (tagsContainer) {
-                    tagsContainer.innerHTML = `<span class="item-tag-pill">${newCategory.charAt(0).toUpperCase() + newCategory.slice(1)}</span>`;
+                    // Only show tag pill if category is not 'all'
+                    if (newCategory !== 'all') {
+                        tagsContainer.innerHTML = `<span class="item-tag-pill">${newCategory.charAt(0).toUpperCase() + newCategory.slice(1)}</span>`;
+                    } else {
+                        tagsContainer.innerHTML = ''; // No tag pill for 'all' category
+                    }
                 }
                 
                 // Update the edit button onclick to reflect new values
@@ -5139,19 +5201,27 @@
             const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
                 .map(tag => tag.dataset.tagId);
             
-            // Add video to grid
-            await addVideoToGrid({
-                wistiaId: wistiaId,
-                title: title,
-                category: category,
-                tags: selectedTags
-            });
+            try {
+                // Add video to grid
+                await addVideoToGrid({
+                    wistiaId: wistiaId,
+                    title: title,
+                    category: category,
+                    tags: selectedTags
+                });
+                
+                console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
+                
+            } catch (error) {
+                console.error('Error adding video to grid:', error);
+                document.getElementById('addVideoError').textContent = 'Error adding video. Please try again.';
+                document.getElementById('addVideoError').style.display = 'block';
+                return; // Don't close popup if there was an error
+            }
             
-            // Close popup
+            // Close popup (this will always run unless there was an error above)
             document.getElementById('addVideoOverlay').style.display = 'none';
             document.getElementById('addVideoError').style.display = 'none';
-            
-            console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
         });
 
         async function addVideoToGrid(video) {
@@ -5169,10 +5239,12 @@
             const tagsString = videoTags.join(',');
             videoElement.setAttribute('data-tags', tagsString);
             
-            // Generate tag pills HTML
-            const displayTags = videoTags.map(tag => 
-                `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
-            ).join('');
+            // Generate tag pills HTML (filter out 'all' category as it's not a content tag)
+            const displayTags = videoTags
+                .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
+                .map(tag => 
+                    `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                ).join('');
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
@@ -5455,6 +5527,32 @@
             console.log('🏷️ DEBUG: Manage categories popup opened');
         }
 
+        // Predefined categories that should always be available for management
+        const predefinedCategories = [
+            {
+                id: 'all-songs',
+                name: 'All Dance Videos',
+                icon: 'music-note',
+                showInDropdown: true,
+                isDefault: true
+            },
+            {
+                id: 'the-merry-land-of-oz',
+                name: 'The Merry Land of Oz',
+                icon: 'music-note',
+                showInDropdown: true,
+                isDefault: true
+            },
+            {
+                id: 'more-coming-soon',
+                name: 'More Coming Soon!',
+                icon: '',
+                showInDropdown: false, // This will be manageable
+                isDefault: true,
+                disabled: true // This option should be disabled in dropdown
+            }
+        ];
+
         function populateManageCategoriesPopup() {
             const categoriesList = document.getElementById('categoriesList');
             const allLabel = document.getElementById('allCategoriesLabel');
@@ -5462,12 +5560,21 @@
             // Set the "All" label input to the current preference
             allLabel.value = categoryPreferences.allLabel;
             
-            // Get current categories from loaded video data
-            const uniqueCategories = new Set();
+            // Get all categories: predefined + from video data
+            const allCategories = new Set();
+            
+            // Add predefined categories
+            predefinedCategories.forEach(cat => {
+                if (cat.id !== 'all-songs') { // Don't include the "All" option as a manageable category
+                    allCategories.add(cat.id);
+                }
+            });
+            
+            // Add categories from loaded video data
             if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
                 window.loadedVideos.forEach(video => {
                     if (video.category && video.category !== 'all') {
-                        uniqueCategories.add(video.category);
+                        allCategories.add(video.category);
                     }
                 });
             }
@@ -5476,16 +5583,20 @@
             categoriesList.innerHTML = '';
             
             // Add category items
-            Array.from(uniqueCategories).forEach((categoryId, index) => {
-                addCategoryItemToList(categoryId, categoryId === 'the-merry-land-of-oz' ? 'The Merry Land of Oz' : 
-                    categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '), index);
+            Array.from(allCategories).forEach((categoryId, index) => {
+                // Find predefined category info or create default
+                const predefined = predefinedCategories.find(cat => cat.id === categoryId);
+                const displayName = predefined ? predefined.name : 
+                    categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                
+                addCategoryItemToList(categoryId, displayName, index, predefined);
             });
             
             // Update arrow states after all items are added
             updateCategoryArrowStates();
         }
 
-        function addCategoryItemToList(id, name, order) {
+        function addCategoryItemToList(id, name, order, predefinedInfo = null) {
             const categoriesList = document.getElementById('categoriesList');
             
             const categoryItem = document.createElement('div');
@@ -5493,20 +5604,65 @@
             categoryItem.dataset.categoryId = id;
             categoryItem.dataset.order = order;
             
-            categoryItem.innerHTML = `
+            // Check if this is a predefined category
+            const isPredefined = predefinedInfo && predefinedInfo.isDefault;
+            const isMoreComingSoon = id === 'more-coming-soon';
+            
+            // Get current show in dropdown preference
+            const showInDropdown = categoryPreferences.categories && categoryPreferences.categories[id] 
+                ? categoryPreferences.categories[id].showInDropdown 
+                : (predefinedInfo ? predefinedInfo.showInDropdown : true);
+            
+            let categoryHTML = `
                 <div class="category-reorder-buttons">
                     <button type="button" class="category-arrow-btn category-up-btn" title="Move up">▲</button>
                     <button type="button" class="category-arrow-btn category-down-btn" title="Move down">▼</button>
                 </div>
-                <input type="text" value="${name}" placeholder="Category name..." />
-                <button type="button" class="category-remove-btn">×</button>
+                <input type="text" value="${name}" placeholder="Category name..." ${isPredefined ? 'readonly' : ''} />
             `;
             
-            // Add remove functionality
-            categoryItem.querySelector('.category-remove-btn').addEventListener('click', () => {
-                categoryItem.remove();
-                updateCategoryArrowStates();
-            });
+            // Add "Show in dropdown" checkbox for "More Coming Soon!" category
+            if (isMoreComingSoon) {
+                categoryHTML += `
+                    <label class="category-checkbox-label">
+                        <input type="checkbox" class="category-show-checkbox" ${showInDropdown ? 'checked' : ''} />
+                        Show in dropdown
+                    </label>
+                `;
+            }
+            
+            // Add remove button (disabled for predefined categories)
+            if (!isPredefined) {
+                categoryHTML += `<button type="button" class="category-remove-btn">×</button>`;
+            } else {
+                categoryHTML += `<span class="category-predefined-label">Built-in</span>`;
+            }
+            
+            categoryItem.innerHTML = categoryHTML;
+            
+            // Add remove functionality (only for non-predefined)
+            if (!isPredefined) {
+                categoryItem.querySelector('.category-remove-btn').addEventListener('click', () => {
+                    categoryItem.remove();
+                    updateCategoryArrowStates();
+                });
+            }
+            
+            // Add checkbox functionality for "More Coming Soon!"
+            if (isMoreComingSoon) {
+                const checkbox = categoryItem.querySelector('.category-show-checkbox');
+                checkbox.addEventListener('change', () => {
+                    // Update preferences
+                    if (!categoryPreferences.categories) {
+                        categoryPreferences.categories = {};
+                    }
+                    if (!categoryPreferences.categories[id]) {
+                        categoryPreferences.categories[id] = {};
+                    }
+                    categoryPreferences.categories[id].showInDropdown = checkbox.checked;
+                    saveCategoryPreferences();
+                });
+            }
             
             // Add reorder functionality
             categoryItem.querySelector('.category-up-btn').addEventListener('click', () => {
@@ -5600,6 +5756,9 @@
                 
                 // Update the "All" tag text
                 updateAllTagLabel();
+                
+                // Update the categories dropdown to reflect changes
+                updateCategoriesDropdown();
                 
                 // Here you would typically save to the server
                 // For now, we'll just update the local state and close the popup
