@@ -5310,10 +5310,18 @@
             // Show popup
             document.getElementById('manageCategoriesOverlay').style.display = 'flex';
             
-            // Add event listeners for the popup
-            document.getElementById('addNewCategoryBtn').addEventListener('click', addNewCategoryItem);
-            document.getElementById('saveCategoriesBtn').addEventListener('click', saveCategories);
-            document.getElementById('cancelManageCategoriesBtn').addEventListener('click', closeManageCategoriesPopup);
+            // Add event listeners for the popup (remove existing ones first to prevent duplicates)
+            const addBtn = document.getElementById('addNewCategoryBtn');
+            const saveBtn = document.getElementById('saveCategoriesBtn');
+            const cancelBtn = document.getElementById('cancelManageCategoriesBtn');
+            
+            addBtn.removeEventListener('click', addNewCategoryItem);
+            saveBtn.removeEventListener('click', saveCategories);
+            cancelBtn.removeEventListener('click', closeManageCategoriesPopup);
+            
+            addBtn.addEventListener('click', addNewCategoryItem);
+            saveBtn.addEventListener('click', saveCategories);
+            cancelBtn.addEventListener('click', closeManageCategoriesPopup);
             
             // Add keyboard support (Escape to close)
             document.addEventListener('keydown', handleManageCategoriesKeydown);
@@ -5423,7 +5431,7 @@
                 // For now, we'll just update the local state and close the popup
                 
                 closeManageCategoriesPopup();
-                showStatus('success', 'Categories updated successfully!');
+                console.log('🏷️ SUCCESS: Categories updated successfully!');
                 markUnsavedChanges();
                 
             } catch (error) {
