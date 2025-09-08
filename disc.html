@@ -677,6 +677,13 @@
             color: #888;
         }
 
+        /* Hide login link on mobile */
+        @media (max-width: 768px) {
+            .login-link {
+                display: none;
+            }
+        }
+
         /* Login Popup Styles */
         .login-overlay {
             position: fixed;
@@ -775,7 +782,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+            background: #2a2a2a;
             color: white;
             z-index: 1001;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
@@ -1620,13 +1627,13 @@
         .video-item .featured-controls {
             position: absolute;
             top: 8px;
-            right: 8px;
+            left: 8px;
             display: none;
             gap: 4px;
             z-index: 25;
         }
 
-        .edit-mode .video-item .featured-controls {
+        .edit-mode .video-item:hover .featured-controls {
             display: flex;
         }
 
@@ -2042,7 +2049,7 @@
         <div class="admin-banner-content">
             <div class="admin-banner-text">
                 <span class="admin-banner-title">Edit Mode</span>
-                <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
+                <span class="admin-banner-subtitle">Remember to save your changes</span>
             </div>
             <div class="admin-banner-buttons">
                 <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
@@ -2051,9 +2058,8 @@
                     <input type="text" id="adminAccentColorText" value="#4d90db" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
-                <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
-                <button class="admin-exit-btn" id="adminExitBtn">Exit Edit</button>
+                <button class="admin-exit-btn" id="adminExitBtn">Close</button>
             </div>
         </div>
     </div>
@@ -3148,8 +3154,6 @@
             // Add video button listener
             document.getElementById('adminAddVideoBtn').addEventListener('click', openAddVideoPopup);
             
-            // Set featured button listener
-            document.getElementById('adminSetFeaturedBtn').addEventListener('click', openSetFeaturedDialog);
             
             // Exit edit button listener
             document.getElementById('adminExitBtn').addEventListener('click', function() {

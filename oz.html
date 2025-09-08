@@ -393,7 +393,7 @@
         .vid-green {
             color: var(--accent-color);
         }
-
+        
         .page-title {
             color: white;
             font-size: 18px;
@@ -462,7 +462,7 @@
         }
 
 
-
+        
         .category-select {
             background: #2a2a2a;
             color: white;
@@ -492,7 +492,7 @@
             background: #333333;
             border-color: var(--accent-hover);
         }
-
+        
         .category-select:focus {
             background: #333333;
             border-color: var(--accent-hover);
@@ -718,6 +718,13 @@
             color: #888;
         }
 
+        /* Hide login link on mobile */
+        @media (max-width: 768px) {
+            .login-link {
+                display: none;
+            }
+        }
+
         /* Login Popup Styles */
         .login-overlay {
             position: fixed;
@@ -816,7 +823,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+            background: #2a2a2a;
             color: white;
             z-index: 1001;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
@@ -1661,13 +1668,13 @@
         .video-item .featured-controls {
             position: absolute;
             top: 8px;
-            right: 8px;
+            left: 8px;
             display: none;
             gap: 4px;
             z-index: 25;
         }
 
-        .edit-mode .video-item .featured-controls {
+        .edit-mode .video-item:hover .featured-controls {
             display: flex;
         }
 
@@ -1716,7 +1723,7 @@
 
         .featured-image-placeholder .icon {
             font-size: 48px;
-            margin-bottom: 16px;
+                margin-bottom: 16px;
             opacity: 0.5;
         }
 
@@ -2082,7 +2089,7 @@
         <div class="admin-banner-content">
             <div class="admin-banner-text">
                 <span class="admin-banner-title">Edit Mode</span>
-                <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
+                <span class="admin-banner-subtitle">Remember to save your changes</span>
             </div>
             <div class="admin-banner-buttons">
                 <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
@@ -2091,9 +2098,8 @@
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
-                <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
-                <button class="admin-exit-btn" id="adminExitBtn">Exit Edit</button>
+                <button class="admin-exit-btn" id="adminExitBtn">Close</button>
             </div>
         </div>
     </div>
@@ -2136,9 +2142,9 @@
     </div>
 
     <div class="content">
-        <div class="video-grid" id="videoGrid">
+    <div class="video-grid" id="videoGrid">
             <!-- Videos will be loaded dynamically -->
-        </div>
+    </div>
 
         <div class="footer">
             Powered by <strong>VidShare</strong>
@@ -2158,7 +2164,7 @@
         <div><kbd>Esc</kbd> Exit edit mode</div>
         <div><kbd>Ctrl+A</kbd> Add video</div>
         <div><kbd>?</kbd> Toggle shortcuts</div>
-    </div>
+            </div>
 
     <!-- Login Popup -->
     <div class="login-overlay" id="loginOverlay" style="display: none;">
@@ -2970,7 +2976,7 @@
                 console.error('Failed to load page config:', error);
             }
         }
-        
+
         /**
          * Helper function to darken a hex color
          * @param {string} hex - Hex color value (e.g., '#008f67')
@@ -3196,8 +3202,6 @@
             // Add video button listener
             document.getElementById('adminAddVideoBtn').addEventListener('click', openAddVideoPopup);
             
-            // Set featured button listener
-            document.getElementById('adminSetFeaturedBtn').addEventListener('click', openSetFeaturedDialog);
             
             // Exit edit button listener
             document.getElementById('adminExitBtn').addEventListener('click', function() {
@@ -3257,15 +3261,15 @@
             // Escape - Exit edit mode
             else if (e.key === 'Escape' && !document.querySelector('.login-overlay[style*="flex"]') && !document.querySelector('.add-video-overlay[style*="flex"]') && !document.querySelector('.edit-video-overlay[style*="flex"]')) {
                 e.preventDefault();
-                if (hasUnsavedChanges) {
-                    if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
-                        exitEditMode();
-                    }
-                } else {
+            if (hasUnsavedChanges) {
+                if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
                     exitEditMode();
                 }
+            } else {
+                exitEditMode();
             }
-            
+        }
+
             // Ctrl+A - Add video
             else if (e.ctrlKey && e.key === 'a') {
                 e.preventDefault();
@@ -3567,9 +3571,9 @@
                 tagPill.addEventListener('click', function(e) {
                     e.stopPropagation();
                     
-                    if (isEditMode) {
+            if (isEditMode) {
                         editCategory(this);
-                    } else {
+            } else {
                         // In non-edit mode, activate the category
                         const categoryName = this.textContent.toLowerCase();
                         activateCategory(categoryName);
@@ -3587,7 +3591,7 @@
                 if (closeButton) {
                     closeButton.addEventListener('click', function(e) {
                         e.stopPropagation(); // Prevent video click
-                        stopVideoAndClosePlayer();
+                stopVideoAndClosePlayer();
                     });
                 }
             });
@@ -3644,8 +3648,8 @@
                 } else {
                     titleElement.textContent = currentTitle;
                 }
-                input.replaceWith(titleElement);
-            }
+                    input.replaceWith(titleElement);
+                    }
             
             input.addEventListener('blur', saveTitle);
             input.addEventListener('keydown', function(e) {
@@ -4937,7 +4941,7 @@
                 // Check if this is the currently playing video
                 if (currentlyPlayingVideoId === wistiaId) {
                     // Do nothing - only the close overlay button should close the video
-                    return;
+                return;
                 } else {
                     // Load the new video
                     loadWistiaVideo(wistiaId, title);
