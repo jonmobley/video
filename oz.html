@@ -1166,6 +1166,177 @@
             margin-top: 12px;
         }
 
+        /* Manage Categories Popup Styles */
+        .manage-categories-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .manage-categories-popup {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 32px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid #333;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .manage-categories-popup h3 {
+            margin: 0 0 24px 0;
+            color: #ffffff;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .categories-list {
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            background: #0f0f0f;
+            margin-bottom: 16px;
+            min-height: 200px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #333;
+        }
+
+        .category-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .category-drag-handle {
+            cursor: grab;
+            color: #666;
+            font-size: 16px;
+            user-select: none;
+        }
+
+        .category-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .category-item input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #ffffff;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .category-item input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--accent-light);
+        }
+
+        .category-remove-btn {
+            background: #ff3b30;
+            color: white;
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .category-remove-btn:hover {
+            background: #d70015;
+            transform: scale(1.1);
+        }
+
+        .btn-add-category {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-add-category:hover {
+            background: var(--accent-hover);
+        }
+
+        .manage-categories-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-save-categories, .btn-cancel-categories {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save-categories {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-save-categories:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-cancel-categories {
+            background: #333;
+            color: #ffffff;
+        }
+
+        .btn-cancel-categories:hover {
+            background: #444;
+        }
+
+        .manage-categories-error {
+            color: #ff6b6b;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        .category-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+
         /* Adjust content padding when banner is visible */
         .edit-mode .content {
             padding-top: 80px; /* 56px banner height + 24px original padding */
@@ -2098,6 +2269,7 @@
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
+                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
                 <button class="admin-exit-btn" id="adminExitBtn">Close</button>
             </div>
@@ -2252,6 +2424,35 @@
                 </div>
             </form>
             <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Manage Categories Popup -->
+    <div class="manage-categories-overlay" id="manageCategoriesOverlay" style="display: none;">
+        <div class="manage-categories-popup">
+            <h3>Manage Categories</h3>
+            
+            <!-- All Categories Label Customization -->
+            <div class="form-group">
+                <label for="allCategoriesLabel">All Categories Label</label>
+                <input type="text" id="allCategoriesLabel" placeholder="All" value="All">
+                <small>Customize the label for showing all videos (e.g., "All Dance Videos")</small>
+            </div>
+            
+            <!-- Categories List -->
+            <div class="form-group">
+                <label>Categories</label>
+                <div class="categories-list" id="categoriesList">
+                    <!-- Categories will be populated dynamically -->
+                </div>
+                <button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Category</button>
+            </div>
+            
+            <div class="manage-categories-buttons">
+                <button type="button" class="btn-save-categories" id="saveCategoriesBtn">Save Changes</button>
+                <button type="button" class="btn-cancel-categories" id="cancelManageCategoriesBtn">Cancel</button>
+            </div>
+            <div class="manage-categories-error" id="manageCategoriesError" style="display: none;"></div>
         </div>
     </div>
 
@@ -3030,6 +3231,8 @@
         document.addEventListener('DOMContentLoaded', async () => {
             // Load page config first to set colors
             await loadPageConfig();
+            // Load category preferences (including custom "All" label)
+            loadCategoryPreferences();
             loadVideosFromServer();
             attachTagListeners();
         });
@@ -3202,6 +3405,8 @@
             // Add video button listener
             document.getElementById('adminAddVideoBtn').addEventListener('click', openAddVideoPopup);
             
+            // Manage categories button listener
+            document.getElementById('adminManageCategoriesBtn').addEventListener('click', openManageCategoriesPopup);
             
             // Exit edit button listener
             document.getElementById('adminExitBtn').addEventListener('click', function() {
@@ -5105,6 +5310,197 @@
                 });
             });
         });
+
+        // ========================================
+        // CATEGORY MANAGEMENT FUNCTIONS
+        // ========================================
+
+        // Store for category preferences
+        let categoryPreferences = {
+            allLabel: 'All'
+        };
+
+        function loadCategoryPreferences() {
+            // Try to load from localStorage
+            try {
+                const stored = localStorage.getItem('categoryPreferences');
+                if (stored) {
+                    categoryPreferences = { ...categoryPreferences, ...JSON.parse(stored) };
+                }
+            } catch (error) {
+                console.warn('Failed to load category preferences:', error);
+            }
+            
+            // Update the "All" tag with the stored preference
+            updateAllTagLabel();
+        }
+
+        function saveCategoryPreferences() {
+            try {
+                localStorage.setItem('categoryPreferences', JSON.stringify(categoryPreferences));
+            } catch (error) {
+                console.warn('Failed to save category preferences:', error);
+            }
+        }
+
+        function updateAllTagLabel() {
+            const allTag = document.querySelector('.tag[data-category="all"]');
+            if (allTag) {
+                allTag.textContent = categoryPreferences.allLabel;
+            }
+        }
+
+        function openManageCategoriesPopup() {
+            console.log('🏷️ DEBUG: Opening manage categories popup');
+            
+            // Load current categories and populate the popup
+            populateManageCategoriesPopup();
+            
+            // Show popup
+            document.getElementById('manageCategoriesOverlay').style.display = 'flex';
+            
+            // Add event listeners for the popup
+            document.getElementById('addNewCategoryBtn').addEventListener('click', addNewCategoryItem);
+            document.getElementById('saveCategoriesBtn').addEventListener('click', saveCategories);
+            document.getElementById('cancelManageCategoriesBtn').addEventListener('click', closeManageCategoriesPopup);
+            
+            // Add keyboard support (Escape to close)
+            document.addEventListener('keydown', handleManageCategoriesKeydown);
+            
+            console.log('🏷️ DEBUG: Manage categories popup opened');
+        }
+
+        function populateManageCategoriesPopup() {
+            const categoriesList = document.getElementById('categoriesList');
+            const allLabel = document.getElementById('allCategoriesLabel');
+            
+            // Set the "All" label input to the current preference
+            allLabel.value = categoryPreferences.allLabel;
+            
+            // Get current categories from loaded video data
+            const uniqueCategories = new Set();
+            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
+                window.loadedVideos.forEach(video => {
+                    if (video.category && video.category !== 'all') {
+                        uniqueCategories.add(video.category);
+                    }
+                });
+            }
+            
+            // Clear existing items
+            categoriesList.innerHTML = '';
+            
+            // Add category items
+            Array.from(uniqueCategories).forEach((categoryId, index) => {
+                addCategoryItemToList(categoryId, categoryId === 'the-merry-land-of-oz' ? 'The Merry Land of Oz' : 
+                    categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '), index);
+            });
+        }
+
+        function addCategoryItemToList(id, name, order) {
+            const categoriesList = document.getElementById('categoriesList');
+            
+            const categoryItem = document.createElement('div');
+            categoryItem.className = 'category-item';
+            categoryItem.dataset.categoryId = id;
+            categoryItem.dataset.order = order;
+            
+            categoryItem.innerHTML = `
+                <span class="category-drag-handle">⋮⋮</span>
+                <input type="text" value="${name}" placeholder="Category name..." />
+                <button type="button" class="category-remove-btn">×</button>
+            `;
+            
+            // Add remove functionality
+            categoryItem.querySelector('.category-remove-btn').addEventListener('click', () => {
+                categoryItem.remove();
+            });
+            
+            categoriesList.appendChild(categoryItem);
+        }
+
+        function addNewCategoryItem() {
+            const categoriesCount = document.querySelectorAll('.category-item').length;
+            addCategoryItemToList('', 'New Category', categoriesCount);
+            
+            // Focus the new input
+            const newInput = document.querySelector('.category-item:last-child input');
+            if (newInput) {
+                newInput.focus();
+                newInput.select();
+            }
+        }
+
+        function saveCategories() {
+            console.log('🏷️ DEBUG: Saving categories');
+            
+            try {
+                // Get all category label
+                const allLabel = document.getElementById('allCategoriesLabel').value.trim() || 'All';
+                
+                // Get categories from the list
+                const categoryItems = document.querySelectorAll('.category-item');
+                const categories = [];
+                
+                categoryItems.forEach((item, index) => {
+                    const input = item.querySelector('input');
+                    const name = input.value.trim();
+                    
+                    if (name) {
+                        // Generate ID from name
+                        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                        
+                        categories.push({
+                            id: id,
+                            name: name,
+                            order: index
+                        });
+                    }
+                });
+                
+                console.log('🏷️ DEBUG: Categories to save:', categories);
+                console.log('🏷️ DEBUG: All label:', allLabel);
+                
+                // Save the "All" label preference
+                categoryPreferences.allLabel = allLabel;
+                saveCategoryPreferences();
+                
+                // Update the "All" tag text
+                updateAllTagLabel();
+                
+                // Here you would typically save to the server
+                // For now, we'll just update the local state and close the popup
+                
+                closeManageCategoriesPopup();
+                showStatus('success', 'Categories updated successfully!');
+                markUnsavedChanges();
+                
+            } catch (error) {
+                console.error('🏷️ ERROR: Failed to save categories:', error);
+                showManageCategoriesError('Failed to save categories: ' + error.message);
+            }
+        }
+
+        function closeManageCategoriesPopup() {
+            document.getElementById('manageCategoriesOverlay').style.display = 'none';
+            document.getElementById('manageCategoriesError').style.display = 'none';
+            
+            // Remove keyboard listener
+            document.removeEventListener('keydown', handleManageCategoriesKeydown);
+        }
+
+        function handleManageCategoriesKeydown(e) {
+            if (e.key === 'Escape') {
+                closeManageCategoriesPopup();
+            }
+        }
+
+        function showManageCategoriesError(message) {
+            const errorDiv = document.getElementById('manageCategoriesError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
     </script>
 </body>
 </html>
