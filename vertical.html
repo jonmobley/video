@@ -2483,6 +2483,9 @@
 
         // Track which videos are vertical format (9:16)
         let verticalVideoIds = new Set();
+
+        // Global videos array
+        let videos = [];
         
         // Available category icons
         const availableIcons = {
@@ -2821,7 +2824,7 @@
                 console.log('Loading videos from server...');
                 const response = await fetch('/.netlify/functions/get-videos?page=disc');
                 if (response.ok) {
-                    const videos = await response.json();
+                    videos = await response.json();
                     console.log('Videos loaded:', videos);
                     
                     // Check if there's a featured video saved
