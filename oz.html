@@ -1745,6 +1745,47 @@
             backdrop-filter: blur(4px);
         }
 
+        /* Platform badge on thumbnail */
+        .platform-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            z-index: 15;
+            backdrop-filter: blur(4px);
+        }
+
+        .platform-badge.vimeo {
+            background: rgba(26, 183, 234, 0.9);
+        }
+
+        .platform-badge.youtube {
+            background: rgba(255, 0, 0, 0.9);
+        }
+
+        .platform-badge.dropbox {
+            background: rgba(0, 97, 255, 0.9);
+        }
+
+        /* Thumbnail placeholder for videos without thumbnails */
+        .thumbnail-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2a2a2a;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+        }
+
         /* Show play button on hover for desktop only */
         @media screen and (min-width: 768px) {
             .video-item:not(.active):hover .thumbnail-play-button {
@@ -2412,9 +2453,12 @@
             <h3>Add New Video</h3>
             <form id="addVideoForm">
                 <div class="form-group">
-                    <label for="wistiaLink">Wistia Video Link</label>
-                    <input type="url" id="wistiaLink" placeholder="Paste Wistia video link here..." required>
-                    <small>Paste any Wistia video URL to auto-populate details</small>
+                    <label for="videoLink">Video Link</label>
+                    <input type="url" id="videoLink" placeholder="Paste video link from Wistia, Vimeo, YouTube, or Dropbox..." required>
+                    <small>Supports: Wistia, Vimeo, YouTube, and Dropbox video URLs</small>
+                    <div id="platformDetection" style="margin-top: 8px; font-size: 12px; color: #008f67; display: none;">
+                        <span id="detectedPlatform"></span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -2815,6 +2859,155 @@
                 }
             });
         }
+        
+        // Generic video loading function for multiple platforms
+        function loadVideo(videoData) {
+            const platform = videoData.platform || 'wistia';
+            
+            switch(platform) {
+                case 'wistia':
+                    loadWistiaVideo(videoData.wistiaId, videoData.title);
+                    break;
+                case 'vimeo':
+                    loadVimeoVideo(videoData.video_url, videoData.title);
+                    break;
+                case 'youtube':
+                    loadYouTubeVideo(videoData.video_url, videoData.title);
+                    break;
+                case 'dropbox':
+                    loadDropboxVideo(videoData.video_url, videoData.title);
+                    break;
+                default:
+                    console.error('Unsupported video platform:', platform);
+            }
+        }
+        
+        // Load Vimeo video
+        function loadVimeoVideo(videoUrl, title) {
+            console.log('Loading Vimeo video:', videoUrl, title);
+            
+            const vimeoId = extractVideoId(videoUrl, 'vimeo');
+            if (!vimeoId) {
+                console.error('Could not extract Vimeo ID from URL:', videoUrl);
+                return;
+            }
+            
+            // Show video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'vimeo');
+            
+            // Clear any existing content and load new video
+            videoContainer.innerHTML = `
+                <iframe 
+                    src="https://player.vimeo.com/video/${vimeoId}?autoplay=1&title=0&byline=0&portrait=0"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;"
+                    frameborder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            `;
+            
+            // Hide title overlay for Vimeo (they have their own)
+            const titleElement = document.getElementById('current-video-title');
+            if (titleElement) {
+                titleElement.style.display = 'none';
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = title;
+            }
+            
+            // Set active video state
+            setActiveVideo(vimeoId);
+            currentlyPlayingVideoId = vimeoId;
+        }
+        
+        // Load YouTube video
+        function loadYouTubeVideo(videoUrl, title) {
+            console.log('Loading YouTube video:', videoUrl, title);
+            
+            const youtubeId = extractVideoId(videoUrl, 'youtube');
+            if (!youtubeId) {
+                console.error('Could not extract YouTube ID from URL:', videoUrl);
+                return;
+            }
+            
+            // Show video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'youtube');
+            
+            // Clear any existing content and load new video
+            videoContainer.innerHTML = `
+                <iframe 
+                    src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1&controls=1&disablekb=0&fs=1&iv_load_policy=3&loop=0&showinfo=0&playsinline=1"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+            `;
+            
+            // Hide title overlay for YouTube (they have their own)
+            const titleElement = document.getElementById('current-video-title');
+            if (titleElement) {
+                titleElement.style.display = 'none';
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = title;
+            }
+            
+            // Set active video state
+            setActiveVideo(youtubeId);
+            currentlyPlayingVideoId = youtubeId;
+        }
+        
+        // Load Dropbox video
+        function loadDropboxVideo(videoUrl, title) {
+            console.log('Loading Dropbox video:', videoUrl, title);
+            
+            // Show video container
+            const videoContainerElement = document.querySelector('.video-container');
+            videoContainerElement.classList.add('active');
+            videoContainerElement.setAttribute('data-platform', 'dropbox');
+            
+            // Convert to direct streaming URL if needed
+            const directUrl = convertDropboxUrl(videoUrl);
+            
+            // Clear any existing content and load new video
+            videoContainer.innerHTML = `
+                <video 
+                    controls 
+                    autoplay
+                    style="width:100%;height:100%;object-fit:contain;"
+                    src="${directUrl}">
+                    Your browser does not support the video tag.
+                </video>
+            `;
+            
+            // Show title overlay for Dropbox videos
+            const titleElement = document.getElementById('current-video-title');
+            if (titleElement) {
+                titleElement.textContent = title;
+                titleElement.style.display = 'block';
+            }
+            
+            // Update mobile title
+            const mobileTitleElement = document.getElementById('mobile-video-title');
+            if (mobileTitleElement) {
+                mobileTitleElement.textContent = title;
+            }
+            
+            // Set active video state
+            setActiveVideo(directUrl);
+            currentlyPlayingVideoId = directUrl;
+        }
 
         // Handle orientation changes
         function handleOrientationChange() {
@@ -2961,11 +3154,20 @@
                     </div>
                 `;
                 
+                // Determine platform and get appropriate thumbnail
+                const platform = video.platform || 'wistia';
+                const videoId = extractVideoId(video.video_url || `https://company.wistia.com/medias/${video.wistiaId}`, platform);
+                const thumbnailUrl = getThumbnailUrl(video.video_url, platform, videoId);
+                
+                // Platform badge
+                const platformBadge = platform !== 'wistia' ? `<div class="platform-badge ${platform}">${platform.toUpperCase()}</div>` : '';
+                
                 const html = `
-                    <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
+                    <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}" data-platform="${platform}" data-video-url="${video.video_url || ''}">
                         <button class="video-delete-btn" onclick="deleteVideo(event, '${video.wistiaId}')" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
-                            <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                            ${thumbnailUrl ? `<img src="${thumbnailUrl}" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="this.style.display='none'">` : `<div class="thumbnail-placeholder">${platform.charAt(0).toUpperCase() + platform.slice(1)} Video</div>`}
+                            ${platformBadge}
                             <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
@@ -3189,14 +3391,22 @@
                     
                     const wistiaId = item.dataset.wistia;
                     const title = item.dataset.title;
+                    const platform = item.dataset.platform || 'wistia';
+                    const videoUrl = item.dataset.videoUrl;
                     
                     // Check if this is the currently playing video
                     if (currentlyPlayingVideoId === wistiaId) {
                         // Do nothing - only the close overlay button should close the video
                         return;
                     } else {
-                        // Load the new video
-                        loadWistiaVideo(wistiaId, title);
+                        // Load the new video using multi-platform loader
+                        const videoData = {
+                            wistiaId: wistiaId,
+                            title: title,
+                            platform: platform,
+                            video_url: videoUrl
+                        };
+                        loadVideo(videoData);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 });
@@ -5029,6 +5239,108 @@
             }
         });
 
+        // ====================================================================
+        // VIDEO PLATFORM DETECTION AND HANDLING
+        // ====================================================================
+        
+        // Video platform detection function
+        function detectVideoPlatform(url) {
+            if (!url) return null;
+            
+            // Wistia patterns
+            if (url.includes('wistia.com') || url.includes('wistia.net') || url.includes('wi.st')) {
+                return 'wistia';
+            }
+            
+            // Vimeo patterns
+            if (url.includes('vimeo.com') || url.includes('player.vimeo.com')) {
+                return 'vimeo';
+            }
+            
+            // YouTube patterns
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                return 'youtube';
+            }
+            
+            // Dropbox patterns
+            if (url.includes('dropbox.com') || url.includes('dl.dropboxusercontent.com')) {
+                return 'dropbox';
+            }
+            
+            return null;
+        }
+        
+        // Extract video ID from different platforms
+        function extractVideoId(url, platform) {
+            let videoId = null;
+            
+            switch(platform) {
+                case 'wistia':
+                    // Wistia URLs: https://company.wistia.com/medias/xxxxx
+                    const wistiaMatch = url.match(/medias?\/([a-zA-Z0-9]+)/);
+                    videoId = wistiaMatch ? wistiaMatch[1] : null;
+                    break;
+                    
+                case 'vimeo':
+                    // Vimeo URLs: https://vimeo.com/123456 or https://player.vimeo.com/video/123456
+                    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                    videoId = vimeoMatch ? vimeoMatch[1] : null;
+                    break;
+                    
+                case 'youtube':
+                    // YouTube URLs: https://www.youtube.com/watch?v=xxxxx or https://youtu.be/xxxxx
+                    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+                    videoId = ytMatch ? ytMatch[1] : null;
+                    break;
+                    
+                case 'dropbox':
+                    // For Dropbox, we'll use the full URL as the ID and convert it
+                    videoId = url;
+                    break;
+            }
+            
+            return videoId;
+        }
+        
+        // Get thumbnail URL for different platforms
+        function getThumbnailUrl(videoUrl, platform, videoId) {
+            switch(platform) {
+                case 'wistia':
+                    return `https://embed-ssl.wistia.com/deliveries/${videoId}.jpg`;
+                    
+                case 'vimeo':
+                    // Return empty for Vimeo - we'll load it asynchronously
+                    return '';
+                    
+                case 'youtube':
+                    // YouTube provides multiple thumbnail qualities
+                    return `https://img.youtube.com/vi/${videoId}/sddefault.jpg`;
+                    
+                case 'dropbox':
+                    // For Dropbox, we'll need to handle differently
+                    return '';
+                    
+                default:
+                    return '';
+            }
+        }
+        
+        // Convert Dropbox sharing URL to direct streaming URL
+        function convertDropboxUrl(url) {
+            if (!url.includes('dropbox.com')) return url;
+            
+            // Convert sharing URL to direct streaming URL
+            if (url.includes('?dl=0')) {
+                return url.replace('?dl=0', '?raw=1');
+            } else if (url.includes('&dl=0')) {
+                return url.replace('&dl=0', '&raw=1');
+            } else if (url.includes('www.dropbox.com')) {
+                return url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+            }
+            
+            return url;
+        }
+
         // Add Video Popup Functions
         function openAddVideoPopup() {
             console.log('🎬 DEBUG: === OPENING ADD VIDEO POPUP ===');
@@ -5045,7 +5357,28 @@
             // Show popup
             console.log('🎬 DEBUG: Showing add video overlay');
             document.getElementById('addVideoOverlay').style.display = 'flex';
-            document.getElementById('wistiaLink').focus();
+            document.getElementById('videoLink').focus();
+            
+            // Add platform detection listener
+            const videoLinkInput = document.getElementById('videoLink');
+            videoLinkInput.addEventListener('input', function() {
+                const url = this.value.trim();
+                const platform = detectVideoPlatform(url);
+                const detectionDiv = document.getElementById('platformDetection');
+                const platformSpan = document.getElementById('detectedPlatform');
+                
+                if (platform) {
+                    platformSpan.textContent = `✓ Detected: ${platform.charAt(0).toUpperCase() + platform.slice(1)} video`;
+                    detectionDiv.style.display = 'block';
+                } else if (url) {
+                    platformSpan.textContent = '⚠ Unsupported video platform';
+                    detectionDiv.style.display = 'block';
+                    detectionDiv.style.color = '#ff6666';
+                } else {
+                    detectionDiv.style.display = 'none';
+                    detectionDiv.style.color = '#008f67';
+                }
+            });
             
             console.log('🎬 DEBUG: Add video popup opened successfully');
         }
@@ -5206,26 +5539,35 @@
         document.getElementById('addVideoForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const wistiaUrl = document.getElementById('wistiaLink').value.trim();
+            const videoUrl = document.getElementById('videoLink').value.trim();
             const title = document.getElementById('newVideoTitle').value.trim();
             const category = document.getElementById('newVideoCategory').value;
             
             // Validation
-            if (!wistiaUrl || !title || !category) {
+            if (!videoUrl || !title || !category) {
                 document.getElementById('addVideoError').textContent = 'Please fill in all fields';
                 document.getElementById('addVideoError').style.display = 'block';
                 return;
             }
             
-            const wistiaId = extractWistiaId(wistiaUrl);
-            if (!wistiaId) {
-                document.getElementById('addVideoError').textContent = 'Invalid Wistia URL or ID';
+            // Detect platform and extract video ID
+            const platform = detectVideoPlatform(videoUrl);
+            if (!platform) {
+                document.getElementById('addVideoError').textContent = 'Unsupported video platform. Please use Wistia, Vimeo, YouTube, or Dropbox URLs.';
                 document.getElementById('addVideoError').style.display = 'block';
                 return;
             }
             
-            // Check if video already exists
-            if (document.querySelector(`[data-wistia="${wistiaId}"]`)) {
+            const videoId = extractVideoId(videoUrl, platform);
+            if (!videoId) {
+                document.getElementById('addVideoError').textContent = `Invalid ${platform} URL or ID`;
+                document.getElementById('addVideoError').style.display = 'block';
+                return;
+            }
+            
+            // Check if video already exists (check by URL or ID depending on platform)
+            const existingSelector = platform === 'wistia' ? `[data-wistia="${videoId}"]` : `[data-video-url="${videoUrl}"]`;
+            if (document.querySelector(existingSelector)) {
                 document.getElementById('addVideoError').textContent = 'This video already exists';
                 document.getElementById('addVideoError').style.display = 'block';
                 return;
@@ -5236,15 +5578,32 @@
                 .map(tag => tag.dataset.tagId);
             
             try {
-                // Add video to grid
-                await addVideoToGrid({
-                    wistiaId: wistiaId,
+                // Prepare video data based on platform
+                const videoData = {
                     title: title,
                     category: category,
-                    tags: selectedTags
-                });
+                    tags: selectedTags,
+                    platform: platform,
+                    video_url: videoUrl
+                };
                 
-                console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
+                // For Wistia, maintain backward compatibility
+                if (platform === 'wistia') {
+                    videoData.wistiaId = videoId;
+                } else {
+                    // For other platforms, generate a unique ID
+                    videoData.wistiaId = `${platform}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                }
+                
+                // For Dropbox, convert URL to direct streaming URL
+                if (platform === 'dropbox') {
+                    videoData.video_url = convertDropboxUrl(videoUrl);
+                }
+                
+                // Add video to grid
+                await addVideoToGrid(videoData);
+                
+                console.log('Video added:', videoData);
                 
             } catch (error) {
                 console.error('Error adding video to grid:', error);
