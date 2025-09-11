@@ -3019,13 +3019,94 @@
             
             attachVideoListeners();
             
-            // Load durations for displayed videos only
-            videosToDisplay.forEach(video => {
-                loadVideoDuration(video.wistiaId);
-            });
+            // Initialize lazy loading for video durations
+            initializeLazyLoading(videosToDisplay);
             
             if (videos.length > 0) {
                 loadInitialContent();
+            }
+        }
+
+        // Cache for video metadata to avoid repeat API calls
+        const videoMetadataCache = new Map();
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+        // Initialize lazy loading with Intersection Observer
+        function initializeLazyLoading(videos) {
+            // Load immediately visible videos (above the fold)
+            const immediateVideos = videos.slice(0, 6); // First 6 videos load immediately
+            immediateVideos.forEach(video => {
+                loadVideoDuration(video.wistiaId);
+            });
+
+            // Set up lazy loading for remaining videos
+            if (videos.length > 6) {
+                const lazyVideos = videos.slice(6);
+                setupIntersectionObserver(lazyVideos);
+            }
+        }
+
+        // Set up Intersection Observer for lazy loading
+        function setupIntersectionObserver(videos) {
+            const options = {
+                root: null,
+                rootMargin: '200px', // Load 200px before entering viewport
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const wistiaId = entry.target.dataset.wistia;
+                        if (wistiaId) {
+                            loadVideoDuration(wistiaId);
+                            observer.unobserve(entry.target); // Stop observing once loaded
+                        }
+                    }
+                });
+            }, options);
+
+            // Observe video elements
+            videos.forEach(video => {
+                const videoElement = document.querySelector(`[data-wistia="${video.wistiaId}"]`);
+                if (videoElement) {
+                    observer.observe(videoElement);
+                }
+            });
+        }
+
+        // Get cached metadata or return null
+        function getCachedMetadata(wistiaId) {
+            const cacheKey = `wistia_${wistiaId}`;
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    const now = Date.now();
+                    if (now - data.timestamp < CACHE_DURATION) {
+                        return data.metadata;
+                    } else {
+                        // Cache expired, remove it
+                        localStorage.removeItem(cacheKey);
+                    }
+                }
+            } catch (error) {
+                console.warn('Cache read error:', error);
+            }
+            return null;
+        }
+
+        // Cache metadata
+        function setCachedMetadata(wistiaId, metadata) {
+            const cacheKey = `wistia_${wistiaId}`;
+            try {
+                const cacheData = {
+                    metadata: metadata,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            } catch (error) {
+                console.warn('Cache write error:', error);
             }
         }
 
@@ -3041,58 +3122,83 @@
                 return;
             }
 
+            // Check cache first
+            const cachedMetadata = getCachedMetadata(wistiaId);
+            if (cachedMetadata && cachedMetadata.duration) {
+                console.log('🕐 CACHE HIT: Using cached duration for', wistiaId);
+                const minutes = Math.floor(cachedMetadata.duration / 60);
+                const seconds = Math.floor(cachedMetadata.duration % 60);
+                const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                thumbnailDurationElement.textContent = formattedDuration;
+                thumbnailDurationElement.classList.remove('placeholder');
+                return;
+            }
+
             try {
-                console.log('🕐 DEBUG: Starting API calls for:', wistiaId);
+                console.log('🕐 DEBUG: Starting parallel API calls for:', wistiaId);
                 
-                // Try multiple API endpoints for better compatibility
+                // Try multiple API endpoints in parallel for better performance
                 const apiUrls = [
                     `https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`,
                     `https://fast.wistia.com/oembed?url=https://home.wistia.com/medias/${wistiaId}&format=json`,
                     `https://fast.wistia.com/oembed?url=https://app.wistia.com/medias/${wistiaId}&format=json`
                 ];
 
-                let durationFound = false;
-                
-                for (let i = 0; i < apiUrls.length; i++) {
-                    const apiUrl = apiUrls[i];
+                // Create promises for all API calls
+                const apiPromises = apiUrls.map(async (url, index) => {
                     try {
-                        console.log(`🕐 DEBUG: Trying API URL ${i + 1}/${apiUrls.length}:`, apiUrl);
-                        const response = await fetch(apiUrl);
-                        console.log('🕐 DEBUG: Response status:', response.status, response.statusText);
-                        
+                        console.log(`🕐 DEBUG: Starting parallel request ${index + 1}:`, url);
+                        const response = await fetch(url);
                         if (!response.ok) {
-                            console.log('🕐 DEBUG: API response not ok:', response.status, 'for', apiUrl);
-                            continue;
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
-                        
                         const data = await response.json();
-                        console.log('🕐 DEBUG: Full API response data for', wistiaId, ':', data);
-                        console.log('🕐 DEBUG: Duration value:', data.duration, 'Type:', typeof data.duration);
-                        
                         if (data.duration && data.duration > 0) {
-                            const minutes = Math.floor(data.duration / 60);
-                            const seconds = Math.floor(data.duration % 60);
-                            const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                            console.log('🕐 SUCCESS: Setting duration to:', formattedDuration);
-                            
-                            // Update thumbnail duration element
-                            thumbnailDurationElement.textContent = formattedDuration;
-                            thumbnailDurationElement.classList.remove('placeholder');
-                            
-                            durationFound = true;
-                            break;
-                        } else {
-                            console.log('🕐 DEBUG: No valid duration in response for', wistiaId);
+                            return { success: true, data, url };
                         }
-                    } catch (apiError) {
-                        console.error('🕐 ERROR: API call failed for', apiUrl, ':', apiError);
-                        continue;
+                        throw new Error('No valid duration in response');
+                    } catch (error) {
+                        console.log(`🕐 DEBUG: API call ${index + 1} failed:`, error.message);
+                        return { success: false, error: error.message, url };
                     }
+                });
+
+                // Use Promise.race to get the first successful response
+                let durationFound = false;
+                try {
+                    // Wait for first successful response or all to fail
+                    const results = await Promise.allSettled(apiPromises);
+                    const successfulResult = results.find(result => 
+                        result.status === 'fulfilled' && result.value.success
+                    );
+
+                    if (successfulResult) {
+                        const data = successfulResult.value.data;
+                        console.log('🕐 SUCCESS: Got duration from parallel API calls:', data.duration);
+                        
+                        const minutes = Math.floor(data.duration / 60);
+                        const seconds = Math.floor(data.duration % 60);
+                        const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        
+                        // Update thumbnail duration element
+                        thumbnailDurationElement.textContent = formattedDuration;
+                        thumbnailDurationElement.classList.remove('placeholder');
+                        
+                        // Cache the successful result
+                        setCachedMetadata(wistiaId, {
+                            duration: data.duration,
+                            thumbnail_url: data.thumbnail_url
+                        });
+                        
+                        durationFound = true;
+                    }
+                } catch (error) {
+                    console.error('🕐 ERROR: All parallel API calls failed:', error);
                 }
                 
                 // If no duration found from API, show a placeholder
                 if (!durationFound) {
-                    console.log('🕐 FALLBACK: No duration found via API for', wistiaId, ', showing placeholder');
+                    console.log('🕐 FALLBACK: No duration found via parallel API calls for', wistiaId, ', showing placeholder');
                     thumbnailDurationElement.textContent = '--:--';
                     thumbnailDurationElement.classList.add('placeholder');
                 }
@@ -3108,6 +3214,21 @@
 
         // Load Wistia thumbnail using oEmbed API
         async function loadWistiaThumbnail(wistiaId) {
+            // Check cache first
+            const cachedMetadata = getCachedMetadata(wistiaId);
+            if (cachedMetadata && cachedMetadata.thumbnail_url) {
+                console.log('🖼️ CACHE HIT: Using cached thumbnail for', wistiaId);
+                const thumbElement = document.getElementById(`thumb-${wistiaId}`);
+                if (thumbElement) {
+                    const img = thumbElement.querySelector('img');
+                    if (img) {
+                        img.src = cachedMetadata.thumbnail_url;
+                        img.style.display = 'block';
+                    }
+                }
+                return;
+            }
+
             try {
                 const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
                 const data = await response.json();
@@ -3121,6 +3242,12 @@
                             img.style.display = 'block';
                         }
                     }
+                    
+                    // Cache the thumbnail URL
+                    setCachedMetadata(wistiaId, {
+                        thumbnail_url: data.thumbnail_url,
+                        duration: data.duration
+                    });
                 } else {
                     // Fallback to gradient background
                     setThumbnailFallback(wistiaId);
