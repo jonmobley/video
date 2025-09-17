@@ -31,7 +31,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client with environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 exports.handler = async (event, context) => {
@@ -94,57 +94,24 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Check if page config exists
-    const { data: existingConfig } = await supabase
-      .from('page_config')
-      .select('id')
-      .eq('id', page)
-      .single();
-
-    let result;
+    // Use upsert to handle both insert and update
+    const upsertData = { page: page };
+    if (accent_color !== undefined) upsertData.accent_color = accent_color;
+    if (page_title !== undefined) upsertData.page_title = page_title;
+    if (meta_description !== undefined) upsertData.meta_description = meta_description;
+    if (meta_keywords !== undefined) upsertData.meta_keywords = meta_keywords;
+    if (og_title !== undefined) upsertData.og_title = og_title;
+    if (og_description !== undefined) upsertData.og_description = og_description;
+    if (og_image_url !== undefined) upsertData.og_image_url = og_image_url;
+    if (twitter_title !== undefined) upsertData.twitter_title = twitter_title;
+    if (twitter_description !== undefined) upsertData.twitter_description = twitter_description;
+    if (canonical_url !== undefined) upsertData.canonical_url = canonical_url;
     
-    if (existingConfig) {
-      // Update existing config
-      const updateData = {};
-      if (name !== undefined) updateData.name = name;
-      if (accent_color !== undefined) updateData.accent_color = accent_color;
-      if (page_title !== undefined) updateData.page_title = page_title;
-      if (meta_description !== undefined) updateData.meta_description = meta_description;
-      if (meta_keywords !== undefined) updateData.meta_keywords = meta_keywords;
-      if (og_title !== undefined) updateData.og_title = og_title;
-      if (og_description !== undefined) updateData.og_description = og_description;
-      if (og_image_url !== undefined) updateData.og_image_url = og_image_url;
-      if (twitter_title !== undefined) updateData.twitter_title = twitter_title;
-      if (twitter_description !== undefined) updateData.twitter_description = twitter_description;
-      if (canonical_url !== undefined) updateData.canonical_url = canonical_url;
-      
-      result = await supabase
-        .from('page_config')
-        .update(updateData)
-        .eq('id', page)
-        .select()
-        .single();
-    } else {
-      // Insert new config
-      result = await supabase
-        .from('page_config')
-        .insert({
-          id: page,
-          name: name || page.charAt(0).toUpperCase() + page.slice(1),
-          accent_color: accent_color || '#008f67',
-          page_title: page_title || name || page.charAt(0).toUpperCase() + page.slice(1),
-          meta_description: meta_description || `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          meta_keywords: meta_keywords || `${page}, videos, collection`,
-          og_title: og_title || page_title || name || page.charAt(0).toUpperCase() + page.slice(1),
-          og_description: og_description || meta_description || `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          og_image_url: og_image_url || '/assets/og-image.png',
-          twitter_title: twitter_title || null,
-          twitter_description: twitter_description || null,
-          canonical_url: canonical_url || `https://vidsharepro.netlify.app/${page}.html`
-        })
-        .select()
-        .single();
-    }
+    const result = await supabase
+      .from('page_config')
+      .upsert(upsertData, { onConflict: 'page' })
+      .select()
+      .single();
 
     if (result.error) {
       console.error('Supabase error:', result.error);
