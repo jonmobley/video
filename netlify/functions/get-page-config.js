@@ -55,7 +55,7 @@ exports.handler = async (event, context) => {
     
     // If specific page requested, filter by it
     if (page) {
-      query = query.eq('id', page).single();
+      query = query.eq('page', page).single();
     }
     
     const { data, error } = await query;
@@ -70,8 +70,7 @@ exports.handler = async (event, context) => {
           statusCode: 200,
           headers,
           body: JSON.stringify({
-            id: page,
-            name: page.charAt(0).toUpperCase() + page.slice(1),
+            page: page,
             accent_color: '#008f67',  // Default green color
             page_title: page.charAt(0).toUpperCase() + page.slice(1),  // Default title
             meta_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
