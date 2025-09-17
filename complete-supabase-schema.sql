@@ -44,13 +44,34 @@ COMMENT ON COLUMN videos.page IS 'Which page this video belongs to (main, oz, di
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS categories (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    category_key TEXT NOT NULL,
+    color TEXT,
     "order" INTEGER DEFAULT 0,
     page TEXT DEFAULT 'main',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(name, page)
+    UNIQUE(category_key, page)
 );
+
+-- Add columns if they don't exist (for existing installations)
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS category_key TEXT;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS color TEXT;
+
+-- For existing installations, update the id column type if needed
+-- Note: This may require manual intervention if there's existing data
+-- ALTER TABLE categories ALTER COLUMN id TYPE TEXT;
+
+-- Add comments for documentation
+COMMENT ON COLUMN categories.category_key IS 'Original category identifier (e.g., dancers, chorus)';
+COMMENT ON COLUMN categories.color IS 'Optional hex color for category styling (#RRGGBB)';
+COMMENT ON COLUMN categories.id IS 'Composite primary key: page-category_key (e.g., oz-dancers)';
+
+-- Migration note for existing databases:
+-- If you have existing category data, you may need to:
+-- 1. Backup your categories table
+-- 2. Update existing records to populate category_key and convert id to TEXT
+-- 3. Update the UNIQUE constraint if needed
 
 -- ============================================================================
 -- PAGE_CONFIG TABLE

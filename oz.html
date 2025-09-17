@@ -349,6 +349,11 @@
             .video-item.active:hover .thumbnail-close-overlay {
                 display: flex;
             }
+            
+            /* Hide thumbnail close overlay in edit mode to prevent conflicts */
+            .edit-mode .video-item:hover .thumbnail-close-overlay {
+                display: none !important;
+            }
         }
 
 
@@ -1648,7 +1653,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 8px;
-            z-index: 15;
+            z-index: 30;
             backdrop-filter: blur(4px);
             pointer-events: none;
         }
@@ -1696,7 +1701,7 @@
             box-shadow: 0 4px 12px var(--accent-shadow);
             pointer-events: auto;
             position: relative;
-            z-index: 20;
+            z-index: 35;
         }
 
         .video-edit-btn:hover {
