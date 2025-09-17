@@ -1442,11 +1442,20 @@
         }
 
         .edit-mode .video-item {
-            cursor: grab;
+            cursor: pointer;
             border: 2px dashed transparent;
             border-radius: 8px;
             transition: all 0.2s ease;
             position: relative;
+        }
+
+        /* Show grab cursor only when hovering over the thumbnail area (for dragging) */
+        .edit-mode .video-item .thumbnail {
+            cursor: grab;
+        }
+
+        .edit-mode .video-item .thumbnail:active {
+            cursor: grabbing;
         }
 
         .edit-mode .video-item:active {
@@ -1627,25 +1636,55 @@
             align-items: center;
             justify-content: center;
             border-radius: 8px;
-            z-index: 10;
+            z-index: 15;
             backdrop-filter: blur(4px);
+            pointer-events: none;
         }
 
         .edit-mode .video-item:hover .video-edit-overlay {
             display: flex;
+            pointer-events: auto;
+        }
+
+        /* Always show a small edit indicator in edit mode */
+        .edit-mode .video-item::before {
+            content: "✏️ EDIT";
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--accent-color);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 12;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .edit-mode .video-item:hover::before {
+            background: var(--accent-hover);
+            transform: scale(1.05);
         }
 
         .video-edit-btn {
             background: var(--accent-color);
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px var(--accent-shadow);
+            pointer-events: auto;
+            position: relative;
+            z-index: 20;
         }
 
         .video-edit-btn:hover {
@@ -2378,7 +2417,10 @@
     </div>
 
     <!-- Edit Mode Indicator -->
-    <div class="edit-indicator" id="editIndicator">Edit Mode</div>
+    <div class="edit-indicator" id="editIndicator">
+        <strong>Edit Mode</strong><br>
+        <small>Click videos to edit • Drag thumbnails to reorder</small>
+    </div>
     
     <!-- Unsaved Changes Indicator -->
     <div class="unsaved-indicator" id="unsavedIndicator">Unsaved Changes</div>
@@ -3801,8 +3843,9 @@
                     const clickX = e.clientX - rect.left;
                     const clickY = e.clientY - rect.top;
                     
-                    // X button is in top-right corner (last 18px of width and height)
-                    if (clickX > rect.width - 18 && clickY < 18) {
+                    // X button is positioned at top: -8px, right: -8px with 18px x 18px dimensions
+                    // So it extends from (width-8) to (width+10) horizontally and from -8 to 10 vertically
+                    if (clickX > rect.width - 8 && clickX < rect.width + 10 && clickY > -8 && clickY < 10) {
                         e.stopPropagation();
                         deleteCategoryWithReassignment(this);
                     }

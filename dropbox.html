@@ -883,6 +883,7 @@
             if (!videoToDelete) return;
             
             videos = videos.filter(v => v.id !== videoToDelete);
+            saveVideos(); // Save changes to localStorage
             renderVideos();
             showStatus('success', 'Video deleted!');
             
