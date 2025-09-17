@@ -1651,7 +1651,7 @@
             content: "✏️ EDIT";
             position: absolute;
             top: 8px;
-            right: 8px;
+            left: 8px;
             background: var(--accent-color);
             color: white;
             padding: 6px 12px;
@@ -1932,7 +1932,7 @@
         /* Featured controls in edit mode */
         .video-item .featured-controls {
             position: absolute;
-            top: 8px;
+            bottom: 8px;
             left: 8px;
             display: none;
             gap: 4px;
@@ -4437,10 +4437,14 @@
 
         // Delete video with confirmation
         async function deleteVideo(event, wistiaId) {
+            console.log('🗑️ Delete button clicked for video:', wistiaId);
             event.stopPropagation();
             event.preventDefault();
             
-            if (!isEditMode) return;
+            if (!isEditMode) {
+                console.log('🗑️ Not in edit mode, ignoring delete');
+                return;
+            }
             
             // Find the video in the videos array
             const video = videos.find(v => v.wistiaId === wistiaId);
@@ -5106,6 +5110,7 @@
         let currentEditingVideoId = null;
 
         function openEditVideoPopup(wistiaId, title, category) {
+            console.log('✏️ Edit button clicked for video:', wistiaId, title, category);
             currentEditingVideoId = wistiaId;
             
             // Get current video element to extract tags
