@@ -3567,6 +3567,8 @@
             await loadPageConfig();
             // Load category preferences (including custom "All" label)
             loadCategoryPreferences();
+            // Load categories from server
+            await refreshCategoriesFromServer();
             // Initialize categories dropdown
             updateCategoriesDropdown();
             loadVideosFromServer();
@@ -5210,29 +5212,40 @@
             
             select.innerHTML = '<option value="">Select Category</option>';
             
-            // Build dropdown from predefined categories and user preferences
-            predefinedCategories.forEach(category => {
-                // Skip the "all-songs" category as it's not a selectable category for individual videos
-                if (category.id === 'all-songs') return;
-                
-                // Check if this category should be shown in dropdown
-                let showInDropdown = category.showInDropdown;
-                
-                // Override with user preference if available
-                if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
-                }
-                
-                if (showInDropdown) {
-                    const option = document.createElement('option');
-                    option.value = category.id;
+            // Get categories from server first, then fall back to predefined
+            let categoriesToShow = [];
+            
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories (excluding 'all')
+                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all');
+            } else {
+                // Fall back to predefined categories
+                categoriesToShow = predefinedCategories.filter(category => {
+                    // Skip the "all-songs" category as it's not a selectable category for individual videos
+                    if (category.id === 'all-songs') return false;
                     
-                    // Add icon if available
-                    const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
-                    option.textContent = icon + category.name;
-                    option.setAttribute('data-icon', category.icon || '');
-                    select.appendChild(option);
-                }
+                    // Check if this category should be shown in dropdown
+                    let showInDropdown = category.showInDropdown;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                    }
+                    
+                    return showInDropdown;
+                });
+            }
+            
+            // Add categories to dropdown
+            categoriesToShow.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                
+                // Add icon if available
+                const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
+                option.textContent = icon + category.name;
+                option.setAttribute('data-icon', category.icon || '');
+                select.appendChild(option);
             });
             
             // Add any additional categories from loaded videos
@@ -5413,7 +5426,7 @@
             console.log('🎬 DEBUG: Add video popup opened successfully');
         }
 
-        function populateAddCategoryDropdown() {
+        async function populateAddCategoryDropdown() {
             console.log('📋 DEBUG: === POPULATING ADD VIDEO CATEGORY DROPDOWN ===');
             
             const select = document.getElementById('newVideoCategory');
@@ -5434,26 +5447,37 @@
             allOption.selected = true;
             select.appendChild(allOption);
             
-            // Add predefined categories that should be shown in dropdown
-            predefinedCategories.forEach(category => {
-                // Skip the "all-songs" category as it's just for the main filter
-                if (category.id === 'all-songs') return;
-                
-                // Check if this category should be shown in dropdown
-                let showInDropdown = category.showInDropdown;
-                
-                // Override with user preference if available
-                if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
-                }
-                
-                if (showInDropdown) {
-                    console.log('📋 DEBUG: Adding predefined category:', category.id, category.name);
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    select.appendChild(option);
-                }
+            // Get categories from server first, then fall back to predefined
+            let categoriesToShow = [];
+            
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories
+                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all');
+            } else {
+                // Fall back to predefined categories
+                categoriesToShow = predefinedCategories.filter(category => {
+                    // Skip the "all-songs" category as it's just for the main filter
+                    if (category.id === 'all-songs') return false;
+                    
+                    // Check if this category should be shown in dropdown
+                    let showInDropdown = category.showInDropdown;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                    }
+                    
+                    return showInDropdown;
+                });
+            }
+            
+            // Add categories to dropdown
+            categoriesToShow.forEach(category => {
+                console.log('📋 DEBUG: Adding category:', category.id, category.name);
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                select.appendChild(option);
             });
             
             // Add any additional categories from video data that aren't predefined
@@ -6039,23 +6063,32 @@
             // Set the "All" label input to the current preference
             allLabel.value = categoryPreferences.allLabel;
             
-            // Get all categories: predefined + from video data
+            // Get all categories: server categories first, then fall back to predefined + video data
             const allCategories = new Set();
             
-            // Add predefined categories
-            predefinedCategories.forEach(cat => {
-                if (cat.id !== 'all-songs') { // Don't include the "All" option as a manageable category
-                    allCategories.add(cat.id);
-                }
-            });
-            
-            // Add categories from loaded video data
-            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
-                window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
-                        allCategories.add(video.category);
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories
+                window.serverCategories.forEach(cat => {
+                    if (cat.id !== 'all') { // Don't include the "All" option as a manageable category
+                        allCategories.add(cat.id);
                     }
                 });
+            } else {
+                // Fall back to predefined categories + video data
+                predefinedCategories.forEach(cat => {
+                    if (cat.id !== 'all-songs') { // Don't include the "All" option as a manageable category
+                        allCategories.add(cat.id);
+                    }
+                });
+                
+                // Add categories from loaded video data
+                if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
+                    window.loadedVideos.forEach(video => {
+                        if (video.category && video.category !== 'all') {
+                            allCategories.add(video.category);
+                        }
+                    });
+                }
             }
             
             // Clear existing items
@@ -6255,6 +6288,25 @@
             }
         }
 
+        async function loadCategoriesFromServer() {
+            try {
+                console.log('🏷️ DEBUG: Loading categories from server...');
+                const response = await fetch('/.netlify/functions/get-categories?page=oz');
+                
+                if (!response.ok) {
+                    console.warn('🏷️ WARNING: Could not load categories from server, using local data');
+                    return [];
+                }
+                
+                const serverCategories = await response.json();
+                console.log('🏷️ DEBUG: Loaded categories from server:', serverCategories);
+                return serverCategories;
+            } catch (error) {
+                console.warn('🏷️ WARNING: Error loading categories from server:', error);
+                return [];
+            }
+        }
+
         async function saveCategoriesAsync(categories) {
             try {
                 console.log('🏷️ DEBUG: Saving categories to server:', categories);
@@ -6285,10 +6337,34 @@
                 const categoryResult = await categoryResponse.json();
                 console.log('🏷️ SUCCESS: Categories saved to server:', categoryResult);
                 
+                // After successful save, refresh the categories from server
+                await refreshCategoriesFromServer();
+                
             } catch (error) {
                 console.error('🏷️ ERROR: Failed to save categories to server:', error);
                 // Show error to user but don't prevent the popup from closing
                 showManageCategoriesError('Failed to save categories to server: ' + error.message);
+            }
+        }
+
+        async function refreshCategoriesFromServer() {
+            try {
+                console.log('🏷️ DEBUG: Refreshing categories from server...');
+                
+                // Load fresh categories from server
+                const serverCategories = await loadCategoriesFromServer();
+                
+                // Update global categories data
+                window.serverCategories = serverCategories;
+                
+                // Refresh all category-related UI elements
+                updateCategoriesDropdown();
+                populateAddCategoryDropdown();
+                populateEditCategoryDropdown();
+                
+                console.log('🏷️ SUCCESS: Categories refreshed from server');
+            } catch (error) {
+                console.error('🏷️ ERROR: Failed to refresh categories:', error);
             }
         }
 
