@@ -2465,6 +2465,13 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Tags</label>
+                    <div class="tag-selection-container" id="editTagSelectionContainer">
+                        <!-- Tags will be populated dynamically -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label>Wistia Video ID</label>
                     <input type="text" id="editVideoId" readonly style="background: #333; color: #aaa;">
                     <small>Video ID cannot be changed</small>
@@ -5058,6 +5065,10 @@
         function openEditVideoPopup(wistiaId, title, category) {
             currentEditingVideoId = wistiaId;
             
+            // Get current video element to extract tags
+            const videoElement = document.querySelector(`[data-wistia="${wistiaId}"]`);
+            const currentTags = videoElement && videoElement.dataset.tags ? videoElement.dataset.tags.split(',') : [category];
+            
             // Populate form with current values
             document.getElementById('editVideoTitle').value = title;
             document.getElementById('editVideoCategory').value = category;
@@ -5065,6 +5076,9 @@
             
             // Populate category dropdown
             populateEditCategoryDropdown();
+            
+            // Populate tags container
+            populateEditTagsContainer(currentTags);
             
             // Show popup
             document.getElementById('editVideoOverlay').style.display = 'flex';
@@ -5089,6 +5103,35 @@
             });
         }
 
+        function populateEditTagsContainer(currentTags = []) {
+            const tagContainer = document.getElementById('editTagSelectionContainer');
+            tagContainer.innerHTML = '';
+            
+            const tags = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
+                id: tag.dataset.category,
+                name: tag.textContent
+            }));
+            
+            tags.forEach(tag => {
+                if (tag.id !== 'all') {
+                    const tagSelector = document.createElement('div');
+                    tagSelector.className = 'tag-selector';
+                    tagSelector.dataset.tagId = tag.id;
+                    tagSelector.textContent = tag.name;
+                    
+                    // Mark as selected if it's in the current tags
+                    if (currentTags.includes(tag.id)) {
+                        tagSelector.classList.add('selected');
+                    }
+                    
+                    tagSelector.addEventListener('click', function() {
+                        this.classList.toggle('selected');
+                    });
+                    tagContainer.appendChild(tagSelector);
+                }
+            });
+        }
+
         // Edit Video Form Handlers
         document.getElementById('cancelEditVideo').addEventListener('click', function() {
             document.getElementById('editVideoOverlay').style.display = 'none';
@@ -5102,6 +5145,10 @@
             const newTitle = document.getElementById('editVideoTitle').value.trim();
             const newCategory = document.getElementById('editVideoCategory').value;
             
+            // Collect selected tags
+            const selectedTags = Array.from(document.querySelectorAll('#editTagSelectionContainer .tag-selector.selected'))
+                .map(tag => tag.dataset.tagId);
+            
             if (!newTitle || !newCategory) {
                 document.getElementById('editVideoError').textContent = 'Please fill in all fields';
                 document.getElementById('editVideoError').style.display = 'block';
@@ -5113,17 +5160,22 @@
             if (videoItem) {
                 videoItem.dataset.category = newCategory;
                 videoItem.dataset.title = newTitle;
+                videoItem.dataset.tags = selectedTags.join(',');
                 videoItem.querySelector('.item-title').textContent = newTitle;
                 
                 // Update tags container with new pill structure
                 const tagsContainer = videoItem.querySelector('.item-tags');
                 if (tagsContainer) {
-                    // Only show tag pill if category is not 'all'
-                    if (newCategory !== 'all') {
-                        tagsContainer.innerHTML = `<span class="item-tag-pill">${newCategory.charAt(0).toUpperCase() + newCategory.slice(1)}</span>`;
-                    } else {
-                        tagsContainer.innerHTML = ''; // No tag pill for 'all' category
-                    }
+                    // Generate tag pills for all selected tags (filter out 'all' category)
+                    const displayTags = selectedTags
+                        .filter(tag => tag !== 'all')
+                        .map(tag => {
+                            const tagElement = document.querySelector(`[data-category="${tag}"]`);
+                            const tagName = tagElement ? tagElement.textContent : tag;
+                            return `<span class="item-tag-pill">${tagName.charAt(0).toUpperCase() + tagName.slice(1)}</span>`;
+                        })
+                        .join('');
+                    tagsContainer.innerHTML = displayTags;
                 }
                 
                 // Update the edit button onclick to reflect new values
@@ -5131,7 +5183,7 @@
                 editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${newTitle}', '${newCategory}')`);
             }
             
-            console.log('Video updated:', { id: currentEditingVideoId, title: newTitle, category: newCategory });
+            console.log('Video updated:', { id: currentEditingVideoId, title: newTitle, category: newCategory, tags: selectedTags });
             
             // Close popup
             document.getElementById('editVideoOverlay').style.display = 'none';
@@ -5534,7 +5586,14 @@
         function addVideoEventListeners(videoElement) {
             // Add click listener for video playback
             videoElement.addEventListener('click', () => {
-                if (isEditMode) return; // Don't play in edit mode
+                if (isEditMode) {
+                    // In edit mode, open edit popup instead of playing video
+                    const wistiaId = videoElement.dataset.wistia;
+                    const title = videoElement.dataset.title;
+                    const category = videoElement.dataset.category;
+                    openEditVideoPopup(wistiaId, title, category);
+                    return;
+                }
                 
                 const wistiaId = videoElement.dataset.wistia;
                 const title = videoElement.dataset.title;
