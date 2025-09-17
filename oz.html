@@ -606,11 +606,6 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
-        /* Disable general hover effects in edit mode */
-        .edit-mode .video-item:hover {
-            transform: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
 
         .thumbnail {
             width: 100%;
@@ -1475,6 +1470,18 @@
         .edit-mode .video-item:hover {
             border-color: var(--accent-color);
             background: var(--accent-light);
+            /* Explicitly disable thumbnail overlay effects */
+            transform: none !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        /* Disable all thumbnail transforms in edit mode */
+        .edit-mode .video-item .thumbnail {
+            transform: none !important;
+        }
+
+        .edit-mode .video-item:hover .thumbnail {
+            transform: none !important;
         }
 
         /* Organize mode specific styles */
@@ -3417,13 +3424,16 @@
                 
                 const thumbnail = item.querySelector('.thumbnail');
                 item.addEventListener('mouseenter', () => {
-                    if (!isEditMode) {
+                    if (!isEditMode && !document.body.classList.contains('edit-mode')) {
                         thumbnail.style.transform = 'scale(1.02)';
                     }
                 });
                 item.addEventListener('mouseleave', () => {
-                    if (!isEditMode) {
+                    if (!isEditMode && !document.body.classList.contains('edit-mode')) {
                         thumbnail.style.transform = 'scale(1)';
+                    } else {
+                        // Force reset transform in edit mode
+                        thumbnail.style.transform = 'none';
                     }
                 });
             });
@@ -5766,14 +5776,17 @@
             // Add hover effects
             const thumbnail = videoElement.querySelector('.thumbnail');
             videoElement.addEventListener('mouseenter', () => {
-                if (!isEditMode) {
+                if (!isEditMode && !document.body.classList.contains('edit-mode')) {
                     thumbnail.style.transform = 'scale(1.02)';
                 }
             });
             
             videoElement.addEventListener('mouseleave', () => {
-                if (!isEditMode) {
+                if (!isEditMode && !document.body.classList.contains('edit-mode')) {
                     thumbnail.style.transform = 'scale(1)';
+                } else {
+                    // Force reset transform in edit mode
+                    thumbnail.style.transform = 'none';
                 }
             });
         }
