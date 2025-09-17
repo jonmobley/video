@@ -2486,7 +2486,7 @@
                 <div class="form-group">
                     <label for="newVideoCategory">Category</label>
                     <select id="newVideoCategory" required>
-                        <option value="">Select Tag</option>
+                        <option value="">Select Category</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -2520,7 +2520,7 @@
                 <div class="form-group">
                     <label for="editVideoCategory">Category</label>
                     <select id="editVideoCategory" required>
-                        <option value="">Select Tag</option>
+                        <option value="">Select Category</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -4084,10 +4084,10 @@
                     <h3 style="color: white; margin: 0 0 16px 0;">Delete Tag</h3>
                     <p style="color: #aaa; margin: 0 0 16px 0;">
                         "${categoryName}" has ${videosInCategory.length} video(s). 
-                        Choose a tag to reassign them to:
+                        Choose a category to reassign them to:
                     </p>
                     <select id="reassignSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; margin-bottom: 20px;">
-                        <option value="">Select tag...</option>
+                        <option value="">Select category...</option>
                         ${reassignmentOptions}
                     </select>
                     <div style="display: flex; gap: 12px;">
@@ -5203,7 +5203,7 @@
         function populateEditCategoryDropdown() {
             const select = document.getElementById('editVideoCategory');
             
-            select.innerHTML = '<option value="">Select Tag</option>';
+            select.innerHTML = '<option value="">Select Category</option>';
             
             // Build dropdown from predefined categories and user preferences
             predefinedCategories.forEach(category => {
