@@ -4808,11 +4808,15 @@
                     videos.push(video);
                 });
                 
-                const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map((tag, index) => ({
-                    id: tag.dataset.category,
-                    name: tag.textContent,
-                    order: index
-                }));
+                const categories = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map((tag, index) => {
+                    const name = tag.textContent.trim();
+                    const id = tag.dataset.category || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                    return {
+                        id: id,
+                        name: name,
+                        order: index
+                    };
+                }).filter(cat => cat.name && cat.id); // Filter out any invalid categories
                 
                 console.log('Saving videos:', videos);
                 console.log('Saving categories:', categories);
@@ -6237,8 +6241,8 @@
                 // Also update the Add Video category dropdown
                 populateAddCategoryDropdown();
                 
-                // Here you would typically save to the server
-                // For now, we'll just update the local state and close the popup
+                // Save categories to server
+                saveCategoriesAsync(categories);
                 
                 closeManageCategoriesPopup();
                 console.log('🏷️ SUCCESS: Categories updated successfully!');
@@ -6247,6 +6251,43 @@
             } catch (error) {
                 console.error('🏷️ ERROR: Failed to save categories:', error);
                 showManageCategoriesError('Failed to save categories: ' + error.message);
+            }
+        }
+
+        async function saveCategoriesAsync(categories) {
+            try {
+                console.log('🏷️ DEBUG: Saving categories to server:', categories);
+                
+                // Save categories to server
+                const categoryResponse = await fetch('/.netlify/functions/save-categories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ categories: categories, page: 'oz' })
+                });
+                
+                if (!categoryResponse.ok) {
+                    let errorMessage = `Failed to save categories (Status: ${categoryResponse.status})`;
+                    try {
+                        const categoryError = await categoryResponse.json();
+                        if (categoryError.error) {
+                            errorMessage = `Failed to save categories: ${categoryError.error}`;
+                        }
+                    } catch (e) {
+                        // Response body is not valid JSON
+                        console.error('Could not parse error response:', e);
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const categoryResult = await categoryResponse.json();
+                console.log('🏷️ SUCCESS: Categories saved to server:', categoryResult);
+                
+            } catch (error) {
+                console.error('🏷️ ERROR: Failed to save categories to server:', error);
+                // Show error to user but don't prevent the popup from closing
+                showManageCategoriesError('Failed to save categories to server: ' + error.message);
             }
         }
 
