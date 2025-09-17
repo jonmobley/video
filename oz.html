@@ -3014,7 +3014,7 @@
                 `;
                 
                 const html = `
-                    <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}">
+                    <div class="video-item" data-category="${video.category.replace(/"/g, '&quot;')}" data-tags="${tagsString.replace(/"/g, '&quot;')}" data-title="${video.title.replace(/"/g, '&quot;')}" data-wistia="${video.wistiaId}">
                         <button class="video-delete-btn" onclick="deleteVideo(event, '${video.wistiaId}')" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
                             <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
@@ -3024,7 +3024,7 @@
                                 <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
                             </div>
                             <div class="video-edit-overlay">
-                                <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                                <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${escapeForOnclick(video.title)}', '${escapeForOnclick(video.category)}')">Edit</button>
                             </div>
                             <div class="thumbnail-close-overlay">
                                 <button class="thumbnail-close-button" onclick="stopVideoAndClosePlayer()">Close</button>
@@ -4071,7 +4071,7 @@
                     if (editBtn) {
                         const wistiaId = item.dataset.wistia;
                         const title = item.dataset.title;
-                        editBtn.setAttribute('onclick', `openEditVideoPopup('${wistiaId}', '${title}', '${newCategoryId}')`);
+                        editBtn.setAttribute('onclick', `openEditVideoPopup('${wistiaId}', '${escapeForOnclick(title)}', '${escapeForOnclick(newCategoryId)}')`);
                     }
                 });
                 
@@ -4433,6 +4433,11 @@
             if (!targetElement) return null;
             
             return insertBefore ? targetElement : targetElement.nextElementSibling;
+        }
+
+        // Helper function to escape strings for onclick handlers
+        function escapeForOnclick(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
         }
 
         // Delete video with confirmation
@@ -5228,7 +5233,7 @@
                 
                 // Update the edit button onclick to reflect new values
                 const editBtn = videoItem.querySelector('.video-edit-btn');
-                editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${newTitle}', '${newCategory}')`);
+                editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${escapeForOnclick(newTitle)}', '${escapeForOnclick(newCategory)}')`);
             }
             
             console.log('Video updated:', { id: currentEditingVideoId, title: newTitle, category: newCategory, tags: selectedTags });
@@ -5560,7 +5565,7 @@
                         <button class="featured-btn" onclick="setFeaturedVideo('${video.wistiaId}')">Feature</button>
                     </div>
                     <div class="video-edit-overlay">
-                        <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${video.title}', '${video.category}')">Edit</button>
+                        <button class="video-edit-btn" onclick="openEditVideoPopup('${video.wistiaId}', '${escapeForOnclick(video.title)}', '${escapeForOnclick(video.category)}')">Edit</button>
                     </div>
                     <div class="thumbnail-close-overlay">
                         <button class="thumbnail-close-button" onclick="stopVideoAndClosePlayer()">Close</button>
