@@ -2534,6 +2534,9 @@
         
         // Category management
         let categories = [];
+        
+        // Global videos array
+        let videos = [];
 
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
@@ -2838,7 +2841,7 @@
                 console.log('Loading videos from server...');
                 const response = await fetch('/.netlify/functions/get-videos?page=oz');
                 if (response.ok) {
-                    const videos = await response.json();
+                    videos = await response.json();
                     console.log('Videos loaded:', videos);
                     
                     // Check if there's a featured video saved
@@ -5178,45 +5181,73 @@
         }
 
         function populateAddCategoryDropdown() {
-            console.log('📋 DEBUG: === POPULATING CATEGORY DROPDOWN ===');
+            console.log('📋 DEBUG: === POPULATING ADD VIDEO CATEGORY DROPDOWN ===');
             
             const select = document.getElementById('newVideoCategory');
             console.log('📋 DEBUG: Found category select element:', select);
             
-            // Get unique categories from loaded video data
-            const uniqueCategories = new Set();
-            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
-                window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
-                        uniqueCategories.add(video.category);
-                    }
-                });
+            if (!select) {
+                console.error('📋 ERROR: Category select element not found');
+                return;
             }
             
-            console.log('📋 DEBUG: Found categories from video data:', Array.from(uniqueCategories));
-            
             // Clear and set default option
-            select.innerHTML = '<option value="">Select Tag</option>';
+            select.innerHTML = '<option value="">Select Category</option>';
             
             // Add "All" as the default selected option
             const allOption = document.createElement('option');
             allOption.value = 'all';
-            allOption.textContent = 'All';
+            allOption.textContent = categoryPreferences.allLabel || 'All';
             allOption.selected = true;
             select.appendChild(allOption);
             
-            // Add categories to dropdown
-            uniqueCategories.forEach(categoryId => {
-                console.log('📋 DEBUG: Adding category:', categoryId);
+            // Add predefined categories that should be shown in dropdown
+            predefinedCategories.forEach(category => {
+                // Skip the "all-songs" category as it's just for the main filter
+                if (category.id === 'all-songs') return;
+                
+                // Check if this category should be shown in dropdown
+                let showInDropdown = category.showInDropdown;
+                
+                // Override with user preference if available
+                if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                }
+                
+                if (showInDropdown) {
+                    console.log('📋 DEBUG: Adding predefined category:', category.id, category.name);
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    select.appendChild(option);
+                }
+            });
+            
+            // Add any additional categories from video data that aren't predefined
+            const additionalCategories = new Set();
+            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
+                window.loadedVideos.forEach(video => {
+                    if (video.category && video.category !== 'all') {
+                        // Check if it's not already in predefined categories
+                        const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
+                        if (!isPredefined) {
+                            additionalCategories.add(video.category);
+                        }
+                    }
+                });
+            }
+            
+            // Add additional categories
+            additionalCategories.forEach(categoryId => {
+                console.log('📋 DEBUG: Adding additional category:', categoryId);
                 const option = document.createElement('option');
                 option.value = categoryId;
                 // Convert category ID to display name (capitalize and format)
-                option.textContent = categoryId === 'the-merry-land-of-oz' ? 'The Merry Land of Oz' : 
-                                  categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                option.textContent = categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
                 select.appendChild(option);
             });
             
-            console.log('📋 DEBUG: Category dropdown populated with', select.children.length - 1, 'categories');
+            console.log('📋 DEBUG: Add video category dropdown populated with', select.children.length - 1, 'categories');
             
             // Also populate tag selection (using tags, not categories)
             const tagContainer = document.getElementById('tagSelectionContainer');
@@ -5363,6 +5394,8 @@
                 .map(tag => tag.dataset.tagId);
             
             try {
+                console.log('🎬 DEBUG: About to add video to grid:', { wistiaId, title, category, tags: selectedTags });
+                
                 // Add video to grid
                 await addVideoToGrid({
                     wistiaId: wistiaId,
@@ -5371,22 +5404,33 @@
                     tags: selectedTags
                 });
                 
-                console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
+                console.log('🎬 SUCCESS: Video added successfully:', { id: wistiaId, title, category, tags: selectedTags });
+                
+                // Close popup - video was added successfully
+                console.log('🎬 DEBUG: Closing add video popup');
+                document.getElementById('addVideoOverlay').style.display = 'none';
+                document.getElementById('addVideoError').style.display = 'none';
+                
+                // Reset form for next use
+                document.getElementById('addVideoForm').reset();
                 
             } catch (error) {
-                console.error('Error adding video to grid:', error);
-                document.getElementById('addVideoError').textContent = 'Error adding video. Please try again.';
+                console.error('🎬 ERROR: Failed to add video to grid:', error);
+                console.error('🎬 ERROR: Error details:', error.message, error.stack);
+                document.getElementById('addVideoError').textContent = 'Error adding video: ' + error.message;
                 document.getElementById('addVideoError').style.display = 'block';
                 return; // Don't close popup if there was an error
             }
-            
-            // Close popup (this will always run unless there was an error above)
-            document.getElementById('addVideoOverlay').style.display = 'none';
-            document.getElementById('addVideoError').style.display = 'none';
         });
 
         async function addVideoToGrid(video) {
+            console.log('🎬 DEBUG: === ADDING VIDEO TO GRID ===');
+            console.log('🎬 DEBUG: Video data:', video);
+            
             const videoGrid = document.getElementById('videoGrid');
+            if (!videoGrid) {
+                throw new Error('Video grid element not found');
+            }
             
             // Create new video element
             const videoElement = document.createElement('div');
@@ -5434,26 +5478,57 @@
             videoGrid.appendChild(videoElement);
             
             // Add event listeners for the new video
-            addVideoEventListeners(videoElement);
+            try {
+                addVideoEventListeners(videoElement);
+                console.log('🎬 DEBUG: Event listeners added successfully');
+            } catch (error) {
+                console.error('🎬 ERROR: Failed to add event listeners:', error);
+                throw error;
+            }
             
-            // Load thumbnail and duration
-            loadWistiaThumbnail(video.wistiaId);
-            loadVideoDuration(video.wistiaId);
+            // Load thumbnail and duration (don't await to avoid blocking popup closure)
+            try {
+                loadWistiaThumbnail(video.wistiaId);
+                loadVideoDuration(video.wistiaId);
+                console.log('🎬 DEBUG: Thumbnail and duration loading initiated');
+            } catch (error) {
+                console.warn('🎬 WARNING: Non-critical error loading video metadata:', error);
+            }
             
             // If in edit mode, add edit listeners
             if (isEditMode) {
-                addEditListenersToVideo(videoElement);
+                try {
+                    addEditListenersToVideo(videoElement);
+                    console.log('🎬 DEBUG: Edit listeners added successfully');
+                } catch (error) {
+                    console.error('🎬 ERROR: Failed to add edit listeners:', error);
+                    throw error;
+                }
             }
             
             // Mark as having unsaved changes
-            markUnsavedChanges();
+            try {
+                markUnsavedChanges();
+                console.log('🎬 DEBUG: Marked as having unsaved changes');
+            } catch (error) {
+                console.error('🎬 ERROR: Failed to mark unsaved changes:', error);
+                throw error;
+            }
             
             // Update dropdown visibility based on all current videos
-            const allVideoElements = document.querySelectorAll('.video-item');
-            const currentVideos = Array.from(allVideoElements).map(element => ({
-                category: element.dataset.category || 'all'
-            }));
-            hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+            try {
+                const allVideoElements = document.querySelectorAll('.video-item');
+                const currentVideos = Array.from(allVideoElements).map(element => ({
+                    category: element.dataset.category || 'all'
+                }));
+                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+                console.log('🎬 DEBUG: Dropdown visibility updated successfully');
+            } catch (error) {
+                console.error('🎬 ERROR: Failed to update dropdown visibility:', error);
+                throw error;
+            }
+            
+            console.log('🎬 SUCCESS: Video successfully added to grid');
         }
 
         function addVideoEventListeners(videoElement) {
@@ -5920,6 +5995,9 @@
                 
                 // Update the categories dropdown to reflect changes
                 updateCategoriesDropdown();
+                
+                // Also update the Add Video category dropdown
+                populateAddCategoryDropdown();
                 
                 // Here you would typically save to the server
                 // For now, we'll just update the local state and close the popup

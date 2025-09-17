@@ -3071,6 +3071,12 @@
             const videoHTML = videosToDisplay.map((video, index) => {
                 console.log(`🎬 DEBUG: Rendering video ${index + 1}/${videosToDisplay.length}:`, video);
                 
+                // Skip videos without required data
+                if (!video.wistiaId || !video.title) {
+                    console.warn('🎬 WARNING: Skipping video with missing data:', video);
+                    return '';
+                }
+                
                 // Calculate position in grid
                 const row = Math.floor(index / columns);
                 const col = index % columns;
@@ -3098,8 +3104,17 @@
                 
                 // Determine platform and get appropriate thumbnail
                 const platform = video.platform || 'wistia';
-                const videoId = extractVideoId(video.video_url || `https://company.wistia.com/medias/${video.wistiaId}`, platform);
-                const thumbnailUrl = getThumbnailUrl(video.video_url, platform, videoId);
+                let videoId, thumbnailUrl;
+                
+                if (platform === 'wistia') {
+                    // For Wistia videos, use the existing wistiaId
+                    videoId = video.wistiaId;
+                    thumbnailUrl = `https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg`;
+                } else {
+                    // For other platforms, extract ID from URL
+                    videoId = extractVideoId(video.video_url, platform);
+                    thumbnailUrl = getThumbnailUrl(video.video_url, platform, videoId);
+                }
                 
                 // Platform badge
                 const platformBadge = platform !== 'wistia' ? `<div class="platform-badge ${platform}">${platform.toUpperCase()}</div>` : '';

@@ -493,6 +493,25 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="delete-confirmation-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Delete Video</h2>
+                <button onclick="closeDeleteConfirmation()">×</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p style="color: #ccc; line-height: 1.6;">Are you sure you want to delete this video?</p>
+                <p style="color: #ff6666; font-weight: 500; margin-top: 12px;" id="delete-video-title">Video Title</p>
+                <p style="color: #999; font-size: 14px; margin-top: 8px;">This action cannot be undone.</p>
+            </div>
+            <div class="button-group">
+                <button class="danger" onclick="confirmDeleteVideo()">Yes, Delete</button>
+                <button class="secondary" onclick="closeDeleteConfirmation()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Include Scripts -->
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     <script src="js/dropbox-url-handler.js"></script>
@@ -843,15 +862,37 @@
             editingVideoId = null;
         }
 
-        // Delete video
+        // Delete video - show confirmation modal
+        let videoToDelete = null;
+        
         function deleteVideo(event, videoId) {
             event.stopPropagation();
             
-            if (!confirm('Delete this video?')) return;
+            const video = videos.find(v => v.id === videoId);
+            if (!video) return;
             
-            videos = videos.filter(v => v.id !== videoId);
+            videoToDelete = videoId;
+            
+            // Show confirmation modal
+            document.getElementById('delete-confirmation-modal').classList.add('active');
+            document.getElementById('delete-video-title').textContent = video.title;
+        }
+        
+        // Confirm video deletion
+        function confirmDeleteVideo() {
+            if (!videoToDelete) return;
+            
+            videos = videos.filter(v => v.id !== videoToDelete);
             renderVideos();
             showStatus('success', 'Video deleted!');
+            
+            closeDeleteConfirmation();
+        }
+        
+        // Close delete confirmation modal
+        function closeDeleteConfirmation() {
+            document.getElementById('delete-confirmation-modal').classList.remove('active');
+            videoToDelete = null;
         }
 
         // Show status message
