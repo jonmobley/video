@@ -931,6 +931,18 @@
             transform: translateY(0);
         }
 
+        /* Active organize button styling */
+        .organize-mode #adminOrganizeVideosBtn {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
+
+        .organize-mode #adminOrganizeVideosBtn:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
         /* Add Video Popup Styles */
         .add-video-overlay {
             position: fixed;
@@ -1449,31 +1461,31 @@
             position: relative;
         }
 
-        /* Show grab cursor only when hovering over the thumbnail area (for dragging) */
-        .edit-mode .video-item .thumbnail {
-            cursor: grab;
-        }
-
-        .edit-mode .video-item .thumbnail:active {
-            cursor: grabbing;
-        }
-
-        .edit-mode .video-item:active {
-            cursor: grabbing;
-        }
-
         .edit-mode .video-item:hover {
             border-color: var(--accent-color);
             background: var(--accent-light);
         }
 
-        .edit-mode .video-item.dragging {
+        /* Organize mode specific styles */
+        .organize-mode .video-item .thumbnail {
+            cursor: grab;
+        }
+
+        .organize-mode .video-item .thumbnail:active {
+            cursor: grabbing;
+        }
+
+        .organize-mode .video-item:active {
+            cursor: grabbing;
+        }
+
+        .organize-mode .video-item.dragging {
             opacity: 0.5;
             transform: rotate(2deg);
             cursor: grabbing;
         }
 
-        .edit-mode .video-item.drag-over {
+        .organize-mode .video-item.drag-over {
             transform: scale(1.05);
         }
 
@@ -1489,7 +1501,7 @@
             z-index: 15;
         }
 
-        .edit-mode .video-item:hover .video-position-controls {
+        .organize-mode .video-item:hover .video-position-controls {
             display: block;
         }
 
@@ -2364,6 +2376,7 @@
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
+                <button class="admin-add-video-btn" id="adminOrganizeVideosBtn">Organize Videos</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
                 <button class="admin-exit-btn" id="adminExitBtn">Close</button>
             </div>
@@ -2419,7 +2432,13 @@
     <!-- Edit Mode Indicator -->
     <div class="edit-indicator" id="editIndicator">
         <strong>Edit Mode</strong><br>
-        <small>Click videos to edit • Drag thumbnails to reorder</small>
+        <small>Click videos to edit • Click "Organize Videos" to reorder</small>
+    </div>
+    
+    <!-- Organize Mode Indicator -->
+    <div class="edit-indicator" id="organizeIndicator" style="display: none;">
+        <strong>Organize Mode</strong><br>
+        <small>Drag thumbnails to reorder • Use arrow controls</small>
     </div>
     
     <!-- Unsaved Changes Indicator -->
@@ -3561,6 +3580,7 @@
 
         // Edit Mode and Login Functionality
         let isEditMode = false;
+        let isOrganizeMode = false;
         const ADMIN_PASSWORD = 'admin123'; // In production, this should be more secure
 
         // Login functionality
@@ -3733,6 +3753,9 @@
             // Manage categories button listener
             document.getElementById('adminManageCategoriesBtn').addEventListener('click', openManageCategoriesPopup);
             
+            // Organize videos button listener
+            document.getElementById('adminOrganizeVideosBtn').addEventListener('click', toggleOrganizeMode);
+            
             // Exit edit button listener
             document.getElementById('adminExitBtn').addEventListener('click', function() {
                 if (hasUnsavedChanges) {
@@ -3749,11 +3772,47 @@
 
         function exitEditMode() {
             isEditMode = false;
+            isOrganizeMode = false; // Exit organize mode when exiting edit mode
             document.body.classList.remove('edit-mode');
+            document.body.classList.remove('organize-mode');
             document.getElementById('loginLink').textContent = 'Login';
             document.getElementById('adminBanner').style.display = 'none';
+            document.getElementById('editIndicator').style.display = 'none';
+            document.getElementById('organizeIndicator').style.display = 'none';
+            
+            // Update organize button text
+            document.getElementById('adminOrganizeVideosBtn').textContent = 'Organize Videos';
             
             console.log('Edit mode disabled');
+        }
+
+        // Organize Mode Functions
+        function toggleOrganizeMode() {
+            if (isOrganizeMode) {
+                exitOrganizeMode();
+            } else {
+                enterOrganizeMode();
+            }
+        }
+
+        function enterOrganizeMode() {
+            isOrganizeMode = true;
+            document.body.classList.add('organize-mode');
+            document.getElementById('editIndicator').style.display = 'none';
+            document.getElementById('organizeIndicator').style.display = 'block';
+            document.getElementById('adminOrganizeVideosBtn').textContent = 'Exit Organize';
+            
+            console.log('Organize mode enabled');
+        }
+
+        function exitOrganizeMode() {
+            isOrganizeMode = false;
+            document.body.classList.remove('organize-mode');
+            document.getElementById('editIndicator').style.display = 'block';
+            document.getElementById('organizeIndicator').style.display = 'none';
+            document.getElementById('adminOrganizeVideosBtn').textContent = 'Organize Videos';
+            
+            console.log('Organize mode disabled');
         }
 
         // Unsaved changes tracking
@@ -4251,7 +4310,7 @@
         }
 
         function handleVideoDragStart(e) {
-            if (!isEditMode) return;
+            if (!isEditMode || !isOrganizeMode) return;
             draggedVideoElement = this;
             this.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
@@ -4291,7 +4350,7 @@
         }
 
         function handleVideoDragOver(e) {
-            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            if (!isEditMode || !isOrganizeMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
@@ -4303,7 +4362,7 @@
         }
         
         function handleContainerDragOver(e) {
-            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            if (!isEditMode || !isOrganizeMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
@@ -4315,7 +4374,7 @@
         }
 
         function handleVideoDrop(e) {
-            if (!isEditMode || !draggedVideoElement || !placeholder) return;
+            if (!isEditMode || !isOrganizeMode || !draggedVideoElement || !placeholder) return;
             e.preventDefault();
             
             // Don't drop on itself
@@ -4330,7 +4389,7 @@
         }
 
         function handleVideoDragEnd(e) {
-            if (!isEditMode) return;
+            if (!isEditMode || !isOrganizeMode) return;
             
             // Clear any pending timer
             clearTimeout(dragOverTimer);
@@ -4543,7 +4602,7 @@
             event.stopPropagation();
             event.preventDefault();
             
-            if (!isEditMode) return;
+            if (!isEditMode || !isOrganizeMode) return;
             
             const grid = document.getElementById('videoGrid');
             const videoItems = Array.from(grid.querySelectorAll('.video-item'));
@@ -5678,7 +5737,7 @@
         }
 
         function addEditListenersToVideo(videoElement) {
-            // Add drag and drop
+            // Add drag and drop (will only work when organize mode is active)
             videoElement.draggable = true;
             videoElement.addEventListener('dragstart', handleVideoDragStart);
             videoElement.addEventListener('dragend', handleVideoDragEnd);
