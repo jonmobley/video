@@ -606,6 +606,12 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
+        /* Disable general hover effects in edit mode */
+        .edit-mode .video-item:hover {
+            transform: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
         .thumbnail {
             width: 100%;
             aspect-ratio: 16/9;
@@ -1811,6 +1817,11 @@
                 background: var(--accent-heavy);
                 transform: translate(-50%, -50%) scale(1.05);
                 box-shadow: 0 6px 20px var(--accent-shadow);
+            }
+            
+            /* Hide play button overlay in edit mode */
+            .edit-mode .video-item:hover .thumbnail-play-button {
+                display: none !important;
             }
         }
 
