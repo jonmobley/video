@@ -4568,10 +4568,16 @@
                     featuredContent.category = null;
                 }
                 
+                // Remove the video element from the DOM
+                const videoElement = document.querySelector(`[data-wistia="${wistiaId}"]`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+                
                 // Mark as changed
                 markUnsavedChanges();
                 
-                // Re-render the video grid
+                // Update categories dropdown visibility
                 const allVideoElements = document.querySelectorAll('.video-item');
                 const currentVideos = Array.from(allVideoElements).map(element => ({
                     category: element.dataset.category || 'all'
@@ -4581,7 +4587,7 @@
                 // Remove dialog
                 document.body.removeChild(dialog);
                 
-                console.log(`Video "${video.title}" deleted`);
+                console.log(`Video "${video.title}" deleted and removed from display`);
             });
             
             // Handle cancellation
@@ -5307,13 +5313,33 @@
 
         document.getElementById('deleteVideoBtn').addEventListener('click', function() {
             if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+                // Remove from videos array
+                const index = videos.findIndex(v => v.wistiaId === currentEditingVideoId);
+                if (index !== -1) {
+                    videos.splice(index, 1);
+                }
+                
+                // If this was the featured video, clear featured status
+                if (featuredContent.videoId === currentEditingVideoId) {
+                    featuredContent.videoId = null;
+                    featuredContent.category = null;
+                }
+                
+                // Remove the video element from the DOM
                 const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
                 if (videoItem) {
                     videoItem.remove();
-                    console.log('Video deleted:', currentEditingVideoId);
+                    console.log('Video deleted from edit popup:', currentEditingVideoId);
                     
                     // Mark as having unsaved changes
                     markUnsavedChanges();
+                    
+                    // Update categories dropdown visibility
+                    const allVideoElements = document.querySelectorAll('.video-item');
+                    const currentVideos = Array.from(allVideoElements).map(element => ({
+                        category: element.dataset.category || 'all'
+                    }));
+                    hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
                     
                     // Close popup
                     document.getElementById('editVideoOverlay').style.display = 'none';
