@@ -1837,23 +1837,6 @@
             }
         }
 
-        .edit-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--accent-color);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 200;
-            display: none;
-        }
-
-        .edit-mode .edit-indicator {
-            display: block;
-        }
 
         /* Category inline editing */
         .edit-mode .tag:not(.add-category-btn):not([data-category="all"]) {
@@ -2457,17 +2440,6 @@
         </div>
     </div>
 
-    <!-- Edit Mode Indicator -->
-    <div class="edit-indicator" id="editIndicator">
-        <strong>Edit Mode</strong><br>
-        <small>Click videos to edit • Click "Organize Videos" to reorder</small>
-    </div>
-    
-    <!-- Organize Mode Indicator -->
-    <div class="edit-indicator" id="organizeIndicator" style="display: none;">
-        <strong>Organize Mode</strong><br>
-        <small>Drag thumbnails to reorder • Use arrow controls</small>
-    </div>
     
     <!-- Unsaved Changes Indicator -->
     <div class="unsaved-indicator" id="unsavedIndicator">Unsaved Changes</div>
@@ -3808,8 +3780,6 @@
             document.body.classList.remove('organize-mode');
             document.getElementById('loginLink').textContent = 'Login';
             document.getElementById('adminBanner').style.display = 'none';
-            document.getElementById('editIndicator').style.display = 'none';
-            document.getElementById('organizeIndicator').style.display = 'none';
             
             // Update organize button text
             document.getElementById('adminOrganizeVideosBtn').textContent = 'Organize Videos';
@@ -3829,8 +3799,6 @@
         function enterOrganizeMode() {
             isOrganizeMode = true;
             document.body.classList.add('organize-mode');
-            document.getElementById('editIndicator').style.display = 'none';
-            document.getElementById('organizeIndicator').style.display = 'block';
             document.getElementById('adminOrganizeVideosBtn').textContent = 'Exit Organize';
             
             console.log('Organize mode enabled');
@@ -3839,8 +3807,6 @@
         function exitOrganizeMode() {
             isOrganizeMode = false;
             document.body.classList.remove('organize-mode');
-            document.getElementById('editIndicator').style.display = 'block';
-            document.getElementById('organizeIndicator').style.display = 'none';
             document.getElementById('adminOrganizeVideosBtn').textContent = 'Organize Videos';
             
             console.log('Organize mode disabled');
