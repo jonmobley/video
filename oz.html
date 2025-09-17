@@ -1523,6 +1523,11 @@
             display: block;
         }
 
+        /* Hide position controls in edit mode when not in organize mode */
+        .edit-mode:not(.organize-mode) .video-item .video-position-controls {
+            display: none !important;
+        }
+
         .position-arrow {
             position: absolute;
             background: var(--accent-color);
