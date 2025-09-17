@@ -120,15 +120,32 @@ exports.handler = async (event, context) => {
     // Try to save to Supabase if available
     if (supabase) {
       try {
+        // First, check if the table has the category_key column by trying a simple query
+        let hasCategoryKeyColumn = true;
+        try {
+          await supabase.from('categories').select('category_key').limit(1);
+        } catch (columnError) {
+          console.log('category_key column not found, using legacy format');
+          hasCategoryKeyColumn = false;
+        }
+
         // Prepare data for Supabase with composite keys
-        const supabaseCategories = categories.map((category, index) => ({
-          id: `${page}-${category.id}`, // Create composite key with page prefix
-          name: category.name,
-          color: category.color || null,
-          order: category.order || index, // Use index if no order specified
-          page: page,
-          category_key: category.id // Store original category ID separately
-        }));
+        const supabaseCategories = categories.map((category, index) => {
+          const baseData = {
+            id: `${page}-${category.id}`, // Create composite key with page prefix
+            name: category.name,
+            color: category.color || null,
+            order: category.order !== undefined ? category.order : index, // Use index if no order specified
+            page: page
+          };
+          
+          // Only add category_key if the column exists
+          if (hasCategoryKeyColumn) {
+            baseData.category_key = category.id;
+          }
+          
+          return baseData;
+        });
 
         // Delete existing categories for this page and insert new ones
         const { error: deleteError } = await supabase
