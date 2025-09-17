@@ -5230,25 +5230,11 @@
                 }
             });
             
-            // Add any additional categories from video data (future enhancement)
-            if (categoriesData && categoriesData.length > 0) {
-                categoriesData.forEach(category => {
-                    // Only add if not already in predefined categories
-                    const isPredefined = predefinedCategories.some(pred => pred.id === category.id);
-                    if (!isPredefined && category.showInDropdown) {
-                        const option = document.createElement('option');
-                        option.value = category.id;
-                        const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
-                        option.textContent = icon + category.name;
-                        option.setAttribute('data-icon', category.icon || '');
-                        select.appendChild(option);
-                    }
-                });
-            }
-            
-            // Add any additional categories from loaded video data
-            const additionalCategories = new Set();
-            if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
+            // Add any additional categories from loaded videos
+            if (window.loadedVideos && window.loadedVideos.length > 0) {
+                const additionalCategories = new Set();
+                
+                // Collect unique categories from loaded videos
                 window.loadedVideos.forEach(video => {
                     if (video.category && video.category !== 'all') {
                         // Check if it's not already in predefined categories
@@ -5258,16 +5244,19 @@
                         }
                     }
                 });
+                
+                // Add additional categories to dropdown
+                additionalCategories.forEach(categoryId => {
+                    const option = document.createElement('option');
+                    option.value = categoryId;
+                    // Convert category ID to display name (capitalize first letter of each word)
+                    const displayName = categoryId.split('-').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                    option.textContent = displayName;
+                    select.appendChild(option);
+                });
             }
-            
-            // Add additional categories
-            additionalCategories.forEach(categoryId => {
-                const option = document.createElement('option');
-                option.value = categoryId;
-                // Convert category ID to display name (capitalize and format)
-                option.textContent = categoryId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                select.appendChild(option);
-            });
         }
 
         function populateEditTagsContainer(currentTags = []) {
