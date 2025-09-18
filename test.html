@@ -5502,7 +5502,14 @@
         function addVideoEventListeners(videoElement) {
             // Add click listener for video playback
             videoElement.addEventListener('click', () => {
-                if (isEditMode) return; // Don't play in edit mode
+                if (isEditMode) {
+                    // In edit mode, open edit popup instead of playing video
+                    const wistiaId = videoElement.dataset.wistia;
+                    const title = videoElement.dataset.title;
+                    const category = videoElement.dataset.category;
+                    openEditVideoPopup(wistiaId, title, category);
+                    return;
+                }
                 
                 const wistiaId = videoElement.dataset.wistia;
                 const title = videoElement.dataset.title;
@@ -5539,27 +5546,20 @@
             videoElement.addEventListener('dragstart', handleVideoDragStart);
             videoElement.addEventListener('dragend', handleVideoDragEnd);
             
-            // Add inline editing
-            const titleElement = videoElement.querySelector('.item-title');
+            // Handle tag clicks for category filtering (only in non-edit mode)
             const tagElement = videoElement.querySelector('.item-tag');
-            
-            titleElement.addEventListener('click', function(e) {
-                if (!isEditMode) return;
-                e.stopPropagation();
-                editTitle(this);
-            });
-            
-            tagElement.addEventListener('click', function(e) {
-                e.stopPropagation();
-                
-                if (isEditMode) {
-                    editCategory(this);
-                } else {
-                    // In non-edit mode, activate the category
-                    const categoryName = this.textContent.toLowerCase();
-                    activateCategory(categoryName);
-                }
-            });
+            if (tagElement) {
+                tagElement.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    if (!isEditMode) {
+                        // In non-edit mode, activate the category
+                        const categoryName = this.textContent.toLowerCase();
+                        activateCategory(categoryName);
+                    }
+                    // In edit mode, do nothing - editing only through popup
+                });
+            }
 
             // Add event listener for thumbnail close overlay
             const closeOverlay = videoElement.querySelector('.thumbnail-close-overlay');

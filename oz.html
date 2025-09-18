@@ -1322,6 +1322,13 @@
             cursor: pointer;
         }
 
+        .category-visibility-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
         .category-show-checkbox {
             margin: 0;
         }
@@ -1516,6 +1523,7 @@
 
         .organize-mode .video-item:hover .video-position-controls {
             display: block;
+            pointer-events: auto;
         }
 
         /* Hide position controls in edit mode when not in organize mode */
@@ -1675,6 +1683,20 @@
         .edit-mode .video-item:hover .video-edit-overlay {
             display: flex;
             pointer-events: auto;
+        }
+
+        /* Hide edit overlays in organize mode */
+        .organize-mode .video-item:hover .video-edit-overlay {
+            display: none !important;
+        }
+
+        .organize-mode .video-item:hover .thumbnail-close-overlay {
+            display: none !important;
+        }
+
+        /* Hide edit indicator in organize mode to reduce visual clutter */
+        .organize-mode .video-item::before {
+            display: none !important;
         }
 
         /* Always show a small edit indicator in edit mode */
@@ -2701,11 +2723,13 @@
             // Build dropdown from categories and user preferences
             categoriesToShow.forEach(category => {
                 // Check if this category should be shown in dropdown
-                let showInDropdown = category.showInDropdown;
+                let showInDropdown = category.showInDropdown !== undefined ? category.showInDropdown : true;
                 
                 // Override with user preference if available
                 if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                    showInDropdown = categoryPreferences.categories[category.id].showInDropdown !== undefined 
+                        ? categoryPreferences.categories[category.id].showInDropdown 
+                        : true;
                 }
                 
                 if (showInDropdown) {
@@ -2821,21 +2845,37 @@
             
             if (window.serverCategories && window.serverCategories.length > 0) {
                 // Use server categories (excluding 'all' and 'all-songs')
-                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all' && cat.id !== 'all-songs');
+                categoriesToShow = window.serverCategories.filter(cat => {
+                    if (cat.id === 'all' || cat.id === 'all-songs') return false;
+                    
+                    // Check if this category should be shown in tag navigation
+                    let showInTagNavigation = cat.showInTagNavigation !== undefined ? cat.showInTagNavigation : cat.showInDropdown;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[cat.id]) {
+                        showInTagNavigation = categoryPreferences.categories[cat.id].showInTagNavigation !== undefined 
+                            ? categoryPreferences.categories[cat.id].showInTagNavigation 
+                            : categoryPreferences.categories[cat.id].showInDropdown;
+                    }
+                    
+                    return showInTagNavigation;
+                });
             } else {
                 // Fall back to predefined categories (excluding 'all-songs')
                 categoriesToShow = predefinedCategories.filter(category => {
                     if (category.id === 'all-songs' || category.id === 'all') return false;
                     
-                    // Check if this category should be shown in navigation
-                    let showInDropdown = category.showInDropdown;
+                    // Check if this category should be shown in tag navigation
+                    let showInTagNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : category.showInDropdown;
                     
                     // Override with user preference if available
                     if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                        showInTagNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
+                            ? categoryPreferences.categories[category.id].showInTagNavigation 
+                            : categoryPreferences.categories[category.id].showInDropdown;
                     }
                     
-                    return showInDropdown;
+                    return showInTagNavigation;
                 });
             }
             
@@ -5486,11 +5526,13 @@
                     if (category.id === 'all-songs') return false;
                     
                     // Check if this category should be shown in dropdown
-                    let showInDropdown = category.showInDropdown;
+                    let showInDropdown = category.showInDropdown !== undefined ? category.showInDropdown : true;
                     
                     // Override with user preference if available
                     if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown !== undefined 
+                            ? categoryPreferences.categories[category.id].showInDropdown 
+                            : true;
                     }
                     
                     return showInDropdown;
@@ -5721,11 +5763,13 @@
                     if (category.id === 'all-songs') return false;
                     
                     // Check if this category should be shown in dropdown
-                    let showInDropdown = category.showInDropdown;
+                    let showInDropdown = category.showInDropdown !== undefined ? category.showInDropdown : true;
                     
                     // Override with user preference if available
                     if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown !== undefined 
+                            ? categoryPreferences.categories[category.id].showInDropdown 
+                            : true;
                     }
                     
                     return showInDropdown;
@@ -6099,27 +6143,20 @@
             videoElement.addEventListener('dragstart', handleVideoDragStart);
             videoElement.addEventListener('dragend', handleVideoDragEnd);
             
-            // Add inline editing
-            const titleElement = videoElement.querySelector('.item-title');
+            // Handle tag clicks for category filtering (only in non-edit mode)
             const tagElement = videoElement.querySelector('.item-tag');
-            
-            titleElement.addEventListener('click', function(e) {
-                if (!isEditMode) return;
-                e.stopPropagation();
-                editTitle(this);
-            });
-            
-            tagElement.addEventListener('click', function(e) {
-                e.stopPropagation();
-                
-                if (isEditMode) {
-                    editCategory(this);
-                } else {
-                    // In non-edit mode, activate the category
-                    const categoryName = this.textContent.toLowerCase();
-                    activateCategory(categoryName);
-                }
-            });
+            if (tagElement) {
+                tagElement.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    if (!isEditMode) {
+                        // In non-edit mode, activate the category
+                        const categoryName = this.textContent.toLowerCase();
+                        activateCategory(categoryName);
+                    }
+                    // In edit mode, do nothing - editing only through popup
+                });
+            }
 
             // Add event listener for thumbnail close overlay
             const closeOverlay = videoElement.querySelector('.thumbnail-close-overlay');
@@ -6308,6 +6345,7 @@
                 name: 'All Dance Videos',
                 icon: 'music-note',
                 showInDropdown: true,
+                showInTagNavigation: true,
                 isDefault: true
             },
             {
@@ -6315,6 +6353,7 @@
                 name: 'The Merry Land of Oz',
                 icon: 'music-note',
                 showInDropdown: true,
+                showInTagNavigation: true,
                 isDefault: true
             },
             {
@@ -6322,6 +6361,7 @@
                 name: 'More Coming Soon!',
                 icon: '',
                 showInDropdown: false, // This will be manageable
+                showInTagNavigation: false, // Separate control for tag navigation
                 isDefault: true,
                 disabled: true // This option should be disabled in dropdown
             }
@@ -6391,10 +6431,14 @@
             const isPredefined = predefinedInfo && predefinedInfo.isDefault;
             const isMoreComingSoon = id === 'more-coming-soon';
             
-            // Get current show in dropdown preference
+            // Get current preferences for both dropdown and tag navigation
             const showInDropdown = categoryPreferences.categories && categoryPreferences.categories[id] 
                 ? categoryPreferences.categories[id].showInDropdown 
                 : (predefinedInfo ? predefinedInfo.showInDropdown : true);
+            
+            const showInTagNavigation = categoryPreferences.categories && categoryPreferences.categories[id] 
+                ? categoryPreferences.categories[id].showInTagNavigation 
+                : (predefinedInfo ? predefinedInfo.showInTagNavigation : true);
             
             let categoryHTML = `
                 <div class="category-reorder-buttons">
@@ -6404,15 +6448,19 @@
                 <input type="text" value="${name}" placeholder="Category name..." ${isPredefined ? 'readonly' : ''} />
             `;
             
-            // Add "Show in dropdown" checkbox for "More Coming Soon!" category
-            if (isMoreComingSoon) {
-                categoryHTML += `
+            // Add visibility control checkboxes for all categories (not just "More Coming Soon!")
+            categoryHTML += `
+                <div class="category-visibility-controls">
                     <label class="category-checkbox-label">
-                        <input type="checkbox" class="category-show-checkbox" ${showInDropdown ? 'checked' : ''} />
+                        <input type="checkbox" class="category-dropdown-checkbox" ${showInDropdown ? 'checked' : ''} />
                         Show in dropdown
                     </label>
-                `;
-            }
+                    <label class="category-checkbox-label">
+                        <input type="checkbox" class="category-tags-checkbox" ${showInTagNavigation ? 'checked' : ''} />
+                        Show in tag navigation
+                    </label>
+                </div>
+            `;
             
             // Add remove button (disabled for predefined categories)
             if (!isPredefined) {
@@ -6431,21 +6479,39 @@
                 });
             }
             
-            // Add checkbox functionality for "More Coming Soon!"
-            if (isMoreComingSoon) {
-                const checkbox = categoryItem.querySelector('.category-show-checkbox');
-                checkbox.addEventListener('change', () => {
-                    // Update preferences
-                    if (!categoryPreferences.categories) {
-                        categoryPreferences.categories = {};
-                    }
-                    if (!categoryPreferences.categories[id]) {
-                        categoryPreferences.categories[id] = {};
-                    }
-                    categoryPreferences.categories[id].showInDropdown = checkbox.checked;
-                    saveCategoryPreferences();
-                });
-            }
+            // Add checkbox functionality for both dropdown and tag navigation
+            const dropdownCheckbox = categoryItem.querySelector('.category-dropdown-checkbox');
+            const tagsCheckbox = categoryItem.querySelector('.category-tags-checkbox');
+            
+            dropdownCheckbox.addEventListener('change', () => {
+                // Update preferences
+                if (!categoryPreferences.categories) {
+                    categoryPreferences.categories = {};
+                }
+                if (!categoryPreferences.categories[id]) {
+                    categoryPreferences.categories[id] = {};
+                }
+                categoryPreferences.categories[id].showInDropdown = dropdownCheckbox.checked;
+                saveCategoryPreferences();
+                
+                // Update dropdown UI immediately
+                updateCategoryDropdown();
+            });
+            
+            tagsCheckbox.addEventListener('change', () => {
+                // Update preferences
+                if (!categoryPreferences.categories) {
+                    categoryPreferences.categories = {};
+                }
+                if (!categoryPreferences.categories[id]) {
+                    categoryPreferences.categories[id] = {};
+                }
+                categoryPreferences.categories[id].showInTagNavigation = tagsCheckbox.checked;
+                saveCategoryPreferences();
+                
+                // Update tag navigation UI immediately
+                updateTagNavigation();
+            });
             
             // Add reorder functionality
             categoryItem.querySelector('.category-up-btn').addEventListener('click', () => {
@@ -6522,10 +6588,16 @@
                         // Generate ID from name
                         const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
                         
+                        // Get checkbox states
+                        const dropdownCheckbox = item.querySelector('.category-dropdown-checkbox');
+                        const tagsCheckbox = item.querySelector('.category-tags-checkbox');
+                        
                         categories.push({
                             id: id,
                             name: name,
-                            order: index
+                            order: index,
+                            showInDropdown: dropdownCheckbox ? dropdownCheckbox.checked : true,
+                            showInTagNavigation: tagsCheckbox ? tagsCheckbox.checked : true
                         });
                     }
                 });
@@ -6574,7 +6646,18 @@
                 
                 const serverCategories = await response.json();
                 console.log('🏷️ DEBUG: Loaded categories from server:', serverCategories);
-                return serverCategories;
+                
+                // Migration: Add showInTagNavigation property for backward compatibility
+                const migratedCategories = serverCategories.map(category => {
+                    if (category.showInTagNavigation === undefined) {
+                        // Default to same value as showInDropdown for backward compatibility
+                        category.showInTagNavigation = category.showInDropdown !== undefined ? category.showInDropdown : true;
+                        console.log(`🔄 MIGRATION: Added showInTagNavigation=${category.showInTagNavigation} to category ${category.id}`);
+                    }
+                    return category;
+                });
+                
+                return migratedCategories;
             } catch (error) {
                 console.warn('🏷️ WARNING: Error loading categories from server:', error);
                 return [];
