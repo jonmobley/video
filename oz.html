@@ -1,3 +1,28 @@
+<!--
+==============================================================================
+                          OZ DANCE VIDEOS PAGE
+==============================================================================
+
+This page displays Grace's dance videos from Oz performances with:
+- Dynamic video player integration (Wistia)
+- Category-based filtering and tag navigation
+- Admin functionality for content management
+- Responsive design for desktop, tablet, and mobile
+- SEO optimization with dynamic meta tags
+- Real-time data synchronization with Supabase
+
+Key Features:
+- Video grid with lazy loading
+- Category dropdown and tag filtering
+- Admin mode for adding/editing videos and categories
+- Accent color customization
+- Keyboard shortcuts for admin functions
+- Social media sharing optimization
+
+Author: Grace Church Video Platform
+Last Updated: 2024
+==============================================================================
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +59,15 @@
     <meta name="theme-color" content="var(--accent-color)" id="theme-color-meta">
     <link rel="canonical" href="https://vidsharepro.netlify.app/oz.html" id="canonical-link">
     
-    <!-- Dynamic Meta Tag Loading Script -->
+    <!-- 
+    ========================================================================
+                        DYNAMIC META TAG LOADING SCRIPT
+    ========================================================================
+    This script loads page configuration from Supabase and dynamically
+    updates meta tags for SEO and social media sharing optimization.
+    Runs immediately on page load to ensure proper meta tag values.
+    ======================================================================== 
+    -->
     <script>
         // Load page configuration and update meta tags
         (async function() {
@@ -101,13 +134,29 @@
         })();
     </script>
     
+    <!-- 
+    ========================================================================
+                                 MAIN STYLESHEET
+    ========================================================================
+    Comprehensive CSS for the Oz dance videos page including:
+    - Base styles and CSS reset
+    - Layout and grid system
+    - Video player styling
+    - Navigation and filtering components
+    - Admin interface styling
+    - Responsive design breakpoints
+    - Animation and transition effects
+    ======================================================================== 
+    -->
     <style>
+        /* ===== CSS RESET AND BASE STYLES ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        /* ===== BODY AND BACKGROUND STYLING ===== */
         body {
             background: #0f0f0f;
             color: #ffffff;
@@ -116,6 +165,7 @@
             position: relative;
         }
 
+        /* Background image overlay for desktop - Wizard of Oz themed */
         body::before {
             content: '';
             position: fixed;
@@ -161,12 +211,14 @@
             pointer-events: none;
         }
 
+        /* ===== HEADER AND PAGE TITLE SECTION ===== */
         .header {
             position: relative;
             background: transparent;
             z-index: 100;
         }
 
+        /* ===== VIDEO PLAYER CONTAINER ===== */
         .video-container {
             width: 100%;
             max-width: 1000px;
@@ -452,6 +504,7 @@
 
         /* Video info overlay removed to prevent interference with controls */
 
+        /* ===== NAVIGATION AND FILTERING SECTION ===== */
         .tags-container {
             padding: 24px 16px 12px 16px;
             background: transparent;
@@ -574,6 +627,7 @@
             background: var(--accent-hover);
         }
 
+        /* ===== MAIN CONTENT AREA ===== */
         .content {
             padding: 24px 20px;
             max-width: 1000px;
@@ -582,6 +636,7 @@
             box-sizing: border-box;
         }
 
+        /* ===== VIDEO GRID LAYOUT ===== */
         .video-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -830,7 +885,8 @@
             margin-top: 12px;
         }
 
-        /* Admin Banner Styles */
+        /* ===== ADMIN INTERFACE STYLES ===== */
+        /* Admin banner displayed when in edit mode */
         .admin-banner {
             position: fixed;
             top: 0;
@@ -2411,8 +2467,23 @@
         }
     </style>
 </head>
+
+<!-- 
+========================================================================
+                              HTML BODY STRUCTURE
+========================================================================
+Main page structure with:
+- Admin banner for edit mode
+- Header with logo and page title
+- Video player container
+- Navigation tags and category dropdown
+- Video grid for thumbnails
+- Various popup overlays for admin functions
+======================================================================== 
+-->
 <body>
-    <!-- Admin Banner -->
+    <!-- ===== ADMIN BANNER ===== -->
+    <!-- Displayed when user enters edit mode - contains admin controls -->
     <div class="admin-banner" id="adminBanner" style="display: none;">
         <div class="admin-banner-content">
             <div class="admin-banner-text">
@@ -2434,12 +2505,14 @@
         </div>
     </div>
 
+    <!-- ===== MAIN HEADER SECTION ===== -->
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
             <h1 class="page-title" id="pageTitle" onclick="resetToDefault()" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
         </div>
 
+        <!-- ===== VIDEO PLAYER SECTION ===== -->
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
                 <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
@@ -2453,6 +2526,8 @@
             <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()"></button>
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
+        
+        <!-- ===== NAVIGATION AND FILTERING ===== -->
         <div class="tags-container">
             <div class="categories-dropdown">
                 <select id="categoriesDropdown" class="category-select">
@@ -2467,8 +2542,10 @@
         </div>
     </div>
 
+    <!-- ===== MAIN CONTENT AREA ===== -->
     <div class="content">
-    <div class="video-grid" id="videoGrid">
+        <!-- Video thumbnails grid - populated dynamically -->
+        <div class="video-grid" id="videoGrid">
             <!-- Videos will be loaded dynamically -->
     </div>
 
@@ -2491,6 +2568,8 @@
             </div>
 
     <!-- Login Popup -->
+    <!-- ===== POPUP OVERLAYS ===== -->
+    <!-- Login popup for admin authentication -->
     <div class="login-overlay" id="loginOverlay" style="display: none;">
         <div class="login-popup">
             <h3>Admin Login</h3>
@@ -2506,6 +2585,7 @@
     </div>
 
     <!-- Add Video Popup -->
+    <!-- Add video popup for admin video management -->
     <div class="add-video-overlay" id="addVideoOverlay" style="display: none;">
         <div class="add-video-popup">
             <h3>Add New Video</h3>
@@ -2546,6 +2626,7 @@
     </div>
 
     <!-- Edit Video Popup -->
+    <!-- Edit video popup for modifying existing videos -->
     <div class="edit-video-overlay" id="editVideoOverlay" style="display: none;">
         <div class="edit-video-popup">
             <h3>Edit Video</h3>
@@ -2616,19 +2697,35 @@
     </div>
 
     <!-- Wistia JavaScript API -->
+    <!-- ===== EXTERNAL SCRIPTS ===== -->
+    <!-- Wistia video player API -->
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     
+    <!-- 
+    ========================================================================
+                              MAIN JAVASCRIPT APPLICATION
+    ========================================================================
+    This script handles all page functionality including:
+    - Video player management and Wistia integration
+    - Category and tag filtering system
+    - Admin interface for content management
+    - Data synchronization with Supabase backend
+    - Responsive UI interactions and animations
+    - SEO and social media optimization
+    ======================================================================== 
+    -->
     <script>
+        // ===== GLOBAL VARIABLES AND CONFIGURATION =====
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
-        // Track currently playing video
+        // Track currently playing video for proper cleanup
         let currentlyPlayingVideoId = null;
 
-        // Store video URL mappings
+        // Store video URL mappings for direct video links
         let videoUrlMappings = {};
         
-        // Available category icons
+        // Available category icons for admin interface
         const availableIcons = {
             'music-note': '♪',
             'star': '★',
@@ -2638,12 +2735,18 @@
             'spade': '♠'
         };
         
-        // Category management
+        // Category management arrays
         let categories = [];
         
-        // Global videos array
+        // Global videos array - populated from server
         let videos = [];
 
+        // ===== VIDEO PLAYER MANAGEMENT FUNCTIONS =====
+        
+        /**
+         * Sets the active video in the grid and updates URL
+         * @param {string} wistiaId - The Wistia video ID
+         */
         function setActiveVideo(wistiaId) {
             // Remove active class from all videos
             document.querySelectorAll('.video-item').forEach(item => {
@@ -2725,6 +2828,12 @@
         });
 
         // Function to update category dropdown with icons
+        // ===== CATEGORY AND FILTERING FUNCTIONS =====
+        
+        /**
+         * Updates the category dropdown with available categories
+         * @param {Array} categoriesData - Optional categories data
+         */
         function updateCategoryDropdown(categoriesData = null) {
             const dropdown = document.getElementById('categoriesDropdown');
             if (!dropdown) return;
@@ -2902,32 +3011,8 @@
                 ];
             }
             
-            // Add any additional categories from loaded videos
-            if (window.loadedVideos && window.loadedVideos.length > 0) {
-                const additionalCategories = new Set();
-                
-                // Collect unique categories from loaded videos
-                window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
-                        // Check if it's not already in predefined categories
-                        const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
-                        const isServerCategory = window.serverCategories && window.serverCategories.some(srv => srv.id === video.category);
-                        
-                        if (!isPredefined && !isServerCategory) {
-                            additionalCategories.add(video.category);
-                        }
-                    }
-                });
-                
-                // Add additional categories to the list
-                additionalCategories.forEach(categoryId => {
-                    tagsToShow.push({
-                        id: categoryId,
-                        name: categoryId.charAt(0).toUpperCase() + categoryId.slice(1),
-                        icon: null
-                    });
-                });
-            }
+            // Tag navigation should ONLY show tags, not categories
+            // Categories are handled by the dropdown in the header
             
             // Create tag elements for each tag
             tagsToShow.forEach(tag => {
@@ -3198,6 +3283,12 @@
         }
 
         // Load videos from Netlify Functions
+        // ===== DATA LOADING AND SERVER COMMUNICATION =====
+        
+        /**
+         * Loads videos from the server/database
+         * Handles caching and error recovery
+         */
         async function loadVideosFromServer() {
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
@@ -3266,7 +3357,12 @@
             });
         }
 
-        // Render video grid
+        // ===== VIDEO GRID RENDERING AND UI FUNCTIONS =====
+        
+        /**
+         * Renders the video grid with thumbnails and metadata
+         * @param {Array} videos - Array of video objects to display
+         */
         function renderVideoGrid(videos) {
             const videoGrid = document.getElementById('videoGrid');
             
@@ -3639,7 +3735,10 @@
             }
         }
 
-        // Show error message
+        /**
+         * Displays error message in the video grid area
+         * @param {string} message - Error message to display
+         */
         function showError(message) {
             const videoGrid = document.getElementById('videoGrid');
             videoGrid.innerHTML = `
@@ -3675,7 +3774,11 @@
             }
         }
 
-        // Attach event listeners to video items
+        // ===== EVENT LISTENERS AND USER INTERACTION =====
+        
+        /**
+         * Attaches click and interaction event listeners to video items
+         */
         function attachVideoListeners() {
             const videoItems = document.querySelectorAll('.video-item');
             
@@ -3947,7 +4050,23 @@
             }
         }
 
-        // Initialize
+        // ===== PAGE INITIALIZATION AND STARTUP =====
+        
+        /**
+         * Main page initialization function
+         * Runs when DOM is fully loaded and sets up all page functionality
+         * 
+         * Initialization sequence:
+         * 1. Load page configuration (colors, meta tags)
+         * 2. Load category preferences from localStorage
+         * 3. Refresh categories from server
+         * 4. Update category dropdown
+         * 5. Update tag navigation
+         * 6. Load videos from server
+         * 7. Attach event listeners
+         * 8. Check for direct video links
+         * 9. Setup admin functionality
+         */
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 =================================');
             console.log('🚀 OZ PAGE INITIALIZATION STARTING');
@@ -3998,6 +4117,10 @@
         // Auto-refresh removed to prevent flickering
 
         // Handle page visibility
+        /**
+         * Handle page visibility changes (tab switching)
+         * Pauses videos when page becomes hidden
+         */
         document.addEventListener('visibilitychange', () => {
             if (currentWistiaVideo && document.hidden) {
                 currentWistiaVideo.pause();
@@ -4264,6 +4387,11 @@
         // Unsaved changes tracking
         let hasUnsavedChanges = false;
 
+        // ===== ADMIN STATE MANAGEMENT =====
+        
+        /**
+         * Marks that there are unsaved changes and shows indicator
+         */
         function markUnsavedChanges() {
             hasUnsavedChanges = true;
             document.getElementById('unsavedIndicator').classList.add('show');
@@ -4275,6 +4403,10 @@
         }
 
         // Keyboard shortcuts
+        /**
+         * Global keyboard shortcuts handler
+         * Supports admin shortcuts like Ctrl+S, Ctrl+A, Esc, etc.
+         */
         document.addEventListener('keydown', function(e) {
             // Only handle shortcuts in edit mode
             if (!isEditMode) {
@@ -5213,6 +5345,10 @@
         }
 
         // Save all changes functionality
+        /**
+         * Saves all pending changes to the server
+         * Handles videos, categories, and page configuration
+         */
         async function saveAllChanges() {
             const saveBtn = document.getElementById('adminSaveBtn');
             const originalText = saveBtn.textContent;
