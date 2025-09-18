@@ -6482,15 +6482,8 @@
         }
 
         // Initialize category navigation on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add click handlers to navigation tags
-            document.querySelectorAll('.tag[data-category]').forEach(tag => {
-                tag.addEventListener('click', function() {
-                    const category = this.dataset.category;
-                    activateCategory(category);
-                });
-            });
-        });
+        // Note: Tag click handlers are now added in attachTagListeners() function
+        // which is called from the main DOMContentLoaded listener
 
         // ========================================
         // CATEGORY MANAGEMENT FUNCTIONS
