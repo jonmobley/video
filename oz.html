@@ -1794,7 +1794,7 @@
             content: '';
             width: 0;
             height: 0;
-            border-left: 18px solid rgba(255, 255, 255, 0.9);
+            border-left: 18px solid white;
             border-top: 12px solid transparent;
             border-bottom: 12px solid transparent;
             margin-left: 4px;
@@ -3725,6 +3725,14 @@
             
             const shadowColor = hexToRgba(color, 0.3);
             root.style.setProperty('--accent-shadow', shadowColor);
+            
+            // Calculate medium variant (for play button background)
+            const mediumColor = hexToRgba(color, 0.2);
+            root.style.setProperty('--accent-medium', mediumColor);
+            
+            // Calculate heavy variant (for play button hover)
+            const heavyColor = hexToRgba(color, 0.4);
+            root.style.setProperty('--accent-heavy', heavyColor);
             
             // Update meta theme color
             document.getElementById('theme-color-meta').content = color;
