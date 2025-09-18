@@ -33,30 +33,48 @@
             color: #ffffff;
         }
 
-        .video-container {
+        .video-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-modal.active {
+            display: flex;
+        }
+
+        .video-modal-content {
+            width: 90%;
             max-width: 1000px;
             aspect-ratio: 16/9;
-            background: #1a1a1a;
+            background: #000;
             border-radius: 12px;
             overflow: hidden;
-            margin: 20px auto;
-            box-shadow: 0 12px 25px -5px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .video-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
         }
 
         .wistia-player {
             width: 100%;
             height: 100%;
-        }
-
-        .video-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-            color: #666;
         }
 
         .tags-container {
@@ -178,9 +196,6 @@
             .page-title {
                 font-size: 24px;
             }
-            .video-container {
-                margin: 15px 20px;
-            }
             .content {
                 padding: 15px 20px 40px;
             }
@@ -194,13 +209,6 @@
     <div class="header">
         <h1 class="page-title">DISC Heroes</h1>
         
-        <div class="video-container">
-            <div class="wistia-player" id="wistia-player">
-                <div class="video-placeholder">
-                    <div>Click a video below to start watching</div>
-                </div>
-            </div>
-        </div>
 
         <div class="tags-container">
             <div class="tags">
@@ -296,21 +304,59 @@
         </div>
     </div>
 
+    <!-- Video Modal -->
+    <div class="video-modal" id="video-modal">
+        <div class="video-modal-content">
+            <button class="video-close" onclick="closeVideo()">×</button>
+            <div class="wistia-player" id="wistia-player"></div>
+        </div>
+    </div>
+
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     <script>
         function loadWistiaVideo(wistiaId, title) {
             const videoContainer = document.getElementById('wistia-player');
-            videoContainer.innerHTML = \`<div id="wistia_\${wistiaId}" class="wistia_embed wistia_async_\${wistiaId}" style="height:100%;width:100%">&nbsp;</div>\`;
+            const modal = document.getElementById('video-modal');
             
+            // Clear existing video
+            videoContainer.innerHTML = '';
+            
+            // Create new Wistia embed
+            videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+            
+            // Show modal
+            modal.classList.add('active');
+            
+            // Set active video styling
             document.querySelectorAll('.video-item').forEach(item => item.classList.remove('active'));
-            document.querySelector(\`[data-wistia="\${wistiaId}"]\`).classList.add('active');
+            document.querySelector(`[data-wistia="${wistiaId}"]`).classList.add('active');
+            
+            // Initialize Wistia if available
+            if (window.Wistia) {
+                window.Wistia.api(wistiaId, function(video) {
+                    console.log('Wistia video ready:', wistiaId);
+                });
+            }
+        }
+
+        function closeVideo() {
+            const modal = document.getElementById('video-modal');
+            const videoContainer = document.getElementById('wistia-player');
+            
+            // Hide modal
+            modal.classList.remove('active');
+            
+            // Clear video
+            videoContainer.innerHTML = '';
+            
+            // Remove active styling
+            document.querySelectorAll('.video-item').forEach(item => item.classList.remove('active'));
         }
 
         function attachVideoListeners() {
             document.querySelectorAll('.video-item').forEach(item => {
                 item.addEventListener('click', () => {
                     loadWistiaVideo(item.dataset.wistia, item.dataset.title);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 });
             });
         }
@@ -333,14 +379,24 @@
             });
         }
 
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('video-modal');
+            if (e.target === modal) {
+                closeVideo();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeVideo();
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             attachVideoListeners();
             attachTagListeners();
-            
-            const firstVideo = document.querySelector('.video-item');
-            if (firstVideo) {
-                loadWistiaVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
-            }
         });
     </script>
 </body>
