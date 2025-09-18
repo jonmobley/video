@@ -2418,9 +2418,7 @@
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
                 <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <div class="tag" data-category="dancers">Dancers</div>
-                <div class="tag" data-category="kids">Kids</div>
-                <div class="tag" data-category="chorus">Chorus</div>
+                <!-- Tags will be populated dynamically -->
             </div>
         </div>
     </div>
@@ -2682,8 +2680,8 @@
             checkForDirectVideoLink();
         });
 
-        // Function to update categories dropdown with icons
-        function updateCategoriesDropdown(categoriesData = null) {
+        // Function to update category dropdown with icons
+        function updateCategoryDropdown(categoriesData = null) {
             const dropdown = document.getElementById('categoriesDropdown');
             if (!dropdown) return;
             
@@ -2733,6 +2731,32 @@
                 }
             });
             
+            // Add any additional categories from loaded videos (same logic as edit popup)
+            if (window.loadedVideos && window.loadedVideos.length > 0) {
+                const additionalCategories = new Set();
+                
+                // Collect unique categories from loaded videos
+                window.loadedVideos.forEach(video => {
+                    if (video.category && video.category !== 'all') {
+                        // Check if it's not already in predefined categories
+                        const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
+                        const isServerCategory = window.serverCategories && window.serverCategories.some(srv => srv.id === video.category);
+                        
+                        if (!isPredefined && !isServerCategory) {
+                            additionalCategories.add(video.category);
+                        }
+                    }
+                });
+                
+                // Add additional categories to dropdown
+                additionalCategories.forEach(categoryId => {
+                    const option = document.createElement('option');
+                    option.value = categoryId;
+                    option.textContent = categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
+                    dropdown.appendChild(option);
+                });
+            }
+            
             // Add any additional categories from video data (future enhancement)
             if (categoriesData && categoriesData.length > 0) {
                 categoriesData.forEach(category => {
@@ -2748,6 +2772,145 @@
                     }
                 });
             }
+            
+            // Add change event listener to handle category filtering
+            dropdown.removeEventListener('change', handleCategoryDropdownChange); // Remove existing listener if any
+            dropdown.addEventListener('change', handleCategoryDropdownChange);
+        }
+        
+        // Handle category dropdown change
+        function handleCategoryDropdownChange(event) {
+            const selectedCategory = event.target.value;
+            console.log('Header dropdown changed to:', selectedCategory);
+            
+            // Use the same filtering logic as the tag system
+            activateCategory(selectedCategory);
+            
+            // Update the corresponding tag to be active
+            document.querySelectorAll('.tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            
+            const correspondingTag = document.querySelector(`[data-category="${selectedCategory}"]`);
+            if (correspondingTag) {
+                correspondingTag.classList.add('active');
+            } else {
+                // If no corresponding tag found, activate "All"
+                const allTag = document.querySelector('[data-category="all"]');
+                if (allTag) {
+                    allTag.classList.add('active');
+                }
+            }
+        }
+        
+        // Function to populate tag navigation dynamically
+        function updateTagNavigation() {
+            const tagsContainer = document.querySelector('.tags');
+            if (!tagsContainer) return;
+            
+            // Keep the "All" tag and add button, remove others
+            const allTag = tagsContainer.querySelector('[data-category="all"]');
+            const addBtn = tagsContainer.querySelector('#addCategoryBtn');
+            
+            // Remove all dynamic tags (keep All and + button)
+            const existingTags = tagsContainer.querySelectorAll('.tag:not([data-category="all"]):not(#addCategoryBtn)');
+            existingTags.forEach(tag => tag.remove());
+            
+            // Get categories from server first, then fall back to predefined
+            let categoriesToShow = [];
+            
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories (excluding 'all' and 'all-songs')
+                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all' && cat.id !== 'all-songs');
+            } else {
+                // Fall back to predefined categories (excluding 'all-songs')
+                categoriesToShow = predefinedCategories.filter(category => {
+                    if (category.id === 'all-songs' || category.id === 'all') return false;
+                    
+                    // Check if this category should be shown in navigation
+                    let showInDropdown = category.showInDropdown;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                        showInDropdown = categoryPreferences.categories[category.id].showInDropdown;
+                    }
+                    
+                    return showInDropdown;
+                });
+            }
+            
+            // Add any additional categories from loaded videos
+            if (window.loadedVideos && window.loadedVideos.length > 0) {
+                const additionalCategories = new Set();
+                
+                // Collect unique categories from loaded videos
+                window.loadedVideos.forEach(video => {
+                    if (video.category && video.category !== 'all') {
+                        // Check if it's not already in predefined categories
+                        const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
+                        const isServerCategory = window.serverCategories && window.serverCategories.some(srv => srv.id === video.category);
+                        
+                        if (!isPredefined && !isServerCategory) {
+                            additionalCategories.add(video.category);
+                        }
+                    }
+                });
+                
+                // Add additional categories to the list
+                additionalCategories.forEach(categoryId => {
+                    categoriesToShow.push({
+                        id: categoryId,
+                        name: categoryId.charAt(0).toUpperCase() + categoryId.slice(1),
+                        icon: null
+                    });
+                });
+            }
+            
+            // Create tag elements for each category
+            categoriesToShow.forEach(category => {
+                const newTag = document.createElement('div');
+                newTag.className = 'tag';
+                newTag.setAttribute('data-category', category.id);
+                
+                // Add icon if available
+                const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
+                newTag.textContent = icon + category.name;
+                
+                // Add event listeners
+                newTag.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Debounce rapid clicks
+                    if (categoryClickTimeout) {
+                        clearTimeout(categoryClickTimeout);
+                    }
+                    
+                    // Prevent overlapping filter operations
+                    if (isFilteringInProgress) {
+                        return;
+                    }
+                    
+                    categoryClickTimeout = setTimeout(() => {
+                        const category = newTag.dataset.category;
+                        activateCategory(category);
+                    }, 50); // Small debounce delay
+                });
+                
+                // Add drag functionality if in edit mode
+                if (isEditMode) {
+                    newTag.draggable = true;
+                    newTag.addEventListener('dragstart', handleCategoryDragStart);
+                    newTag.addEventListener('dragover', handleCategoryDragOver);
+                    newTag.addEventListener('drop', handleCategoryDrop);
+                    newTag.addEventListener('dragend', handleCategoryDragEnd);
+                }
+                
+                // Insert before the add button
+                tagsContainer.insertBefore(newTag, addBtn);
+            });
+            
+            console.log('Tag navigation updated with', categoriesToShow.length, 'categories');
         }
 
         // Function to get icon HTML for admin interface
@@ -2939,7 +3102,7 @@
                     renderVideoGrid(videos);
                     
                     // Hide categories dropdown if all videos have 'all' category
-                    hideCategoriesDropdownIfAllVideosAreAll(videos);
+                    hideCategoryDropdownIfAllVideosAreAll(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
                     showError('Failed to load videos from server');
@@ -3359,14 +3522,14 @@
             `;
         }
 
-        // Hide categories dropdown if all videos have 'all' category
-        function hideCategoriesDropdownIfAllVideosAreAll(videos) {
-            const categoriesDropdown = document.querySelector('.categories-dropdown');
-            if (!categoriesDropdown) return;
+        // Hide category dropdown if all videos have 'all' category
+        function hideCategoryDropdownIfAllVideosAreAll(videos) {
+            const categoryDropdown = document.querySelector('.categories-dropdown');
+            if (!categoryDropdown) return;
             
             // If no videos, show the dropdown
             if (!videos || videos.length === 0) {
-                categoriesDropdown.style.display = 'flex';
+                categoryDropdown.style.display = 'flex';
                 return;
             }
             
@@ -3376,11 +3539,11 @@
             );
             
             if (allVideosHaveAllCategory) {
-                categoriesDropdown.style.display = 'none';
-                console.log('Categories dropdown hidden: all videos have "all" category');
+                categoryDropdown.style.display = 'none';
+                console.log('Category dropdown hidden: all videos have "all" category');
             } else {
-                categoriesDropdown.style.display = 'flex';
-                console.log('Categories dropdown shown: videos have different categories');
+                categoryDropdown.style.display = 'flex';
+                console.log('Category dropdown shown: videos have different categories');
             }
         }
 
@@ -3429,31 +3592,41 @@
         let categoryClickTimeout = null;
         let isFilteringInProgress = false;
 
-        // Tag filtering - consolidated to use single filtering mechanism
+        // Tag filtering - attach listeners only to static tags (like "All")
+        // Dynamic tags get their listeners in updateTagNavigation()
         function attachTagListeners() {
-            const tags = document.querySelectorAll('.tag');
+            // Only attach to the "All" tag and add button which are static in HTML
+            const staticTags = document.querySelectorAll('.tag[data-category="all"], .tag.add-category-btn');
             
-            tags.forEach(tag => {
-                tag.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Debounce rapid clicks
-                    if (categoryClickTimeout) {
-                        clearTimeout(categoryClickTimeout);
-                    }
-                    
-                    // Prevent overlapping filter operations
-                    if (isFilteringInProgress) {
-                        return;
-                    }
-                    
-                    categoryClickTimeout = setTimeout(() => {
-                        const category = tag.dataset.category;
-                        activateCategory(category);
-                    }, 50); // Small debounce delay
-                });
+            staticTags.forEach(tag => {
+                // Skip if it's the add button
+                if (tag.classList.contains('add-category-btn')) return;
+                
+                // Remove any existing listeners to prevent duplicates
+                tag.removeEventListener('click', handleTagClick);
+                tag.addEventListener('click', handleTagClick);
             });
+        }
+        
+        // Separate function for tag click handling to avoid duplicates
+        function handleTagClick(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Debounce rapid clicks
+            if (categoryClickTimeout) {
+                clearTimeout(categoryClickTimeout);
+            }
+            
+            // Prevent overlapping filter operations
+            if (isFilteringInProgress) {
+                return;
+            }
+            
+            categoryClickTimeout = setTimeout(() => {
+                const category = this.dataset.category;
+                activateCategory(category);
+            }, 50); // Small debounce delay
         }
 
         /**
@@ -3478,26 +3651,11 @@
                 const response = await fetch('/.netlify/functions/get-page-config?page=oz');
                 if (response.ok) {
                     const config = await response.json();
-                    if (config.accent_color) {
-                        // Update CSS variables
-                        const root = document.documentElement;
-                        root.style.setProperty('--accent-color', config.accent_color);
-                        
-                        // Calculate hover color (slightly darker)
-                        const hoverColor = darkenColor(config.accent_color, 0.1);
-                        root.style.setProperty('--accent-hover', hoverColor);
-                        
-                        // Calculate light variant
-                        const lightColor = hexToRgba(config.accent_color, 0.1);
-                        root.style.setProperty('--accent-light', lightColor);
-                        
-                        // Calculate shadow variant
-                        const shadowColor = hexToRgba(config.accent_color, 0.3);
-                        root.style.setProperty('--accent-shadow', shadowColor);
-                        
-                        // Update meta theme color
-                        document.getElementById('theme-color-meta').content = config.accent_color;
-                    }
+                    console.log('🎨 DEBUG: Loaded page config:', config);
+                    // Set accent color (use server config or default)
+                    const accentColor = config.accent_color || '#008f67';
+                    console.log('🎨 DEBUG: Setting accent color to:', accentColor);
+                    applyAccentColor(accentColor);
                     
                     if (config.page_title) {
                         document.getElementById('pageTitle').textContent = config.page_title;
@@ -3508,12 +3666,16 @@
                         loadPageTitle();
                     }
                 } else {
-                    // If server request fails, try localStorage
+                    // If server request fails, use defaults
+                    console.log('🎨 DEBUG: Server request failed, using default accent color');
+                    applyAccentColor('#008f67');
                     loadPageTitle();
                 }
             } catch (error) {
                 console.error('Failed to load page config:', error);
-                // If server is unreachable, try localStorage
+                // If server is unreachable, use defaults
+                console.log('🎨 DEBUG: Server unreachable, using default accent color');
+                applyAccentColor('#008f67');
                 loadPageTitle();
             }
         }
@@ -3550,6 +3712,7 @@
          * @param {string} color - Hex color value
          */
         function applyAccentColor(color) {
+            console.log('🎨 DEBUG: applyAccentColor called with:', color);
             const root = document.documentElement;
             root.style.setProperty('--accent-color', color);
             
@@ -3568,6 +3731,63 @@
         }
 
         /**
+         * DEBUG: Test function to check current color state
+         * Call this from browser console: window.debugAccentColor()
+         */
+        window.debugAccentColor = async function() {
+            console.log('🎨 Current CSS accent color:', getComputedStyle(document.documentElement).getPropertyValue('--accent-color'));
+            console.log('🎨 Admin panel color input:', document.getElementById('adminAccentColorText')?.value);
+            console.log('🎨 Admin panel color picker:', document.getElementById('adminAccentColor')?.value);
+            
+            // Test loading from server
+            try {
+                const response = await fetch('/.netlify/functions/get-page-config?page=oz');
+                const config = await response.json();
+                console.log('🎨 Server config:', config);
+            } catch (error) {
+                console.error('🎨 Error loading server config:', error);
+            }
+        };
+
+        /**
+         * DEBUG: Force save accent color
+         * Call this from browser console: window.forceSaveAccentColor('#008f67')
+         */
+        window.forceSaveAccentColor = async function(color = '#008f67') {
+            console.log('🎨 Force saving accent color:', color);
+            try {
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        page: 'oz',
+                        accent_color: color
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('🎨 Force save successful:', result);
+                    // Apply the color immediately
+                    applyAccentColor(color);
+                    // Update admin panel inputs
+                    if (document.getElementById('adminAccentColorText')) {
+                        document.getElementById('adminAccentColorText').value = color;
+                    }
+                    if (document.getElementById('adminAccentColor')) {
+                        document.getElementById('adminAccentColor').value = color;
+                    }
+                } else {
+                    console.error('🎨 Force save failed:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('🎨 Force save error:', error);
+            }
+        };
+
+        /**
          * Load current accent color from server for admin panel
          */
         async function loadCurrentAccentColor() {
@@ -3575,26 +3795,35 @@
                 const response = await fetch('/.netlify/functions/get-page-config?page=oz');
                 if (response.ok) {
                     const config = await response.json();
-                    if (config.accent_color) {
-                        document.getElementById('adminAccentColor').value = config.accent_color;
-                        document.getElementById('adminAccentColorText').value = config.accent_color;
-                    }
+                    const accentColor = config.accent_color || '#008f67';
+                    document.getElementById('adminAccentColor').value = accentColor;
+                    document.getElementById('adminAccentColorText').value = accentColor;
+                } else {
+                    // Server request failed, use default
+                    document.getElementById('adminAccentColor').value = '#008f67';
+                    document.getElementById('adminAccentColorText').value = '#008f67';
                 }
             } catch (error) {
                 console.error('Failed to load current accent color:', error);
+                // Server unreachable, use default
+                document.getElementById('adminAccentColor').value = '#008f67';
+                document.getElementById('adminAccentColorText').value = '#008f67';
             }
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🎨 DEBUG: Page loading, about to load page config...');
             // Load page config first to set colors
             await loadPageConfig();
+            console.log('🎨 DEBUG: Page config loaded, current accent color:', getComputedStyle(document.documentElement).getPropertyValue('--accent-color'));
             // Load category preferences (including custom "All" label)
             loadCategoryPreferences();
             // Load categories from server
             await refreshCategoriesFromServer();
-            // Initialize categories dropdown
-            updateCategoriesDropdown();
+            // Initialize category dropdown and tag navigation
+            updateCategoryDropdown();
+            updateTagNavigation();
             loadVideosFromServer();
             attachTagListeners();
         });
@@ -4602,7 +4831,7 @@
                 const currentVideos = Array.from(allVideoElements).map(element => ({
                     category: element.dataset.category || 'all'
                 }));
-                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+                hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                 
                 // Remove dialog
                 document.body.removeChild(dialog);
@@ -4688,7 +4917,7 @@
                 const currentVideos = Array.from(allVideoElements).map(element => ({
                     category: element.dataset.category || 'all'
                 }));
-                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+                hideCategoryDropdownIfAllVideosAreAll(currentVideos);
             }, 300);
         }
         
@@ -4897,6 +5126,7 @@
                 
                 // Save accent color if it has changed
                 const currentAccentColor = document.getElementById('adminAccentColorText').value;
+                console.log('🎨 DEBUG: Attempting to save accent color:', currentAccentColor);
                 if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
                     try {
                         const colorResponse = await fetch('/.netlify/functions/save-page-config', {
@@ -4911,7 +5141,10 @@
                         });
                         
                         if (colorResponse.ok) {
-                            console.log('Successfully saved accent color');
+                            const savedConfig = await colorResponse.json();
+                            console.log('🎨 DEBUG: Successfully saved accent color:', savedConfig);
+                        } else {
+                            console.error('🎨 DEBUG: Failed to save accent color - Response not OK:', colorResponse.status, colorResponse.statusText);
                         }
                     } catch (colorError) {
                         console.error('Failed to save accent color:', colorError);
@@ -5415,7 +5648,7 @@
                     const currentVideos = Array.from(allVideoElements).map(element => ({
                         category: element.dataset.category || 'all'
                     }));
-                    hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+                    hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                     
                     // Close popup
                     document.getElementById('editVideoOverlay').style.display = 'none';
@@ -5798,7 +6031,7 @@
                 const currentVideos = Array.from(allVideoElements).map(element => ({
                     category: element.dataset.category || 'all'
                 }));
-                hideCategoriesDropdownIfAllVideosAreAll(currentVideos);
+                hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                 console.log('🎬 DEBUG: Dropdown visibility updated successfully');
             } catch (error) {
                 console.error('🎬 ERROR: Failed to update dropdown visibility:', error);
@@ -5940,6 +6173,16 @@
                         currentActiveCategory = 'all';
                         categoryName = 'all';
                     }
+                }
+                
+                // Update the header dropdown to match the selected category
+                const dropdown = document.getElementById('categoriesDropdown');
+                if (dropdown) {
+                    // Temporarily remove event listener to prevent recursion
+                    dropdown.removeEventListener('change', handleCategoryDropdownChange);
+                    dropdown.value = categoryName;
+                    // Re-add event listener
+                    dropdown.addEventListener('change', handleCategoryDropdownChange);
                 }
                 
                 // Filter videos based on tags - use consistent method
@@ -6289,8 +6532,11 @@
                 // Update the "All" tag text
                 updateAllTagLabel();
                 
-                // Update the categories dropdown to reflect changes
-                updateCategoriesDropdown();
+                // Update the category dropdown to reflect changes
+                updateCategoryDropdown();
+                
+                // Update the tag navigation to reflect changes
+                updateTagNavigation();
                 
                 // Also update the Add Video category dropdown
                 populateAddCategoryDropdown();
@@ -6378,7 +6624,8 @@
                 window.serverCategories = serverCategories;
                 
                 // Refresh all category-related UI elements
-                updateCategoriesDropdown();
+                updateCategoryDropdown();
+                updateTagNavigation();
                 populateAddCategoryDropdown();
                 populateEditCategoryDropdown();
                 
