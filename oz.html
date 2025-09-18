@@ -2851,8 +2851,13 @@
         
         // Function to populate tag navigation dynamically
         function updateTagNavigation() {
+            console.log('🏷️ === UPDATING TAG NAVIGATION ===');
             const tagsContainer = document.querySelector('.tags');
-            if (!tagsContainer) return;
+            if (!tagsContainer) {
+                console.error('❌ Tags container not found! Cannot update navigation.');
+                return;
+            }
+            console.log('✅ Tags container found:', tagsContainer);
             
             // Keep the "All" tag and add button, remove others
             const allTag = tagsContainer.querySelector('[data-category="all"]');
@@ -3200,11 +3205,13 @@
         // Load videos from Netlify Functions
         async function loadVideosFromServer() {
             try {
-                console.log('Loading videos from server...');
+                console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
+                console.log('🎬 Making API call to: /.netlify/functions/get-videos?page=oz');
                 const response = await fetch('/.netlify/functions/get-videos?page=oz');
                 if (response.ok) {
                     videos = await response.json();
-                    console.log('Videos loaded:', videos);
+                    console.log('✅ Videos loaded successfully:', videos.length, 'videos');
+                    console.log('🎬 Video data sample:', videos.slice(0, 2));
                     
                     // Check if there's a featured video saved
                     const featuredVideo = videos.find(v => v.featured === true);
@@ -3232,7 +3239,9 @@
                     showError('Failed to load videos from server');
                 }
             } catch (error) {
-                console.log('Server not available:', error);
+                console.error('❌ FAILED TO LOAD VIDEOS:', error);
+                console.error('❌ Error details:', error.message);
+                console.error('❌ This will result in empty video grid!');
                 showError('Videos temporarily unavailable');
             }
         }
@@ -3945,19 +3954,50 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🎨 DEBUG: Page loading, about to load page config...');
-            // Load page config first to set colors
-            await loadPageConfig();
-            console.log('🎨 DEBUG: Page config loaded, current accent color:', getComputedStyle(document.documentElement).getPropertyValue('--accent-color'));
-            // Load category preferences (including custom "All" label)
-            loadCategoryPreferences();
-            // Load categories from server
-            await refreshCategoriesFromServer();
-            // Initialize category dropdown and tag navigation
-            updateCategoryDropdown();
-            updateTagNavigation();
-            loadVideosFromServer();
-            attachTagListeners();
+            console.log('🚀 =================================');
+            console.log('🚀 OZ PAGE INITIALIZATION STARTING');
+            console.log('🚀 =================================');
+            
+            try {
+                console.log('🎨 Step 1: Loading page config...');
+                await loadPageConfig();
+                console.log('✅ Step 1 Complete: Page config loaded');
+                console.log('🎨 Current accent color:', getComputedStyle(document.documentElement).getPropertyValue('--accent-color'));
+                
+                console.log('🏷️ Step 2: Loading category preferences...');
+                loadCategoryPreferences();
+                console.log('✅ Step 2 Complete: Category preferences loaded');
+                
+                console.log('🏷️ Step 3: Refreshing categories from server...');
+                await refreshCategoriesFromServer();
+                console.log('✅ Step 3 Complete: Categories refreshed from server');
+                
+                console.log('📋 Step 4: Updating category dropdown...');
+                updateCategoryDropdown();
+                console.log('✅ Step 4 Complete: Category dropdown updated');
+                
+                console.log('🏷️ Step 5: Updating tag navigation...');
+                updateTagNavigation();
+                console.log('✅ Step 5 Complete: Tag navigation updated');
+                
+                console.log('🎬 Step 6: Loading videos from server...');
+                loadVideosFromServer();
+                console.log('✅ Step 6 Initiated: Video loading started');
+                
+                console.log('🎯 Step 7: Attaching tag listeners...');
+                attachTagListeners();
+                console.log('✅ Step 7 Complete: Tag listeners attached');
+                
+                console.log('🚀 =================================');
+                console.log('🚀 OZ PAGE INITIALIZATION COMPLETE');
+                console.log('🚀 =================================');
+                
+            } catch (error) {
+                console.error('❌ CRITICAL INITIALIZATION ERROR:', error);
+                console.error('❌ Error details:', error.message);
+                console.error('❌ Stack trace:', error.stack);
+                console.error('❌ This error prevented page data from loading!');
+            }
         });
 
         // Auto-refresh removed to prevent flickering
@@ -6138,12 +6178,10 @@
                 if (title.length > 100) {
                     throw new Error('Video title must be less than 100 characters');
                 }
-            
-            // Collect selected tags
-            const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
-                .map(tag => tag.dataset.tagId);
-            
-            try {
+                
+                // Collect selected tags
+                const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
+                    .map(tag => tag.dataset.tagId);
                 console.log('🎬 DEBUG: About to add video to grid:', { wistiaId, title, category, tags: selectedTags });
                 
                 // Add video to grid
