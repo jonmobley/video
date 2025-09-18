@@ -2921,7 +2921,7 @@
                 
                 // Add additional categories to the list
                 additionalCategories.forEach(categoryId => {
-                    categoriesToShow.push({
+                    tagsToShow.push({
                         id: categoryId,
                         name: categoryId.charAt(0).toUpperCase() + categoryId.slice(1),
                         icon: null
@@ -2972,7 +2972,7 @@
                 tagsContainer.insertBefore(newTag, addBtn);
             });
             
-            console.log('Tag navigation updated with', categoriesToShow.length, 'categories');
+            console.log('Tag navigation updated with', tagsToShow.length, 'tags');
         }
 
         // Function to get icon HTML for admin interface
