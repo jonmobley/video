@@ -3048,10 +3048,10 @@
             
             if (videosToDisplay.length === 0 && videos.length === 0) {
                 videoGrid.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #666;">
-                        <h3>No videos yet</h3>
-                        <p>Use the admin panel to add dance instruction videos</p>
-                        <a href="/admin.html" style="color: var(--accent-color); text-decoration: none; margin-top: 12px; display: inline-block;">Go to Admin Panel</a>
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;">
+                        <h3 style="margin: 0 0 16px 0; font-size: 1.5rem; color: #999;">No videos yet</h3>
+                        <p style="margin: 0 0 20px 0; font-size: 1rem; line-height: 1.5;">Use the admin panel to add dance instruction videos</p>
+                        <a href="/admin.html" style="color: var(--accent-color); text-decoration: none; padding: 12px 24px; border: 2px solid var(--accent-color); border-radius: 8px; font-weight: 500; transition: all 0.2s ease; display: inline-block;" onmouseover="this.style.backgroundColor='var(--accent-color)'; this.style.color='white';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--accent-color)';">Go to Admin Panel</a>
                     </div>
                 `;
                 return;
