@@ -231,8 +231,20 @@
                 0 0 20px rgba(0, 0, 0, 0.1);
         }
 
-        .video-container:hover .video-title-overlay {
+        .video-container:hover .video-title-overlay,
+        .video-container.active .video-title-overlay {
             opacity: 1;
+        }
+        
+        /* Show title overlay briefly when video loads, then fade to hover-only */
+        .video-container.active .video-title-overlay {
+            animation: titleFadeIn 3s ease-in-out;
+        }
+        
+        @keyframes titleFadeIn {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         /* Mobile title below video player */
@@ -250,7 +262,7 @@
         }
 
         /* Hide overlay title on mobile, show below-player title */
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .video-title-overlay {
                 display: none !important;
             }
@@ -720,7 +732,7 @@
         }
 
         /* Hide login link on mobile */
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
             .login-link {
                 display: none;
             }
@@ -2068,6 +2080,16 @@
         .hidden {
             display: none;
         }
+        
+        /* Smooth filtering animations */
+        .video-item {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .video-item.filtering-out {
+            opacity: 0;
+            transform: scale(0.95);
+        }
 
         /* Mobile styles */
         @media screen and (max-width: 767px) {
@@ -2963,16 +2985,22 @@
 
 
         function stopVideoAndClosePlayer() {
-            console.log('Stopping video and closing player');
+            console.log('🛑 Stopping video and closing player');
             
             // Stop the current Wistia video if it exists
             if (window.Wistia && currentlyPlayingVideoId) {
                 const video = window.Wistia.api(`wistia_${currentlyPlayingVideoId}`);
                 if (video) {
+                    console.log('⏹️ Pausing and resetting video:', currentlyPlayingVideoId);
                     video.pause();
                     video.time(0); // Reset to beginning
+                } else {
+                    console.log('⚠️ Video API not found for:', currentlyPlayingVideoId);
                 }
             }
+            
+            // Clear current video reference
+            currentWistiaVideo = null;
             
             // Hide the video container with smooth animation
             const videoContainerElement = document.querySelector('.video-container');
@@ -3038,16 +3066,29 @@
 
         // Load Wistia video
         function loadWistiaVideo(wistiaId, title) {
-            console.log('Loading Wistia video:', wistiaId, title);
+            console.log('🎬 Loading Wistia video:', wistiaId, title);
             
             // Show video container
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
             
-            // Clear any existing content and load new video
-            videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+            // Show loading state with better UX
+            videoContainer.innerHTML = `
+                <div class="video-loading-state" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 18px; margin-bottom: 12px;">Loading "${title}"</div>
+                        <div style="width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid var(--accent-color, #008f67); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
             
-            // Update video title
+            // Update video title immediately for better perceived performance
             const titleElement = document.getElementById('current-video-title');
             if (titleElement) {
                 titleElement.textContent = title;
@@ -3062,12 +3103,38 @@
             // Set active video state
             setActiveVideo(wistiaId);
             
-            // Ensure Wistia script is loaded
+            // Ensure Wistia script is loaded with better error handling
             if (typeof window.Wistia === 'undefined') {
-                console.log('Wistia not loaded yet, waiting...');
-                setTimeout(() => loadWistiaVideo(wistiaId, title), 500);
-                return;
+                console.log('⏳ Wistia not loaded yet, waiting...');
+                // Add timeout counter to prevent infinite retries
+                const retryCount = loadWistiaVideo.retryCount || 0;
+                if (retryCount < 10) { // Max 5 seconds of retries
+                    loadWistiaVideo.retryCount = retryCount + 1;
+                    setTimeout(() => loadWistiaVideo(wistiaId, title), 500);
+                    return;
+                } else {
+                    // Show error state after max retries
+                    console.error('❌ Failed to load Wistia after multiple attempts');
+                    videoContainer.innerHTML = `
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #ff6b6b;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; margin-bottom: 12px;">⚠️ Video Loading Error</div>
+                                <div style="font-size: 14px; opacity: 0.8;">Unable to load video player. Please refresh the page.</div>
+                                <button onclick="location.reload()" style="margin-top: 16px; padding: 8px 16px; background: var(--accent-color, #008f67); color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh Page</button>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
             }
+            
+            // Reset retry counter on successful load
+            loadWistiaVideo.retryCount = 0;
+            
+            // Create the Wistia embed element
+            setTimeout(() => {
+                videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+            }, 100); // Small delay to show loading state briefly
             
             window._wq = window._wq || [];
             _wq.push({
@@ -3078,10 +3145,16 @@
                     // autoPlay, controls, etc. will be based on Wistia dashboard settings
                 },
                 onReady: function(video) {
-                    console.log('Wistia video ready:', wistiaId);
+                    console.log('✅ Wistia video ready:', wistiaId, title);
                     currentWistiaVideo = video;
                     
-                    if (window.innerWidth <= 768) {
+                    // Clear any loading states
+                    const loadingElement = videoContainer.querySelector('.video-loading-state');
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+                    
+                    if (window.innerWidth <= 767) {
                         video.bind('play', function() {
                             if (screen.orientation) {
                                 screen.orientation.addEventListener('change', handleOrientationChange);
@@ -3092,14 +3165,25 @@
                     }
                 },
                 onError: function(error) {
-                    console.error('Wistia video error:', error);
+                    console.error('❌ Wistia video error:', error);
+                    // Show user-friendly error message
+                    videoContainer.innerHTML = `
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #ff6b6b;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 18px; margin-bottom: 12px;">⚠️ Video Unavailable</div>
+                                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 16px;">This video cannot be loaded right now.</div>
+                                <button onclick="loadWistiaVideo('${wistiaId}', '${title.replace(/'/g, "\\'")}')" style="margin-right: 8px; padding: 8px 16px; background: var(--accent-color, #008f67); color: white; border: none; border-radius: 4px; cursor: pointer;">Try Again</button>
+                                <button onclick="stopVideoAndClosePlayer()" style="padding: 8px 16px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                            </div>
+                        </div>
+                    `;
                 }
             });
         }
 
         // Handle orientation changes
         function handleOrientationChange() {
-            if (currentWistiaVideo && window.innerWidth <= 768) {
+            if (currentWistiaVideo && window.innerWidth <= 767) {
                 const isLandscape = (screen.orientation && screen.orientation.angle !== 0) || 
                                   (window.orientation && (window.orientation === 90 || window.orientation === -90));
                 
@@ -3889,6 +3973,8 @@
         let isEditMode = false;
         let isOrganizeMode = false;
         const ADMIN_PASSWORD = 'admin123'; // In production, this should be more secure
+        let loginAttempts = 0;
+        let loginCooldown = false;
 
         // Login functionality
         document.getElementById('loginLink').addEventListener('click', function() {
@@ -3908,18 +3994,46 @@
 
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            // Check if in cooldown period
+            if (loginCooldown) {
+                document.getElementById('loginError').textContent = 'Too many attempts. Please wait before trying again.';
+                document.getElementById('loginError').style.display = 'block';
+                return;
+            }
+            
             const password = document.getElementById('loginPassword').value;
             
             if (password === ADMIN_PASSWORD) {
                 // Login successful
+                console.log('✅ Admin login successful');
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('loginPassword').value = '';
                 document.getElementById('loginError').style.display = 'none';
+                loginAttempts = 0; // Reset attempts on successful login
                 enterEditMode();
             } else {
                 // Login failed
-                document.getElementById('loginError').textContent = 'Incorrect password';
-                document.getElementById('loginError').style.display = 'block';
+                loginAttempts++;
+                console.log('❌ Login attempt failed:', loginAttempts);
+                
+                if (loginAttempts >= 3) {
+                    // Implement cooldown after 3 failed attempts
+                    loginCooldown = true;
+                    document.getElementById('loginError').textContent = 'Too many failed attempts. Access blocked for 30 seconds.';
+                    document.getElementById('loginError').style.display = 'block';
+                    
+                    // Reset cooldown after 30 seconds
+                    setTimeout(() => {
+                        loginCooldown = false;
+                        loginAttempts = 0;
+                        document.getElementById('loginError').style.display = 'none';
+                    }, 30000);
+                } else {
+                    document.getElementById('loginError').textContent = `Incorrect password (${loginAttempts}/3 attempts)`;
+                    document.getElementById('loginError').style.display = 'block';
+                }
+                
                 document.getElementById('loginPassword').value = '';
                 document.getElementById('loginPassword').focus();
             }
@@ -4147,14 +4261,14 @@
             // Escape - Exit edit mode
             else if (e.key === 'Escape' && !document.querySelector('.login-overlay[style*="flex"]') && !document.querySelector('.add-video-overlay[style*="flex"]') && !document.querySelector('.edit-video-overlay[style*="flex"]')) {
                 e.preventDefault();
-            if (hasUnsavedChanges) {
-                if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
+                if (hasUnsavedChanges) {
+                    if (confirm('You have unsaved changes. Are you sure you want to exit edit mode?')) {
+                        exitEditMode();
+                    }
+                } else {
                     exitEditMode();
                 }
-            } else {
-                exitEditMode();
             }
-        }
 
             // Ctrl+A - Add video
             else if (e.ctrlKey && e.key === 'a') {
@@ -5619,18 +5733,36 @@
         document.getElementById('editVideoForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const newTitle = document.getElementById('editVideoTitle').value.trim();
-            const newCategory = document.getElementById('editVideoCategory').value;
+            const submitBtn = e.target.querySelector('.btn-save-video');
+            const originalBtnText = submitBtn.textContent;
             
-            // Collect selected tags
-            const selectedTags = Array.from(document.querySelectorAll('#editTagSelectionContainer .tag-selector.selected'))
-                .map(tag => tag.dataset.tagId);
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving Changes...';
             
-            if (!newTitle || !newCategory) {
-                document.getElementById('editVideoError').textContent = 'Please fill in all fields';
-                document.getElementById('editVideoError').style.display = 'block';
-                return;
-            }
+            try {
+                const newTitle = document.getElementById('editVideoTitle').value.trim();
+                const newCategory = document.getElementById('editVideoCategory').value;
+                
+                console.log('✏️ Submitting Edit Video form:', { id: currentEditingVideoId, title: newTitle, category: newCategory });
+                
+                // Enhanced validation
+                if (!newTitle || !newCategory) {
+                    throw new Error('Please fill in all fields');
+                }
+                
+                // Validate title length
+                if (newTitle.length < 3) {
+                    throw new Error('Video title must be at least 3 characters long');
+                }
+                
+                if (newTitle.length > 100) {
+                    throw new Error('Video title must be less than 100 characters');
+                }
+                
+                // Collect selected tags
+                const selectedTags = Array.from(document.querySelectorAll('#editTagSelectionContainer .tag-selector.selected'))
+                    .map(tag => tag.dataset.tagId);
             
             // Update the video item in the DOM
             const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
@@ -5660,18 +5792,35 @@
                 editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${escapeForOnclick(newTitle)}', '${escapeForOnclick(newCategory)}')`);
             }
             
-            console.log('Video updated:', { id: currentEditingVideoId, title: newTitle, category: newCategory, tags: selectedTags });
-            
-            // Close popup
-            document.getElementById('editVideoOverlay').style.display = 'none';
-            document.getElementById('editVideoError').style.display = 'none';
-            currentEditingVideoId = null;
-            
-            // Here you would save to server
+                console.log('✅ Video updated successfully:', { id: currentEditingVideoId, title: newTitle, category: newCategory, tags: selectedTags });
+                
+                // Mark as having unsaved changes
+                markUnsavedChanges();
+                
+                // Close popup
+                document.getElementById('editVideoOverlay').style.display = 'none';
+                document.getElementById('editVideoError').style.display = 'none';
+                currentEditingVideoId = null;
+                
+                // Here you would save to server
+                
+            } catch (error) {
+                console.error('❌ Error updating video:', error);
+                document.getElementById('editVideoError').textContent = error.message;
+                document.getElementById('editVideoError').style.display = 'block';
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            }
         });
 
         document.getElementById('deleteVideoBtn').addEventListener('click', function() {
-            if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+            const videoTitle = document.getElementById('editVideoTitle').value.trim();
+            const confirmMessage = `Are you sure you want to delete "${videoTitle}"?\n\nThis action cannot be undone and will permanently remove the video from your collection.`;
+            
+            if (confirm(confirmMessage)) {
+                console.log('🗑️ Deleting video:', currentEditingVideoId, videoTitle);
                 // Remove from videos array
                 const index = videos.findIndex(v => v.wistiaId === currentEditingVideoId);
                 if (index !== -1) {
@@ -5891,29 +6040,55 @@
         document.getElementById('wistiaLink').addEventListener('input', async function(e) {
             const url = e.target.value.trim();
             const titleInput = document.getElementById('newVideoTitle');
+            const errorDiv = document.getElementById('addVideoError');
+            
+            // Clear any previous errors
+            errorDiv.style.display = 'none';
             
             if (!url) {
                 titleInput.value = '';
                 titleInput.placeholder = 'Video title will be loaded...';
+                titleInput.style.borderColor = '';
+                e.target.style.borderColor = '';
                 return;
             }
             
             const wistiaId = extractWistiaId(url);
             
             if (wistiaId) {
+                console.log('🎬 Valid Wistia ID detected:', wistiaId);
+                e.target.style.borderColor = '#4CAF50'; // Green border for valid URL
                 titleInput.placeholder = 'Loading title...';
                 titleInput.disabled = true;
+                titleInput.style.borderColor = '';
                 
-                const videoData = await fetchWistiaVideoData(wistiaId);
+                try {
+                    const videoData = await fetchWistiaVideoData(wistiaId);
+                    
+                    if (videoData && videoData.title) {
+                        titleInput.value = videoData.title;
+                        titleInput.style.borderColor = '#4CAF50'; // Green border for loaded title
+                        console.log('✅ Loaded Wistia data:', { id: wistiaId, ...videoData });
+                    } else {
+                        titleInput.value = '';
+                        titleInput.placeholder = 'Could not load video title';
+                        titleInput.style.borderColor = '#ff9800'; // Orange border for warning
+                        console.warn('⚠️ Could not fetch video data for:', wistiaId);
+                    }
+                } catch (error) {
+                    titleInput.value = '';
+                    titleInput.placeholder = 'Error loading video data';
+                    titleInput.style.borderColor = '#f44336'; // Red border for error
+                    console.error('❌ Error fetching Wistia data:', error);
+                }
                 
-                titleInput.value = videoData.title;
                 titleInput.disabled = false;
-                titleInput.placeholder = 'Enter video title...';
-                
-                console.log('Loaded Wistia data:', { id: wistiaId, ...videoData });
             } else {
                 titleInput.value = '';
-                titleInput.placeholder = 'Invalid Wistia URL';
+                titleInput.placeholder = 'Invalid Wistia URL format';
+                titleInput.style.borderColor = '';
+                e.target.style.borderColor = '#f44336'; // Red border for invalid URL
+                console.warn('⚠️ Invalid Wistia URL format:', url);
             }
         });
 
@@ -5926,30 +6101,43 @@
         document.getElementById('addVideoForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const wistiaUrl = document.getElementById('wistiaLink').value.trim();
-            const title = document.getElementById('newVideoTitle').value.trim();
-            const category = document.getElementById('newVideoCategory').value;
+            const submitBtn = e.target.querySelector('.btn-add-video');
+            const originalBtnText = submitBtn.textContent;
             
-            // Validation
-            if (!wistiaUrl || !title || !category) {
-                document.getElementById('addVideoError').textContent = 'Please fill in all fields';
-                document.getElementById('addVideoError').style.display = 'block';
-                return;
-            }
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Adding Video...';
             
-            const wistiaId = extractWistiaId(wistiaUrl);
-            if (!wistiaId) {
-                document.getElementById('addVideoError').textContent = 'Invalid Wistia URL or ID';
-                document.getElementById('addVideoError').style.display = 'block';
-                return;
-            }
-            
-            // Check if video already exists
-            if (document.querySelector(`[data-wistia="${wistiaId}"]`)) {
-                document.getElementById('addVideoError').textContent = 'This video already exists';
-                document.getElementById('addVideoError').style.display = 'block';
-                return;
-            }
+            try {
+                const wistiaUrl = document.getElementById('wistiaLink').value.trim();
+                const title = document.getElementById('newVideoTitle').value.trim();
+                const category = document.getElementById('newVideoCategory').value;
+                
+                console.log('🎬 Submitting Add Video form:', { wistiaUrl, title, category });
+                
+                // Enhanced validation
+                if (!wistiaUrl || !title || !category) {
+                    throw new Error('Please fill in all fields');
+                }
+                
+                const wistiaId = extractWistiaId(wistiaUrl);
+                if (!wistiaId) {
+                    throw new Error('Invalid Wistia URL or ID format');
+                }
+                
+                // Check if video already exists
+                if (document.querySelector(`[data-wistia="${wistiaId}"]`)) {
+                    throw new Error('This video already exists in your collection');
+                }
+                
+                // Validate title length
+                if (title.length < 3) {
+                    throw new Error('Video title must be at least 3 characters long');
+                }
+                
+                if (title.length > 100) {
+                    throw new Error('Video title must be less than 100 characters');
+                }
             
             // Collect selected tags
             const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
@@ -5977,11 +6165,15 @@
                 document.getElementById('addVideoForm').reset();
                 
             } catch (error) {
-                console.error('🎬 ERROR: Failed to add video to grid:', error);
+                console.error('🎬 ERROR: Failed to add video:', error);
                 console.error('🎬 ERROR: Error details:', error.message, error.stack);
-                document.getElementById('addVideoError').textContent = 'Error adding video: ' + error.message;
+                document.getElementById('addVideoError').textContent = error.message;
                 document.getElementById('addVideoError').style.display = 'block';
                 return; // Don't close popup if there was an error
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
             }
         });
 
@@ -6230,25 +6422,54 @@
                     dropdown.addEventListener('change', handleCategoryDropdownChange);
                 }
                 
-                // Filter videos based on tags - use consistent method
+                // Filter videos based on tags with smooth animations
                 const videoItems = document.querySelectorAll('.video-item');
+                const itemsToHide = [];
+                const itemsToShow = [];
+                
                 videoItems.forEach(item => {
                     // Clear any existing display styles to ensure consistency
                     item.style.display = '';
                     
                     if (categoryName === 'all') {
-                        item.classList.remove('hidden');
+                        if (item.classList.contains('hidden')) {
+                            itemsToShow.push(item);
+                        }
                     } else {
                         // Check if the video has the selected tag
                         const videoTags = item.dataset.tags ? item.dataset.tags.split(',') : [item.dataset.category];
                         const hasTag = videoTags.includes(categoryName);
                         
                         if (hasTag) {
-                            item.classList.remove('hidden');
+                            if (item.classList.contains('hidden')) {
+                                itemsToShow.push(item);
+                            }
                         } else {
-                            item.classList.add('hidden');
+                            if (!item.classList.contains('hidden')) {
+                                itemsToHide.push(item);
+                            }
                         }
                     }
+                });
+                
+                // Animate items out first
+                if (itemsToHide.length > 0) {
+                    itemsToHide.forEach(item => {
+                        item.classList.add('filtering-out');
+                    });
+                    
+                    // Hide items after animation
+                    setTimeout(() => {
+                        itemsToHide.forEach(item => {
+                            item.classList.add('hidden');
+                            item.classList.remove('filtering-out');
+                        });
+                    }, 300);
+                }
+                
+                // Show items immediately (they'll fade in via CSS transition)
+                itemsToShow.forEach(item => {
+                    item.classList.remove('hidden');
                 });
                 
 
@@ -6353,15 +6574,15 @@
                 name: 'The Merry Land of Oz',
                 icon: 'music-note',
                 showInDropdown: true,
-                showInTagNavigation: true,
+                showInTagNavigation: false, // Should NOT show in tag navigation
                 isDefault: true
             },
             {
                 id: 'more-coming-soon',
                 name: 'More Coming Soon!',
                 icon: '',
-                showInDropdown: false, // This will be manageable
-                showInTagNavigation: false, // Separate control for tag navigation
+                showInDropdown: true, // Should show in dropdown
+                showInTagNavigation: false, // Should NOT show in tag navigation
                 isDefault: true,
                 disabled: true // This option should be disabled in dropdown
             }
