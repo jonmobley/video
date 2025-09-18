@@ -31,7 +31,7 @@
     
     <!-- Additional Meta Tags -->
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#4d90db" id="theme-color-meta">
+    <meta name="theme-color" content="" id="theme-color-meta">
     <link rel="canonical" href="https://vidsharepro.netlify.app/disc.html" id="canonical-link">
     
     <!-- Dynamic Meta Tag Loading Script -->
@@ -337,12 +337,7 @@
         }
 
         :root {
-            --accent-color: #4d90db;
-            --accent-hover: #3d80cb;
-            --accent-light: rgba(77, 144, 219, 0.3);
-            --accent-shadow: rgba(77, 144, 219, 0.3);
-            --accent-medium: rgba(77, 144, 219, 0.6);
-            --accent-heavy: rgba(77, 144, 219, 0.8);
+            /* Accent colors will be set dynamically by loadPageConfig() */
         }
 
         .vid-green {
@@ -2293,8 +2288,8 @@
             <div class="admin-banner-buttons">
                 <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
                     <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="#4d90db" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="#4d90db" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                    <input type="color" id="adminAccentColor" value="" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="adminAccentColorText" value="" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>

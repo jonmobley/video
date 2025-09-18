@@ -387,12 +387,7 @@
         }
 
         :root {
-            --accent-color: #008f67;
-            --accent-hover: #007a5a;
-            --accent-light: rgba(0, 143, 103, 0.3);
-            --accent-shadow: rgba(0, 143, 103, 0.3);
-            --accent-medium: rgba(0, 143, 103, 0.6);
-            --accent-heavy: rgba(0, 143, 103, 0.8);
+            /* Accent colors will be set dynamically by loadPageConfig() */
         }
 
         .vid-green {
@@ -2383,8 +2378,8 @@
             <div class="admin-banner-buttons">
                 <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
                     <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="#008f67" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                    <input type="color" id="adminAccentColor" value="" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="adminAccentColorText" value="" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -2694,8 +2689,19 @@
             
             dropdown.innerHTML = '';
             
-            // Build dropdown from predefined categories and user preferences
-            predefinedCategories.forEach(category => {
+            // Get categories from server first, then fall back to predefined
+            let categoriesToShow = [];
+            
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories
+                categoriesToShow = window.serverCategories;
+            } else {
+                // Fall back to predefined categories
+                categoriesToShow = predefinedCategories;
+            }
+            
+            // Build dropdown from categories and user preferences
+            categoriesToShow.forEach(category => {
                 // Check if this category should be shown in dropdown
                 let showInDropdown = category.showInDropdown;
                 
@@ -2714,7 +2720,7 @@
                     option.setAttribute('data-icon', category.icon || '');
                     
                     // Set as selected if it's the default "All Dance Videos"
-                    if (category.id === 'all-songs') {
+                    if (category.id === 'all-songs' || category.id === 'all') {
                         option.selected = true;
                     }
                     
@@ -2730,9 +2736,9 @@
             // Add any additional categories from video data (future enhancement)
             if (categoriesData && categoriesData.length > 0) {
                 categoriesData.forEach(category => {
-                    // Only add if not already in predefined categories
-                    const isPredefined = predefinedCategories.some(pred => pred.id === category.id);
-                    if (!isPredefined && category.showInDropdown) {
+                    // Only add if not already in categories to show
+                    const isAlreadyAdded = categoriesToShow.some(cat => cat.id === category.id);
+                    if (!isAlreadyAdded && category.showInDropdown) {
                         const option = document.createElement('option');
                         option.value = category.id;
                         const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
