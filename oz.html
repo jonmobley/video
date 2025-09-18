@@ -3925,7 +3925,7 @@
                             titleElement.textContent = newTitle;
                             // Also save to localStorage as backup
                             localStorage.setItem('oz_page_title', newTitle);
-                            showUnsavedIndicator();
+                            markUnsavedChanges();
                         } else {
                             // If server save fails, still save to localStorage
                             localStorage.setItem('oz_page_title', newTitle);
@@ -3986,7 +3986,7 @@
                 document.getElementById('adminAccentColorText').value = color;
                 // Apply color immediately for preview
                 applyAccentColor(color);
-                showUnsavedIndicator();
+                markUnsavedChanges();
             });
             
             document.getElementById('adminAccentColorText').addEventListener('input', function(e) {
@@ -3995,7 +3995,7 @@
                     document.getElementById('adminAccentColor').value = color;
                     // Apply color immediately for preview
                     applyAccentColor(color);
-                    showUnsavedIndicator();
+                    markUnsavedChanges();
                 }
             });
             
