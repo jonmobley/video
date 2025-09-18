@@ -3472,6 +3472,24 @@
             document.getElementById('theme-color-meta').content = color;
         }
 
+        /**
+         * Load current accent color from server for admin panel
+         */
+        async function loadCurrentAccentColor() {
+            try {
+                const response = await fetch('/.netlify/functions/get-page-config?page=test');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config.accent_color) {
+                        document.getElementById('adminAccentColor').value = config.accent_color;
+                        document.getElementById('adminAccentColorText').value = config.accent_color;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load current accent color:', error);
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             // Load page config first to set colors
@@ -3637,12 +3655,8 @@
                 editPageTitle();
             });
             
-            // Load and set current accent color
-            const currentAccentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
-            if (currentAccentColor) {
-                document.getElementById('adminAccentColor').value = currentAccentColor;
-                document.getElementById('adminAccentColorText').value = currentAccentColor;
-            }
+            // Load and set current accent color from server
+            loadCurrentAccentColor();
             
             // Add accent color synchronization
             document.getElementById('adminAccentColor').addEventListener('input', function(e) {
