@@ -81,7 +81,108 @@ const DEFAULT_VIDEOS = {
       page: 'oz'
     }
   ],
-  'disc': [], // Empty array for disc page
+  'disc': [
+    {
+      id: 'vqb0pfo4zw',
+      wistiaId: 'vqb0pfo4zw',
+      title: 'Bathroom',
+      category: 'conflict',
+      tags: ['conflict'],
+      urlString: 'zexm3j',
+      order: 0,
+      page: 'disc'
+    },
+    {
+      id: '5vqqwph6wq',
+      wistiaId: '5vqqwph6wq',
+      title: 'Cookies',
+      category: 'conflict',
+      tags: ['conflict'],
+      urlString: '4dykji',
+      order: 1,
+      page: 'disc'
+    },
+    {
+      id: 'nujmnhh6fh',
+      wistiaId: 'nujmnhh6fh',
+      title: 'DISC FULL Intro',
+      category: 'disc',
+      tags: ['disc'],
+      urlString: '1l49zo',
+      order: 2,
+      page: 'disc'
+    },
+    {
+      id: '1t2iqoeme2',
+      wistiaId: '1t2iqoeme2',
+      title: 'DISC HERO Intro',
+      category: 'disc',
+      tags: ['disc'],
+      urlString: 'kx5ooj',
+      order: 3,
+      page: 'disc'
+    },
+    {
+      id: 'l6ub2gwc2r',
+      wistiaId: 'l6ub2gwc2r',
+      title: 'Kitchen Adapt',
+      category: 'adapted',
+      tags: ['adapted'],
+      urlString: 'tljhw8',
+      order: 4,
+      page: 'disc'
+    },
+    {
+      id: '2gexsi52zj',
+      wistiaId: '2gexsi52zj',
+      title: 'Kitchen',
+      category: 'conflict',
+      tags: ['conflict'],
+      urlString: '4i9wdx',
+      order: 5,
+      page: 'disc'
+    },
+    {
+      id: '1cai4aoxq3',
+      wistiaId: '1cai4aoxq3',
+      title: 'Returning Home Adapt',
+      category: 'adapted',
+      tags: ['adapted'],
+      urlString: 'xz3wsu',
+      order: 6,
+      page: 'disc'
+    },
+    {
+      id: '3u992i78fk',
+      wistiaId: '3u992i78fk',
+      title: 'Returning Home',
+      category: 'conflict',
+      tags: ['conflict'],
+      urlString: 'ls0xk1',
+      order: 7,
+      page: 'disc'
+    },
+    {
+      id: '7i7k3gmrzh',
+      wistiaId: '7i7k3gmrzh',
+      title: 'TV Adapt',
+      category: 'adapted',
+      tags: ['adapted'],
+      urlString: '679o3x',
+      order: 8,
+      page: 'disc'
+    },
+    {
+      id: '5emj65bgp7',
+      wistiaId: '5emj65bgp7',
+      title: 'TV',
+      category: 'conflict',
+      tags: ['conflict'],
+      urlString: 'u28f9k',
+      order: 9,
+      page: 'disc'
+    }
+  ], // DISC Heroes videos restored from Git history
   'vertical': [] // Empty array for vertical page
 };
 
