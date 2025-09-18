@@ -2497,6 +2497,11 @@
         // Global videos array
         let videos = [];
         
+        // Store for category preferences
+        let categoryPreferences = {
+            allLabel: 'All'
+        };
+        
         // Available category icons
         const availableIcons = {
             'music-note': '♪',
@@ -5401,8 +5406,8 @@
             }
         }
 
-        // Wistia Link Input Handler
-        document.getElementById('wistiaLink').addEventListener('input', async function(e) {
+        // Video Link Input Handler
+        document.getElementById('videoLink').addEventListener('input', async function(e) {
             const url = e.target.value.trim();
             const titleInput = document.getElementById('newVideoTitle');
             
@@ -5756,11 +5761,6 @@
         // ========================================
         // CATEGORY MANAGEMENT FUNCTIONS
         // ========================================
-
-        // Store for category preferences
-        let categoryPreferences = {
-            allLabel: 'All'
-        };
 
         function loadCategoryPreferences() {
             // Try to load from localStorage
