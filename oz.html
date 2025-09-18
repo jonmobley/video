@@ -2867,43 +2867,39 @@
             const existingTags = tagsContainer.querySelectorAll('.tag:not([data-category="all"]):not(#addCategoryBtn)');
             existingTags.forEach(tag => tag.remove());
             
-            // Get categories from server first, then fall back to predefined
-            let categoriesToShow = [];
+            // IMPORTANT: Tag navigation should show TAGS, not categories
+            // Collect all unique tags from loaded videos
+            let tagsToShow = [];
             
-            if (window.serverCategories && window.serverCategories.length > 0) {
-                // Use server categories (excluding 'all' and 'all-songs')
-                categoriesToShow = window.serverCategories.filter(cat => {
-                    if (cat.id === 'all' || cat.id === 'all-songs') return false;
-                    
-                    // Check if this category should be shown in tag navigation
-                    let showInTagNavigation = cat.showInTagNavigation !== undefined ? cat.showInTagNavigation : cat.showInDropdown;
-                    
-                    // Override with user preference if available
-                    if (categoryPreferences.categories && categoryPreferences.categories[cat.id]) {
-                        showInTagNavigation = categoryPreferences.categories[cat.id].showInTagNavigation !== undefined 
-                            ? categoryPreferences.categories[cat.id].showInTagNavigation 
-                            : categoryPreferences.categories[cat.id].showInDropdown;
+            if (window.loadedVideos && window.loadedVideos.length > 0) {
+                const allTags = new Set();
+                
+                window.loadedVideos.forEach(video => {
+                    if (video.tags && Array.isArray(video.tags)) {
+                        video.tags.forEach(tag => {
+                            if (tag && tag !== 'all') {
+                                allTags.add(tag);
+                            }
+                        });
                     }
-                    
-                    return showInTagNavigation;
                 });
+                
+                // Convert to array and sort
+                tagsToShow = Array.from(allTags).sort().map(tag => ({
+                    id: tag,
+                    name: tag.charAt(0).toUpperCase() + tag.slice(1), // Capitalize first letter
+                    showInTagNavigation: true
+                }));
+                
+                console.log('🏷️ Tags found for navigation:', tagsToShow);
             } else {
-                // Fall back to predefined categories (excluding 'all-songs')
-                categoriesToShow = predefinedCategories.filter(category => {
-                    if (category.id === 'all-songs' || category.id === 'all') return false;
-                    
-                    // Check if this category should be shown in tag navigation
-                    let showInTagNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : category.showInDropdown;
-                    
-                    // Override with user preference if available
-                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInTagNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
-                            ? categoryPreferences.categories[category.id].showInTagNavigation 
-                            : categoryPreferences.categories[category.id].showInDropdown;
-                    }
-                    
-                    return showInTagNavigation;
-                });
+                console.log('🏷️ No videos loaded yet, using fallback tags');
+                // Fallback tags if no videos are loaded yet
+                tagsToShow = [
+                    { id: 'dancers', name: 'Dancers', showInTagNavigation: true },
+                    { id: 'kids', name: 'Kids', showInTagNavigation: true },
+                    { id: 'chorus', name: 'Chorus', showInTagNavigation: true }
+                ];
             }
             
             // Add any additional categories from loaded videos
@@ -2933,15 +2929,14 @@
                 });
             }
             
-            // Create tag elements for each category
-            categoriesToShow.forEach(category => {
+            // Create tag elements for each tag
+            tagsToShow.forEach(tag => {
                 const newTag = document.createElement('div');
                 newTag.className = 'tag';
-                newTag.setAttribute('data-category', category.id);
+                newTag.setAttribute('data-category', tag.id);
                 
-                // Add icon if available
-                const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
-                newTag.textContent = icon + category.name;
+                // Tags don't have icons, just display the name
+                newTag.textContent = tag.name;
                 
                 // Add event listeners
                 newTag.addEventListener('click', (e) => {
@@ -6603,6 +6598,14 @@
             {
                 id: 'the-merry-land-of-oz',
                 name: 'The Merry Land of Oz',
+                icon: 'music-note',
+                showInDropdown: true,
+                showInTagNavigation: false, // Should NOT show in tag navigation
+                isDefault: true
+            },
+            {
+                id: 'munchkinland',
+                name: 'Munchkinland',
                 icon: 'music-note',
                 showInDropdown: true,
                 showInTagNavigation: false, // Should NOT show in tag navigation
