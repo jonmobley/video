@@ -5503,12 +5503,17 @@
                 
                 // Add video to grid
                 await addVideoToGrid(videoData);
-            
-            // Close popup
-            document.getElementById('addVideoOverlay').style.display = 'none';
-            document.getElementById('addVideoError').style.display = 'none';
-            
-            console.log('Video added:', { id: wistiaId, title, category, tags: selectedTags });
+                
+                // Close popup
+                document.getElementById('addVideoOverlay').style.display = 'none';
+                document.getElementById('addVideoError').style.display = 'none';
+                
+                console.log('Video added:', { id: videoData.wistiaId, title, category, tags: selectedTags });
+            } catch (error) {
+                console.error('Error adding video:', error);
+                document.getElementById('addVideoError').textContent = 'Failed to add video. Please try again.';
+                document.getElementById('addVideoError').style.display = 'block';
+            }
         });
 
         async function addVideoToGrid(video) {
