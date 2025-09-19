@@ -3028,20 +3028,13 @@ Main page structure with:
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // Debounce rapid clicks
-                    if (categoryClickTimeout) {
-                        clearTimeout(categoryClickTimeout);
-                    }
-                    
                     // Prevent overlapping filter operations
                     if (isFilteringInProgress) {
                         return;
                     }
                     
-                    categoryClickTimeout = setTimeout(() => {
-                        const category = newTag.dataset.category;
-                        activateCategory(category);
-                    }, 50); // Small debounce delay
+                    const category = newTag.dataset.category;
+                    activateCategory(category);
                 });
                 
                 // Add drag functionality if in edit mode
@@ -3819,8 +3812,7 @@ Main page structure with:
 
 
 
-        // Debouncing for category clicks
-        let categoryClickTimeout = null;
+        // Prevent overlapping filter operations
         let isFilteringInProgress = false;
 
         // Tag filtering - attach listeners only to static tags (like "All")
@@ -3844,20 +3836,13 @@ Main page structure with:
             e.preventDefault();
             e.stopPropagation();
             
-            // Debounce rapid clicks
-            if (categoryClickTimeout) {
-                clearTimeout(categoryClickTimeout);
-            }
-            
             // Prevent overlapping filter operations
             if (isFilteringInProgress) {
                 return;
             }
             
-            categoryClickTimeout = setTimeout(() => {
-                const category = this.dataset.category;
-                activateCategory(category);
-            }, 50); // Small debounce delay
+            const category = this.dataset.category;
+            activateCategory(category);
         }
 
         /**
@@ -6621,22 +6606,12 @@ Main page structure with:
                     }
                 });
                 
-                // Animate items out first
-                if (itemsToHide.length > 0) {
-                    itemsToHide.forEach(item => {
-                        item.classList.add('filtering-out');
-                    });
-                    
-                    // Hide items after animation
-                    setTimeout(() => {
-                        itemsToHide.forEach(item => {
-                            item.classList.add('hidden');
-                            item.classList.remove('filtering-out');
-                        });
-                    }, 300);
-                }
+                // Hide items instantly
+                itemsToHide.forEach(item => {
+                    item.classList.add('hidden');
+                });
                 
-                // Show items immediately (they'll fade in via CSS transition)
+                // Show items instantly
                 itemsToShow.forEach(item => {
                     item.classList.remove('hidden');
                 });
