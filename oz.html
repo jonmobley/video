@@ -5,7 +5,7 @@
 
 This page displays Grace's dance videos from Oz performances with:
 - Dynamic video player integration (Wistia)
-- Category-based filtering and tag navigation
+- Category-based filtering and category navigation
 - Admin functionality for content management
 - Responsive design for desktop, tablet, and mobile
 - SEO optimization with dynamic meta tags
@@ -2958,9 +2958,9 @@ Main page structure with:
             }
         }
         
-        // Function to populate tag navigation dynamically
+        // Function to populate category navigation dynamically
         function updateTagNavigation() {
-            console.log('🏷️ === UPDATING TAG NAVIGATION ===');
+            console.log('🏷️ === UPDATING CATEGORY NAVIGATION ===');
             const tagsContainer = document.querySelector('.tags');
             if (!tagsContainer) {
                 console.error('❌ Tags container not found! Cannot update navigation.');
@@ -2976,7 +2976,7 @@ Main page structure with:
             const existingTags = tagsContainer.querySelectorAll('.tag:not([data-category="all"]):not(#addCategoryBtn)');
             existingTags.forEach(tag => tag.remove());
             
-            // IMPORTANT: Tag navigation should show TAGS, not categories
+            // IMPORTANT: Category navigation should show CATEGORIES, not tags
             // Collect all unique tags from loaded videos
             let tagsToShow = [];
             
@@ -3011,7 +3011,7 @@ Main page structure with:
                 ];
             }
             
-            // Tag navigation should ONLY show tags, not categories
+            // Category navigation should ONLY show categories, not tags
             // Categories are handled by the dropdown in the header
             
             // Create tag elements for each tag
@@ -3057,7 +3057,7 @@ Main page structure with:
                 tagsContainer.insertBefore(newTag, addBtn);
             });
             
-            console.log('Tag navigation updated with', tagsToShow.length, 'tags');
+            console.log('Category navigation updated with', tagsToShow.length, 'categories');
         }
 
         // Function to get icon HTML for admin interface
@@ -4061,7 +4061,7 @@ Main page structure with:
          * 2. Load category preferences from localStorage
          * 3. Refresh categories from server
          * 4. Update category dropdown
-         * 5. Update tag navigation
+         * 5. Update category navigation
          * 6. Load videos from server
          * 7. Attach event listeners
          * 8. Check for direct video links
@@ -4090,9 +4090,9 @@ Main page structure with:
                 updateCategoryDropdown();
                 console.log('✅ Step 4 Complete: Category dropdown updated');
                 
-                console.log('🏷️ Step 5: Updating tag navigation...');
+                console.log('🏷️ Step 5: Updating category navigation...');
                 updateTagNavigation();
-                console.log('✅ Step 5 Complete: Tag navigation updated');
+                console.log('✅ Step 5 Complete: Category navigation updated');
                 
                 console.log('🎬 Step 6: Loading videos from server...');
                 loadVideosFromServer();
@@ -4630,10 +4630,10 @@ Main page structure with:
             
             if (videosInCategory.length === 0) {
                 // No videos, safe to delete
-                if (confirm(`Delete tag "${categoryName}"?`)) {
+                if (confirm(`Delete category "${categoryName}"?`)) {
                     categoryElement.remove();
                     markUnsavedChanges();
-                    console.log('Tag deleted:', categoryName);
+                    console.log('Category deleted:', categoryName);
                 }
                 return;
             }
@@ -4716,7 +4716,7 @@ Main page structure with:
                 categoryElement.remove();
                 markUnsavedChanges();
                 
-                console.log(`Tag "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
+                console.log(`Category "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
                 document.body.removeChild(dialog);
             });
             
@@ -6736,7 +6736,7 @@ Main page structure with:
                 name: 'The Merry Land of Oz',
                 icon: 'music-note',
                 showInDropdown: true,
-                showInTagNavigation: false, // Should NOT show in tag navigation
+                showInTagNavigation: false, // Should NOT show in category navigation
                 isDefault: false // User can edit/delete this category
             },
             {
@@ -6744,7 +6744,7 @@ Main page structure with:
                 name: 'Munchkinland',
                 icon: 'music-note',
                 showInDropdown: true,
-                showInTagNavigation: false, // Should NOT show in tag navigation
+                showInTagNavigation: false, // Should NOT show in category navigation
                 isDefault: false // User can edit/delete this category
             },
             {
@@ -6752,7 +6752,7 @@ Main page structure with:
                 name: 'More Coming Soon!',
                 icon: '',
                 showInDropdown: true, // Should show in dropdown
-                showInTagNavigation: false, // Should NOT show in tag navigation
+                showInTagNavigation: false, // Should NOT show in category navigation
                 isDefault: true,
                 disabled: true // This option should be disabled in dropdown
             }
@@ -6822,7 +6822,7 @@ Main page structure with:
             const isPredefined = predefinedInfo && predefinedInfo.isDefault;
             const isMoreComingSoon = id === 'more-coming-soon';
             
-            // Get current preferences for both dropdown and tag navigation
+            // Get current preferences for both dropdown and category navigation
             const showInDropdown = categoryPreferences.categories && categoryPreferences.categories[id] 
                 ? categoryPreferences.categories[id].showInDropdown 
                 : (predefinedInfo ? predefinedInfo.showInDropdown : true);
@@ -6848,7 +6848,7 @@ Main page structure with:
                     </label>
                     <label class="category-checkbox-label">
                         <input type="checkbox" class="category-tags-checkbox" ${showInTagNavigation ? 'checked' : ''} />
-                        Show in tag navigation
+                        Show in category navigation
                     </label>
                 </div>
             `;
@@ -6870,7 +6870,7 @@ Main page structure with:
                 });
             }
             
-            // Add checkbox functionality for both dropdown and tag navigation
+            // Add checkbox functionality for both dropdown and category navigation
             const dropdownCheckbox = categoryItem.querySelector('.category-dropdown-checkbox');
             const tagsCheckbox = categoryItem.querySelector('.category-tags-checkbox');
             
@@ -6900,7 +6900,7 @@ Main page structure with:
                 categoryPreferences.categories[id].showInTagNavigation = tagsCheckbox.checked;
                 saveCategoryPreferences();
                 
-                // Update tag navigation UI immediately
+                // Update category navigation UI immediately
                 updateTagNavigation();
             });
             
@@ -7006,7 +7006,7 @@ Main page structure with:
                 // Update the category dropdown to reflect changes
                 updateCategoryDropdown();
                 
-                // Update the tag navigation to reflect changes
+                // Update the category navigation to reflect changes
                 updateTagNavigation();
                 
                 // Also update the Add Video category dropdown

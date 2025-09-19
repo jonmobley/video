@@ -2410,7 +2410,7 @@
                 <div class="form-group">
                     <label for="newVideoCategory">Category</label>
                     <select id="newVideoCategory" required>
-                        <option value="">Select Tag</option>
+                        <option value="">Select Category</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -2444,7 +2444,7 @@
                 <div class="form-group">
                     <label for="editVideoCategory">Category</label>
                     <select id="editVideoCategory" required>
-                        <option value="">Select Tag</option>
+                        <option value="">Select Category</option>
                         <!-- Categories will be populated dynamically -->
                     </select>
                 </div>
@@ -5173,7 +5173,7 @@
                 name: tag.textContent
             }));
             
-            select.innerHTML = '<option value="">Select Tag</option>';
+            select.innerHTML = '<option value="">Select Category</option>';
             categories.forEach(cat => {
                 if (cat.id !== 'all') {
                     const option = document.createElement('option');
@@ -5289,7 +5289,7 @@
             console.log('📋 DEBUG: Found categories from video data:', Array.from(uniqueCategories));
             
             // Clear and set default option
-            select.innerHTML = '<option value="">Select Tag</option>';
+            select.innerHTML = '<option value="">Select Category</option>';
             
             // Add "All" as the default selected option
             const allOption = document.createElement('option');
