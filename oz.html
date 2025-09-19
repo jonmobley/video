@@ -2527,19 +2527,7 @@ Main page structure with:
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         
-        <!-- ===== NAVIGATION AND FILTERING ===== -->
-        <div class="tags-container">
-            <div class="categories-dropdown">
-                <select id="categoriesDropdown" class="category-select">
-                    <!-- Categories will be populated dynamically -->
-                </select>
-            </div>
-            <div class="tags">
-                <div class="tag active" data-category="all">All</div>
-                <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
-                <!-- Tags will be populated dynamically -->
-            </div>
-        </div>
+        <!-- Category navigation removed - showing all videos by default -->
     </div>
 
     <!-- ===== MAIN CONTENT AREA ===== -->
@@ -2933,144 +2921,9 @@ Main page structure with:
             dropdown.addEventListener('change', handleCategoryDropdownChange);
         }
         
-        // Handle category dropdown change
-        function handleCategoryDropdownChange(event) {
-            const selectedCategory = event.target.value;
-            console.log('Header dropdown changed to:', selectedCategory);
-            
-            // Use the same filtering logic as the tag system
-            activateCategory(selectedCategory);
-            
-            // Update the corresponding tag to be active
-            document.querySelectorAll('.tag').forEach(tag => {
-                tag.classList.remove('active');
-            });
-            
-            const correspondingTag = document.querySelector(`[data-category="${selectedCategory}"]`);
-            if (correspondingTag) {
-                correspondingTag.classList.add('active');
-            } else {
-                // If no corresponding tag found, activate "All"
-                const allTag = document.querySelector('[data-category="all"]');
-                if (allTag) {
-                    allTag.classList.add('active');
-                }
-            }
-        }
+        // Category dropdown removed - no longer needed
         
-        // Function to populate category navigation dynamically
-        function updateTagNavigation() {
-            console.log('🏷️ === UPDATING CATEGORY NAVIGATION ===');
-            const tagsContainer = document.querySelector('.tags');
-            if (!tagsContainer) {
-                console.error('❌ Tags container not found! Cannot update navigation.');
-                return;
-            }
-            console.log('✅ Tags container found:', tagsContainer);
-            
-            // Keep the "All" tag and add button, remove others
-            const allTag = tagsContainer.querySelector('[data-category="all"]');
-            const addBtn = tagsContainer.querySelector('#addCategoryBtn');
-            
-            // Remove all dynamic tags (keep only the hardcoded All and + button)
-            const existingTags = tagsContainer.querySelectorAll('.tag:not([data-category="all"]):not(#addCategoryBtn)');
-            existingTags.forEach(tag => tag.remove());
-            
-            // Also remove any tags that might have been created with "All" in the name
-            const allTags = tagsContainer.querySelectorAll('.tag');
-            allTags.forEach(tag => {
-                // Keep the original hardcoded "All" tag and the add button
-                if (tag.getAttribute('data-category') === 'all' || tag.id === 'addCategoryBtn') {
-                    return; // Keep these
-                }
-                // Remove any other tags (including duplicates)
-                tag.remove();
-            });
-            
-            // IMPORTANT: Category navigation should show CATEGORIES, not tags
-            // Get categories from server or predefined categories
-            let categoriesToShow = [];
-            
-            if (window.serverCategories && window.serverCategories.length > 0) {
-                // Use server categories, filter for navigation display
-                categoriesToShow = window.serverCategories.filter(category => {
-                    if (category.id === 'all-songs') return false; // Skip "All" - it's handled separately
-                    
-                    // Check if this category should be shown in navigation
-                    let showInNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : true;
-                    
-                    // Override with user preference if available
-                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
-                            ? categoryPreferences.categories[category.id].showInTagNavigation 
-                            : true;
-                    }
-                    
-                    return showInNavigation;
-                });
-            } else {
-                // Fall back to predefined categories
-                categoriesToShow = predefinedCategories.filter(category => {
-                    if (category.id === 'all-songs') return false; // Skip "All" - it's handled separately
-                    
-                    let showInNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : true;
-                    
-                    // Override with user preference if available
-                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
-                        showInNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
-                            ? categoryPreferences.categories[category.id].showInTagNavigation 
-                            : true;
-                    }
-                    
-                    return showInNavigation;
-                });
-            }
-            
-            console.log('🏷️ Categories found for navigation:', categoriesToShow);
-            console.log('🏷️ DEBUG: Server categories:', window.serverCategories);
-            console.log('🏷️ DEBUG: Predefined categories:', predefinedCategories);
-            
-            // Category navigation should ONLY show categories, not tags
-            // Categories are handled by the dropdown in the header
-            
-            // Create navigation elements for each category
-            categoriesToShow.forEach(category => {
-                const newTag = document.createElement('div');
-                newTag.className = 'tag';
-                newTag.setAttribute('data-category', category.id);
-                
-                // Categories don't have icons in navigation, just display the name
-                newTag.textContent = category.name;
-                
-                // Add event listeners
-                newTag.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Prevent overlapping filter operations
-                    if (isFilteringInProgress) {
-                        return;
-                    }
-                    
-                    const category = newTag.dataset.category;
-                    activateCategory(category);
-                });
-                
-                // Add drag functionality if in edit mode
-                if (isEditMode) {
-                    newTag.draggable = true;
-                    newTag.addEventListener('dragstart', handleCategoryDragStart);
-                    newTag.addEventListener('dragover', handleCategoryDragOver);
-                    newTag.addEventListener('drop', handleCategoryDrop);
-                    newTag.addEventListener('dragend', handleCategoryDragEnd);
-                }
-                
-                // Insert before the add button
-                tagsContainer.insertBefore(newTag, addBtn);
-            });
-            
-            console.log('Category navigation updated with', categoriesToShow.length, 'categories');
-        }
+        // Category navigation removed - no longer needed
 
         // Function to get icon HTML for admin interface
         function getIconHtml(iconKey) {
@@ -3141,20 +2994,7 @@ Main page structure with:
             // Stop video and close player
             stopVideoAndClosePlayer();
             
-            // Reset category dropdown to "All Dance Videos"
-            const dropdown = document.getElementById('categoriesDropdown');
-            if (dropdown) {
-                dropdown.value = 'all-songs';
-            }
-            
-            // Reset tag selection to "All"
-            document.querySelectorAll('.tag').forEach(tag => tag.classList.remove('active'));
-            const allTag = document.querySelector('.tag[data-category="all"]');
-            if (allTag) {
-                allTag.classList.add('active');
-            }
-            
-            // Show all videos (in case any were filtered)
+            // Show all videos (they're all shown by default now)
             const videoItems = document.querySelectorAll('.video-item');
             videoItems.forEach(item => {
                 item.classList.remove('hidden');
@@ -3834,35 +3674,7 @@ Main page structure with:
         // Prevent overlapping filter operations
         let isFilteringInProgress = false;
 
-        // Tag filtering - attach listeners only to static tags (like "All")
-        // Dynamic tags get their listeners in updateTagNavigation()
-        function attachTagListeners() {
-            // Only attach to the "All" tag and add button which are static in HTML
-            const staticTags = document.querySelectorAll('.tag[data-category="all"], .tag.add-category-btn');
-            
-            staticTags.forEach(tag => {
-                // Skip if it's the add button
-                if (tag.classList.contains('add-category-btn')) return;
-                
-                // Remove any existing listeners to prevent duplicates
-                tag.removeEventListener('click', handleTagClick);
-                tag.addEventListener('click', handleTagClick);
-            });
-        }
-        
-        // Separate function for tag click handling to avoid duplicates
-        function handleTagClick(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Prevent overlapping filter operations
-            if (isFilteringInProgress) {
-                return;
-            }
-            
-            const category = this.dataset.category;
-            activateCategory(category);
-        }
+        // Tag filtering removed - no longer needed
 
         /**
          * Load saved page title from localStorage
@@ -4090,21 +3902,13 @@ Main page structure with:
                 await refreshCategoriesFromServer();
                 console.log('✅ Step 3 Complete: Categories refreshed from server');
                 
-                console.log('📋 Step 4: Updating category dropdown...');
-                updateCategoryDropdown();
-                console.log('✅ Step 4 Complete: Category dropdown updated');
-                
-                console.log('🏷️ Step 5: Updating category navigation...');
-                updateTagNavigation();
-                console.log('✅ Step 5 Complete: Category navigation updated');
+                console.log('📋 Step 4-5: Category system removed - showing all videos by default');
                 
                 console.log('🎬 Step 6: Loading videos from server...');
                 loadVideosFromServer();
                 console.log('✅ Step 6 Initiated: Video loading started');
                 
-                console.log('🎯 Step 7: Attaching tag listeners...');
-                attachTagListeners();
-                console.log('✅ Step 7 Complete: Tag listeners attached');
+                console.log('🎯 Step 7: Tag listeners removed - no filtering needed');
                 
                 console.log('🚀 =================================');
                 console.log('🚀 OZ PAGE INITIALIZATION COMPLETE');
@@ -6536,110 +6340,9 @@ Main page structure with:
         // Current active category state
         let currentActiveCategory = 'all';
 
-        // Function to activate a category and filter videos
-        function activateCategory(categoryName) {
-            // Prevent overlapping operations
-            if (isFilteringInProgress) {
-                return;
-            }
-            
-            isFilteringInProgress = true;
-            
-            try {
-                // Normalize category name
-                categoryName = categoryName ? categoryName.toLowerCase() : 'all';
-                
-                // Don't re-filter if already on this category
-                if (currentActiveCategory === categoryName) {
-                    return;
-                }
-                
-                console.log('Activating category:', categoryName);
-                
-                // Update active category state
-                currentActiveCategory = categoryName;
-                
-                // Remove active class from all navigation tags
-                document.querySelectorAll('.tag').forEach(tag => {
-                    tag.classList.remove('active');
-                });
-                
-                // Find and activate the corresponding navigation tag
-                const navTag = document.querySelector(`[data-category="${categoryName}"]`);
-                if (navTag) {
-                    navTag.classList.add('active');
-                } else {
-                    // If category not found in nav, activate "All"
-                    const allTag = document.querySelector('[data-category="all"]');
-                    if (allTag) {
-                        allTag.classList.add('active');
-                        currentActiveCategory = 'all-songs';
-                        categoryName = 'all-songs';
-                    }
-                }
-                
-                // Update the header dropdown to match the selected category
-                const dropdown = document.getElementById('categoriesDropdown');
-                if (dropdown) {
-                    // Temporarily remove event listener to prevent recursion
-                    dropdown.removeEventListener('change', handleCategoryDropdownChange);
-                    dropdown.value = categoryName;
-                    // Re-add event listener
-                    dropdown.addEventListener('change', handleCategoryDropdownChange);
-                }
-                
-                // Filter videos based on tags with smooth animations
-                const videoItems = document.querySelectorAll('.video-item');
-                const itemsToHide = [];
-                const itemsToShow = [];
-                
-                videoItems.forEach(item => {
-                    // Clear any existing display styles to ensure consistency
-                    item.style.display = '';
-                    
-                    if (categoryName === 'all-songs') {
-                        if (item.classList.contains('hidden')) {
-                            itemsToShow.push(item);
-                        }
-                    } else {
-                        // Check if the video belongs to the selected category
-                        const videoCategory = item.dataset.category;
-                        const hasCategory = videoCategory === categoryName;
-                        
-                        if (hasCategory) {
-                            if (item.classList.contains('hidden')) {
-                                itemsToShow.push(item);
-                            }
-                        } else {
-                            if (!item.classList.contains('hidden')) {
-                                itemsToHide.push(item);
-                            }
-                        }
-                    }
-                });
-                
-                // Hide items instantly
-                itemsToHide.forEach(item => {
-                    item.classList.add('hidden');
-                });
-                
-                // Show items instantly
-                itemsToShow.forEach(item => {
-                    item.classList.remove('hidden');
-                });
-                
+        // Category filtering removed - showing all videos by default
 
-                
-                console.log('Category filtering completed:', categoryName);
-            } finally {
-                // Always reset the flag
-                isFilteringInProgress = false;
-            }
-        }
-
-        // Initialize category navigation on page load
-        // Note: Tag click handlers are now added in attachTagListeners() function
-        // which is called from the main DOMContentLoaded listener
+        // Category navigation removed - showing all videos by default
 
         // ========================================
         // CATEGORY MANAGEMENT FUNCTIONS
@@ -6872,8 +6575,7 @@ Main page structure with:
                 categoryPreferences.categories[id].showInDropdown = dropdownCheckbox.checked;
                 saveCategoryPreferences();
                 
-                // Update dropdown UI immediately
-                updateCategoryDropdown();
+                // Category dropdown removed
             });
             
             tagsCheckbox.addEventListener('change', () => {
@@ -6887,8 +6589,7 @@ Main page structure with:
                 categoryPreferences.categories[id].showInTagNavigation = tagsCheckbox.checked;
                 saveCategoryPreferences();
                 
-                // Update category navigation UI immediately
-                updateTagNavigation();
+                // Category navigation removed
             });
             
             // Add reorder functionality
@@ -6990,11 +6691,7 @@ Main page structure with:
                 // Update the "All" tag text
                 updateAllTagLabel();
                 
-                // Update the category dropdown to reflect changes
-                updateCategoryDropdown();
-                
-                // Update the category navigation to reflect changes
-                updateTagNavigation();
+                // Category system removed
                 
                 // Also update the Add Video category dropdown
                 populateAddCategoryDropdown();
@@ -7092,9 +6789,7 @@ Main page structure with:
                 // Update global categories data
                 window.serverCategories = serverCategories;
                 
-                // Refresh all category-related UI elements
-                updateCategoryDropdown();
-                updateTagNavigation();
+                // Category system removed - only update dropdowns for add/edit forms
                 populateAddCategoryDropdown();
                 populateEditCategoryDropdown();
                 
