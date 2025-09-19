@@ -2972,9 +2972,20 @@ Main page structure with:
             const allTag = tagsContainer.querySelector('[data-category="all"]');
             const addBtn = tagsContainer.querySelector('#addCategoryBtn');
             
-            // Remove all dynamic tags (keep All and + button)
+            // Remove all dynamic tags (keep only the hardcoded All and + button)
             const existingTags = tagsContainer.querySelectorAll('.tag:not([data-category="all"]):not(#addCategoryBtn)');
             existingTags.forEach(tag => tag.remove());
+            
+            // Also remove any tags that might have been created with "All" in the name
+            const allTags = tagsContainer.querySelectorAll('.tag');
+            allTags.forEach(tag => {
+                // Keep the original hardcoded "All" tag and the add button
+                if (tag.getAttribute('data-category') === 'all' || tag.id === 'addCategoryBtn') {
+                    return; // Keep these
+                }
+                // Remove any other tags (including duplicates)
+                tag.remove();
+            });
             
             // IMPORTANT: Category navigation should show CATEGORIES, not tags
             // Get categories from server or predefined categories
@@ -3016,6 +3027,8 @@ Main page structure with:
             }
             
             console.log('🏷️ Categories found for navigation:', categoriesToShow);
+            console.log('🏷️ DEBUG: Server categories:', window.serverCategories);
+            console.log('🏷️ DEBUG: Predefined categories:', predefinedCategories);
             
             // Category navigation should ONLY show categories, not tags
             // Categories are handled by the dropdown in the header
@@ -7015,9 +7028,9 @@ Main page structure with:
                 // Migration: Add showInTagNavigation property for backward compatibility
                 const migratedCategories = serverCategories.map(category => {
                     if (category.showInTagNavigation === undefined) {
-                        // Default to same value as showInDropdown for backward compatibility
-                        category.showInTagNavigation = category.showInDropdown !== undefined ? category.showInDropdown : true;
-                        console.log(`🔄 MIGRATION: Added showInTagNavigation=${category.showInTagNavigation} to category ${category.id}`);
+                        // Default to FALSE to avoid duplicate "All" tags - only show in dropdown by default
+                        category.showInTagNavigation = false;
+                        console.log(`🔄 MIGRATION: Added showInTagNavigation=false to category ${category.id} to prevent duplicates`);
                     }
                     return category;
                 });
