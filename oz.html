@@ -2493,8 +2493,8 @@ Main page structure with:
             <div class="admin-banner-buttons">
                 <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
                     <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                    <input type="color" id="adminAccentColor" value="#008f67" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
+                    <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -2873,7 +2873,7 @@ Main page structure with:
                     option.setAttribute('data-icon', category.icon || '');
                     
                     // Set as selected if it's the default "All Dance Videos"
-                    if (category.id === 'all-songs' || category.id === 'all') {
+                    if (category.id === 'all-songs') {
                         option.selected = true;
                     }
                     
@@ -2892,7 +2892,7 @@ Main page structure with:
                 
                 // Collect unique categories from loaded videos
                 window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
+                    if (video.category && video.category !== 'all-songs') {
                         // Check if it's not already in predefined categories
                         const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
                         const isServerCategory = window.serverCategories && window.serverCategories.some(srv => srv.id === video.category);
@@ -3760,9 +3760,9 @@ Main page structure with:
                 return;
             }
             
-            // Check if all videos have 'all' category
+            // Check if all videos have 'all-songs' category (the default category)
             const allVideosHaveAllCategory = videos.every(video => 
-                video.category === 'all' || !video.category
+                video.category === 'all-songs' || !video.category
             );
             
             if (allVideosHaveAllCategory) {
@@ -5158,7 +5158,7 @@ Main page structure with:
                 // Update categories dropdown visibility
                 const allVideoElements = document.querySelectorAll('.video-item');
                 const currentVideos = Array.from(allVideoElements).map(element => ({
-                    category: element.dataset.category || 'all'
+                    category: element.dataset.category || 'all-songs'
                 }));
                 hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                 
@@ -5244,7 +5244,7 @@ Main page structure with:
             setTimeout(() => {
                 const allVideoElements = document.querySelectorAll('.video-item');
                 const currentVideos = Array.from(allVideoElements).map(element => ({
-                    category: element.dataset.category || 'all'
+                    category: element.dataset.category || 'all-songs'
                 }));
                 hideCategoryDropdownIfAllVideosAreAll(currentVideos);
             }, 300);
@@ -5331,7 +5331,7 @@ Main page structure with:
                     const videoItems = document.querySelectorAll('.video-item');
                     
                     videoItems.forEach(item => {
-                        if (category === 'all' || item.dataset.category === category) {
+                        if (category === 'all-songs' || item.dataset.category === category) {
                             item.classList.remove('hidden');
                         } else {
                             item.classList.add('hidden');
@@ -5842,7 +5842,7 @@ Main page structure with:
                 
                 // Collect unique categories from loaded videos
                 window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
+                    if (video.category && video.category !== 'all-songs') {
                         // Check if it's not already in predefined categories
                         const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
                         if (!isPredefined) {
@@ -6016,7 +6016,7 @@ Main page structure with:
                     // Update categories dropdown visibility
                     const allVideoElements = document.querySelectorAll('.video-item');
                     const currentVideos = Array.from(allVideoElements).map(element => ({
-                        category: element.dataset.category || 'all'
+                        category: element.dataset.category || 'all-songs'
                     }));
                     hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                     
@@ -6109,7 +6109,7 @@ Main page structure with:
             const additionalCategories = new Set();
             if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
                 window.loadedVideos.forEach(video => {
-                    if (video.category && video.category !== 'all') {
+                    if (video.category && video.category !== 'all-songs') {
                         // Check if it's not already in predefined categories
                         const isPredefined = predefinedCategories.some(pred => pred.id === video.category);
                         if (!isPredefined) {
@@ -6442,7 +6442,7 @@ Main page structure with:
             try {
                 const allVideoElements = document.querySelectorAll('.video-item');
                 const currentVideos = Array.from(allVideoElements).map(element => ({
-                    category: element.dataset.category || 'all'
+                    category: element.dataset.category || 'all-songs'
                 }));
                 hideCategoryDropdownIfAllVideosAreAll(currentVideos);
                 console.log('🎬 DEBUG: Dropdown visibility updated successfully');
@@ -6576,8 +6576,8 @@ Main page structure with:
                     const allTag = document.querySelector('[data-category="all"]');
                     if (allTag) {
                         allTag.classList.add('active');
-                        currentActiveCategory = 'all';
-                        categoryName = 'all';
+                        currentActiveCategory = 'all-songs';
+                        categoryName = 'all-songs';
                     }
                 }
                 
@@ -6600,7 +6600,7 @@ Main page structure with:
                     // Clear any existing display styles to ensure consistency
                     item.style.display = '';
                     
-                    if (categoryName === 'all') {
+                    if (categoryName === 'all-songs') {
                         if (item.classList.contains('hidden')) {
                             itemsToShow.push(item);
                         }
@@ -6786,7 +6786,7 @@ Main page structure with:
                 // Add categories from loaded video data
                 if (window.loadedVideos && Array.isArray(window.loadedVideos)) {
                     window.loadedVideos.forEach(video => {
-                        if (video.category && video.category !== 'all') {
+                        if (video.category && video.category !== 'all-songs') {
                             allCategories.add(video.category);
                         }
                     });
