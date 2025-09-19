@@ -3400,8 +3400,8 @@ Main page structure with:
                 const isFirstCol = col === 0;
                 const isLastCol = col === columns - 1 || index === totalVideos - 1;
                 
-                // Handle both old format (category) and new format (tags array)
-                const videoTags = video.tags || [video.category];
+                // Use actual tags for display, not category
+                const videoTags = video.tags || [];
                 const tagsString = videoTags.join(',');
                 const displayTags = videoTags
                     .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
@@ -5850,32 +5850,41 @@ Main page structure with:
             }
         }
 
+        // Available tags for videos (separate from categories)
+        const availableTags = [
+            { id: 'beginner', name: 'Beginner' },
+            { id: 'intermediate', name: 'Intermediate' },
+            { id: 'advanced', name: 'Advanced' },
+            { id: 'kids', name: 'Kids' },
+            { id: 'adults', name: 'Adults' },
+            { id: 'chorus', name: 'Chorus' },
+            { id: 'solo', name: 'Solo' },
+            { id: 'group', name: 'Group' },
+            { id: 'fun', name: 'Fun' },
+            { id: 'technique', name: 'Technique' },
+            { id: 'performance', name: 'Performance' },
+            { id: 'practice', name: 'Practice' }
+        ];
+
         function populateEditTagsContainer(currentTags = []) {
             const tagContainer = document.getElementById('editTagSelectionContainer');
             tagContainer.innerHTML = '';
             
-            const tags = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
-                id: tag.dataset.category,
-                name: tag.textContent
-            }));
-            
-            tags.forEach(tag => {
-                if (tag.id !== 'all') {
-                    const tagSelector = document.createElement('div');
-                    tagSelector.className = 'tag-selector';
-                    tagSelector.dataset.tagId = tag.id;
-                    tagSelector.textContent = tag.name;
-                    
-                    // Mark as selected if it's in the current tags
-                    if (currentTags.includes(tag.id)) {
-                        tagSelector.classList.add('selected');
-                    }
-                    
-                    tagSelector.addEventListener('click', function() {
-                        this.classList.toggle('selected');
-                    });
-                    tagContainer.appendChild(tagSelector);
+            availableTags.forEach(tag => {
+                const tagSelector = document.createElement('div');
+                tagSelector.className = 'tag-selector';
+                tagSelector.dataset.tagId = tag.id;
+                tagSelector.textContent = tag.name;
+                
+                // Mark as selected if it's in the current tags
+                if (currentTags.includes(tag.id)) {
+                    tagSelector.classList.add('selected');
                 }
+                
+                tagSelector.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                });
+                tagContainer.appendChild(tagSelector);
             });
         }
 
@@ -6116,26 +6125,19 @@ Main page structure with:
             
             console.log('📋 DEBUG: Add video category dropdown populated with', select.children.length - 1, 'categories');
             
-            // Also populate tag selection (using tags, not categories)
+            // Also populate tag selection (using actual tags, not categories)
             const tagContainer = document.getElementById('tagSelectionContainer');
             tagContainer.innerHTML = '';
             
-            const tags = Array.from(document.querySelectorAll('.tag:not(.add-category-btn)')).map(tag => ({
-                id: tag.dataset.category,
-                name: tag.textContent
-            }));
-            
-            tags.forEach(tag => {
-                if (tag.id !== 'all') {
-                    const tagSelector = document.createElement('div');
-                    tagSelector.className = 'tag-selector';
-                    tagSelector.dataset.tagId = tag.id;
-                    tagSelector.textContent = tag.name;
-                    tagSelector.addEventListener('click', function() {
-                        this.classList.toggle('selected');
-                    });
-                    tagContainer.appendChild(tagSelector);
-                }
+            availableTags.forEach(tag => {
+                const tagSelector = document.createElement('div');
+                tagSelector.className = 'tag-selector';
+                tagSelector.dataset.tagId = tag.id;
+                tagSelector.textContent = tag.name;
+                tagSelector.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                });
+                tagContainer.appendChild(tagSelector);
             });
         }
 
@@ -6347,12 +6349,12 @@ Main page structure with:
             videoElement.setAttribute('data-title', video.title);
             videoElement.setAttribute('data-wistia', video.wistiaId);
             
-            // Handle tags - use tags array if provided, otherwise use category as single tag
-            const videoTags = video.tags && video.tags.length > 0 ? video.tags : [video.category];
+            // Use actual tags for display, not category
+            const videoTags = video.tags || [];
             const tagsString = videoTags.join(',');
             videoElement.setAttribute('data-tags', tagsString);
             
-            // Generate tag pills HTML (filter out 'all' category as it's not a content tag)
+            // Generate tag pills HTML from actual tags
             const displayTags = videoTags
                 .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
                 .map(tag => 
@@ -6590,11 +6592,11 @@ Main page structure with:
                             itemsToShow.push(item);
                         }
                     } else {
-                        // Check if the video has the selected tag
-                        const videoTags = item.dataset.tags ? item.dataset.tags.split(',') : [item.dataset.category];
-                        const hasTag = videoTags.includes(categoryName);
+                        // Check if the video belongs to the selected category
+                        const videoCategory = item.dataset.category;
+                        const hasCategory = videoCategory === categoryName;
                         
-                        if (hasTag) {
+                        if (hasCategory) {
                             if (item.classList.contains('hidden')) {
                                 itemsToShow.push(item);
                             }
