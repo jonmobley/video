@@ -2977,51 +2977,57 @@ Main page structure with:
             existingTags.forEach(tag => tag.remove());
             
             // IMPORTANT: Category navigation should show CATEGORIES, not tags
-            // Collect all unique tags from loaded videos
-            let tagsToShow = [];
+            // Get categories from server or predefined categories
+            let categoriesToShow = [];
             
-            if (window.loadedVideos && window.loadedVideos.length > 0) {
-                const allTags = new Set();
-                
-                window.loadedVideos.forEach(video => {
-                    if (video.tags && Array.isArray(video.tags)) {
-                        video.tags.forEach(tag => {
-                            if (tag && tag !== 'all') {
-                                allTags.add(tag);
-                            }
-                        });
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                // Use server categories, filter for navigation display
+                categoriesToShow = window.serverCategories.filter(category => {
+                    if (category.id === 'all-songs') return false; // Skip "All" - it's handled separately
+                    
+                    // Check if this category should be shown in navigation
+                    let showInNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : true;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                        showInNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
+                            ? categoryPreferences.categories[category.id].showInTagNavigation 
+                            : true;
                     }
+                    
+                    return showInNavigation;
                 });
-                
-                // Convert to array and sort
-                tagsToShow = Array.from(allTags).sort().map(tag => ({
-                    id: tag,
-                    name: tag.charAt(0).toUpperCase() + tag.slice(1), // Capitalize first letter
-                    showInTagNavigation: true
-                }));
-                
-                console.log('🏷️ Tags found for navigation:', tagsToShow);
             } else {
-                console.log('🏷️ No videos loaded yet, using fallback tags');
-                // Fallback tags if no videos are loaded yet
-                tagsToShow = [
-                    { id: 'dancers', name: 'Dancers', showInTagNavigation: true },
-                    { id: 'kids', name: 'Kids', showInTagNavigation: true },
-                    { id: 'chorus', name: 'Chorus', showInTagNavigation: true }
-                ];
+                // Fall back to predefined categories
+                categoriesToShow = predefinedCategories.filter(category => {
+                    if (category.id === 'all-songs') return false; // Skip "All" - it's handled separately
+                    
+                    let showInNavigation = category.showInTagNavigation !== undefined ? category.showInTagNavigation : true;
+                    
+                    // Override with user preference if available
+                    if (categoryPreferences.categories && categoryPreferences.categories[category.id]) {
+                        showInNavigation = categoryPreferences.categories[category.id].showInTagNavigation !== undefined 
+                            ? categoryPreferences.categories[category.id].showInTagNavigation 
+                            : true;
+                    }
+                    
+                    return showInNavigation;
+                });
             }
+            
+            console.log('🏷️ Categories found for navigation:', categoriesToShow);
             
             // Category navigation should ONLY show categories, not tags
             // Categories are handled by the dropdown in the header
             
-            // Create tag elements for each tag
-            tagsToShow.forEach(tag => {
+            // Create navigation elements for each category
+            categoriesToShow.forEach(category => {
                 const newTag = document.createElement('div');
                 newTag.className = 'tag';
-                newTag.setAttribute('data-category', tag.id);
+                newTag.setAttribute('data-category', category.id);
                 
-                // Tags don't have icons, just display the name
-                newTag.textContent = tag.name;
+                // Categories don't have icons in navigation, just display the name
+                newTag.textContent = category.name;
                 
                 // Add event listeners
                 newTag.addEventListener('click', (e) => {
@@ -3050,7 +3056,7 @@ Main page structure with:
                 tagsContainer.insertBefore(newTag, addBtn);
             });
             
-            console.log('Category navigation updated with', tagsToShow.length, 'categories');
+            console.log('Category navigation updated with', categoriesToShow.length, 'categories');
         }
 
         // Function to get icon HTML for admin interface
