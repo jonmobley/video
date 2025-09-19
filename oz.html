@@ -5760,7 +5760,7 @@ Main page structure with:
             
             // Get current video element to extract tags
             const videoElement = document.querySelector(`[data-wistia="${wistiaId}"]`);
-            const currentTags = videoElement && videoElement.dataset.tags ? videoElement.dataset.tags.split(',') : [category];
+            const currentTags = videoElement && videoElement.dataset.tags ? videoElement.dataset.tags.split(',') : [];
             
             // Populate form with current values
             document.getElementById('editVideoTitle').value = title;
