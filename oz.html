@@ -3268,12 +3268,63 @@ Main page structure with:
         // ===== DATA LOADING AND SERVER COMMUNICATION =====
         
         /**
+         * Cache management for API responses
+         * 5-minute expiration to balance freshness and performance
+         */
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        function getCachedData(key) {
+            try {
+                const cached = localStorage.getItem(`cache_${key}`);
+                if (!cached) return null;
+                
+                const { data, timestamp } = JSON.parse(cached);
+                const age = Date.now() - timestamp;
+                
+                if (age < CACHE_DURATION) {
+                    console.log(`💾 CACHE HIT: ${key} (age: ${Math.round(age/1000)}s)`);
+                    return data;
+                }
+                
+                console.log(`⏰ CACHE EXPIRED: ${key} (age: ${Math.round(age/1000)}s)`);
+                localStorage.removeItem(`cache_${key}`);
+                return null;
+            } catch (error) {
+                console.error('Cache read error:', error);
+                return null;
+            }
+        }
+        
+        function setCachedData(key, data) {
+            try {
+                const cacheObject = {
+                    data: data,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(`cache_${key}`, JSON.stringify(cacheObject));
+                console.log(`💾 CACHED: ${key}`);
+            } catch (error) {
+                console.error('Cache write error:', error);
+            }
+        }
+        
+        /**
          * Loads videos from the server/database
          * Handles caching and error recovery
          */
         async function loadVideosFromServer() {
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
+                
+                // Check cache first
+                const cachedVideos = getCachedData('videos_oz');
+                if (cachedVideos) {
+                    videos = cachedVideos;
+                    console.log('✅ Videos loaded from cache:', videos.length, 'videos');
+                    processLoadedVideos(videos);
+                    return;
+                }
+                
                 console.log('🎬 Making API call to: /.netlify/functions/get-videos?page=oz');
                 const response = await fetch('/.netlify/functions/get-videos?page=oz');
                 if (response.ok) {
@@ -3281,27 +3332,10 @@ Main page structure with:
                     console.log('✅ Videos loaded successfully:', videos.length, 'videos');
                     console.log('🎬 Video data sample:', videos.slice(0, 2));
                     
-                    // Check if there's a featured video saved
-                    const featuredVideo = videos.find(v => v.featured === true);
-                    if (featuredVideo) {
-                        featuredContent.videoId = featuredVideo.wistiaId;
-                        featuredContent.title = featuredVideo.title;
-                        featuredContent.type = 'video';
-                        
-                        // Load the featured video in the player
-                        loadWistiaVideo(featuredVideo.wistiaId, featuredVideo.title);
-                        
-                        // Show the video player
-                        const videoPlayer = document.getElementById('videoPlayer');
-                        if (videoPlayer) {
-                            videoPlayer.style.display = 'block';
-                        }
-                    }
+                    // Cache the response
+                    setCachedData('videos_oz', videos);
                     
-                    renderVideoGrid(videos);
-                    
-                    // Hide categories dropdown if all videos have 'all' category
-                    hideCategoryDropdownIfAllVideosAreAll(videos);
+                    processLoadedVideos(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
                     showError('Failed to load videos from server');
@@ -3312,6 +3346,33 @@ Main page structure with:
                 console.error('❌ This will result in empty video grid!');
                 showError('Videos temporarily unavailable');
             }
+        }
+        
+        /**
+         * Process loaded videos (featured video, rendering, etc.)
+         */
+        function processLoadedVideos(videos) {
+            // Check if there's a featured video saved
+            const featuredVideo = videos.find(v => v.featured === true);
+            if (featuredVideo) {
+                featuredContent.videoId = featuredVideo.wistiaId;
+                featuredContent.title = featuredVideo.title;
+                featuredContent.type = 'video';
+                
+                // Load the featured video in the player
+                loadWistiaVideo(featuredVideo.wistiaId, featuredVideo.title);
+                
+                // Show the video player
+                const videoPlayer = document.getElementById('videoPlayer');
+                if (videoPlayer) {
+                    videoPlayer.style.display = 'block';
+                }
+            }
+            
+            renderVideoGrid(videos);
+            
+            // Hide categories dropdown if all videos have 'all' category
+            hideCategoryDropdownIfAllVideosAreAll(videos);
         }
 
         // Fix orphaned words in video titles
@@ -3476,7 +3537,7 @@ Main page structure with:
 
         // Cache for video metadata to avoid repeat API calls
         const videoMetadataCache = new Map();
-        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const METADATA_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
         // Initialize lazy loading with Intersection Observer
         function initializeLazyLoading(videos) {
@@ -3530,7 +3591,7 @@ Main page structure with:
                 if (cached) {
                     const data = JSON.parse(cached);
                     const now = Date.now();
-                    if (now - data.timestamp < CACHE_DURATION) {
+                    if (now - data.timestamp < METADATA_CACHE_DURATION) {
                         return data.metadata;
                     } else {
                         // Cache expired, remove it
@@ -3659,7 +3720,7 @@ Main page structure with:
 
         }
 
-        // Load Wistia thumbnail using oEmbed API
+        // Load Wistia thumbnail using oEmbed API with optimized size
         async function loadWistiaThumbnail(wistiaId) {
             // Check cache first
             const cachedMetadata = getCachedMetadata(wistiaId);
@@ -3669,7 +3730,8 @@ Main page structure with:
                 if (thumbElement) {
                     const img = thumbElement.querySelector('img');
                     if (img) {
-                        img.src = cachedMetadata.thumbnail_url;
+                        // Use optimized size (640px width instead of full size)
+                        img.src = getOptimizedThumbnailUrl(cachedMetadata.thumbnail_url);
                         img.style.display = 'block';
                     }
                 }
@@ -3685,7 +3747,8 @@ Main page structure with:
                     if (thumbElement) {
                         const img = thumbElement.querySelector('img');
                         if (img) {
-                            img.src = data.thumbnail_url;
+                            // Use optimized size (640px width instead of full size)
+                            img.src = getOptimizedThumbnailUrl(data.thumbnail_url);
                             img.style.display = 'block';
                         }
                     }
@@ -3704,6 +3767,19 @@ Main page structure with:
                 // Fallback to gradient background
                 setThumbnailFallback(wistiaId);
             }
+        }
+        
+        /**
+         * Get optimized Wistia thumbnail URL with smaller size
+         * Reduces bandwidth and improves load time
+         */
+        function getOptimizedThumbnailUrl(url) {
+            // Wistia URLs support size parameter - use 640px width for thumbnails
+            // This is plenty for our grid display and much faster to load
+            if (url && url.includes('embed-ssl.wistia.com')) {
+                return url.replace('image.png', 'image.png?image_resize=640');
+            }
+            return url;
         }
 
         function setThumbnailFallback(wistiaId) {
@@ -4124,31 +4200,43 @@ Main page structure with:
             console.log('🚀 =================================');
             
             try {
-                console.log('🎨 Step 1: Loading page config...');
-                await loadPageConfig();
-                console.log('✅ Step 1 Complete: Page config loaded');
+                // Step 1: Load category preferences (synchronous, no API call)
+                console.log('🏷️ Step 1: Loading category preferences...');
+                loadCategoryPreferences();
+                console.log('✅ Step 1 Complete: Category preferences loaded');
+                
+                // Step 2: PARALLEL LOADING - Load all API data simultaneously
+                console.log('⚡ Step 2: Loading all API data in parallel...');
+                const startTime = performance.now();
+                
+                const [pageConfigResult, categoriesResult, videosResult] = await Promise.all([
+                    loadPageConfig().catch(err => {
+                        console.error('❌ Page config failed:', err);
+                        return null;
+                    }),
+                    refreshCategoriesFromServer().catch(err => {
+                        console.error('❌ Categories failed:', err);
+                        return null;
+                    }),
+                    loadVideosAndPopulateDropdown().catch(err => {
+                        console.error('❌ Videos failed:', err);
+                        return null;
+                    })
+                ]);
+                
+                const loadTime = Math.round(performance.now() - startTime);
+                console.log(`✅ Step 2 Complete: All API data loaded in ${loadTime}ms`);
                 console.log('🎨 Current accent color:', getComputedStyle(document.documentElement).getPropertyValue('--accent-color'));
                 
-                console.log('🏷️ Step 2: Loading category preferences...');
-                loadCategoryPreferences();
-                console.log('✅ Step 2 Complete: Category preferences loaded');
-                
-                console.log('🏷️ Step 3: Refreshing categories from server...');
-                await refreshCategoriesFromServer();
-                console.log('✅ Step 3 Complete: Categories refreshed from server');
-                
-                console.log('📋 Step 4: Populating tag filters...');
+                // Step 3: Populate tag filters (depends on categories being loaded)
+                console.log('📋 Step 3: Populating tag filters...');
                 populateTagFilters();
-                console.log('✅ Step 4 Complete: Tag filters populated');
+                console.log('✅ Step 3 Complete: Tag filters populated');
                 
-                console.log('📋 Step 5: Loading videos and populating song dropdown...');
-                await loadVideosAndPopulateDropdown();
-                console.log('✅ Step 5 Complete: Videos loaded and dropdown populated');
-                
-                console.log('🎯 Step 7: Tag listeners removed - no filtering needed');
+                console.log('🎯 Step 4: Tag listeners removed - no filtering needed');
                 
                 console.log('🚀 =================================');
-                console.log('🚀 OZ PAGE INITIALIZATION COMPLETE');
+                console.log(`🚀 OZ PAGE INITIALIZATION COMPLETE (${loadTime}ms)`);
                 console.log('🚀 =================================');
                 
             } catch (error) {
@@ -6945,6 +7033,14 @@ Main page structure with:
         async function loadCategoriesFromServer() {
             try {
                 console.log('🏷️ DEBUG: Loading categories from server...');
+                
+                // Check cache first
+                const cachedCategories = getCachedData('categories_oz');
+                if (cachedCategories) {
+                    console.log('🏷️ DEBUG: Loaded categories from cache');
+                    return cachedCategories;
+                }
+                
                 const response = await fetch('/.netlify/functions/get-categories?page=oz');
                 
                 if (!response.ok) {
@@ -6964,6 +7060,9 @@ Main page structure with:
                     }
                     return category;
                 });
+                
+                // Cache the categories
+                setCachedData('categories_oz', migratedCategories);
                 
                 return migratedCategories;
             } catch (error) {
