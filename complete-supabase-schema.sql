@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS categories (
     color TEXT,
     "order" INTEGER DEFAULT 0,
     page TEXT DEFAULT 'main',
+    show_in_dropdown BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(category_key, page)
 );
@@ -57,15 +58,17 @@ CREATE TABLE IF NOT EXISTS categories (
 -- Add columns if they don't exist (for existing installations)
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS category_key TEXT;
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS color TEXT;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS show_in_dropdown BOOLEAN DEFAULT TRUE;
 
 -- For existing installations, update the id column type if needed
 -- Note: This may require manual intervention if there's existing data
 -- ALTER TABLE categories ALTER COLUMN id TYPE TEXT;
 
 -- Add comments for documentation
-COMMENT ON COLUMN categories.category_key IS 'Original category identifier (e.g., dancers, chorus)';
+COMMENT ON COLUMN categories.category_key IS 'Original category identifier (e.g., oz, munchkinland, jitterbug, chorus, kids)';
 COMMENT ON COLUMN categories.color IS 'Optional hex color for category styling (#RRGGBB)';
-COMMENT ON COLUMN categories.id IS 'Composite primary key: page-category_key (e.g., oz-dancers)';
+COMMENT ON COLUMN categories.id IS 'Composite primary key: page-category_key (e.g., oz-oz, oz-tag-chorus)';
+COMMENT ON COLUMN categories.show_in_dropdown IS 'TRUE for song categories (shown in dropdown), FALSE for audience tags (shown as filter pills)';
 
 -- Migration note for existing databases:
 -- If you have existing category data, you may need to:

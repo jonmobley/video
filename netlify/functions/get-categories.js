@@ -42,12 +42,14 @@ if (supabaseUrl && supabaseKey) {
 // Default categories for fallback
 // Used when Supabase is unavailable or not configured
 // Ensures basic functionality during development and outages
+// Categories are SONG NAMES, not audience types (those are tags)
 const DEFAULT_CATEGORIES = {
   'oz': [
-    { id: 'all', name: 'All Videos', order: 0, page: 'oz' },
-    { id: 'dancers', name: 'Dancers', order: 1, page: 'oz' },
-    { id: 'kids', name: 'Kids', order: 2, page: 'oz' },
-    { id: 'chorus', name: 'Chorus', order: 3, page: 'oz' }
+    { id: 'all', name: 'All Songs', order: 0, page: 'oz' },
+    { id: 'oz', name: 'Oz', order: 1, page: 'oz' },
+    { id: 'munchkinland', name: 'Munchkinland', order: 2, page: 'oz' },
+    { id: 'jitterbug', name: 'Jitterbug', order: 3, page: 'oz' },
+    { id: 'yellowbrickroad', name: 'Yellow Brick Road', order: 4, page: 'oz' }
   ],
   'disc': [
     { id: 'all', name: 'All Videos', order: 0, page: 'disc' },
@@ -114,7 +116,8 @@ exports.handler = async (event, context) => {
           color: cat.color,
           order: cat.order,
           page: cat.page,
-          icon: cat.icon
+          icon: cat.icon,
+          show_in_dropdown: cat.show_in_dropdown !== false // Default to true if not set
         }));
         
         return {

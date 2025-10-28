@@ -124,6 +124,16 @@ These enable database-backed video management instead of using default videos.
 
 ## Recent Changes
 
+**2025-10-28 - Categories & Tags Structure Update**
+- Restructured database to distinguish between Categories (songs) and Tags (audiences)
+- Added `show_in_dropdown` column to categories table
+- Categories (songs) for OZ page: Oz, Munchkinland, Jitterbug, Yellow Brick Road
+- Tags (audience filters) for OZ page: Chorus, Kids, Dancers
+- Updated backend functions to properly return show_in_dropdown field
+- Fixed FOUC (Flash of Unstyled Content) with inline CSS variables
+- Increased background image opacity for better visibility (28% desktop, 25% tablet)
+- Performance optimizations: localStorage caching, lazy loading, parallel API calls
+
 **2025-10-28 - Replit Import Setup**
 - Configured Netlify Dev server for port 5000
 - Added Replit-specific .gitignore entries
@@ -143,3 +153,8 @@ None documented yet - this is a fresh import.
 - Mobile-optimized with landscape fullscreen detection
 - No authentication required for viewing videos
 - Admin features available through "Login" button on each page
+
+### Database Structure
+- **Categories** (show_in_dropdown = true): Song names shown in dropdown (e.g., "Oz", "Munchkinland")
+- **Tags** (show_in_dropdown = false): Audience filters shown as pills (e.g., "Chorus", "Kids", "Dancers")
+- Admin can manage both via "Manage Categories" and "Manage Tags" buttons in edit mode
