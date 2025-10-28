@@ -514,14 +514,20 @@ Last Updated: 2024
             gap: 16px;
             position: relative;
             z-index: 50;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         /* Desktop: horizontal layout */
         @media screen and (min-width: 768px) {
             .navigation-section {
                 flex-direction: row;
-                justify-content: center;
-                gap: 20px;
+                justify-content: flex-start;
+                align-items: center;
+                gap: 12px;
+                padding: 20px 20px 12px 20px;
             }
         }
 
@@ -575,6 +581,13 @@ Last Updated: 2024
             justify-content: center;
             align-items: center;
             width: 100%;
+        }
+
+        @media screen and (min-width: 768px) {
+            .tags-container {
+                width: auto;
+                flex: 1;
+            }
         }
 
 
