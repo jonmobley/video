@@ -2497,7 +2497,7 @@ Main page structure with:
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
-                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
+                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Tags</button>
                 <button class="admin-add-video-btn" id="adminOrganizeVideosBtn">Organize Videos</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
                 <button class="admin-exit-btn" id="adminExitBtn">Close</button>
@@ -2655,25 +2655,25 @@ Main page structure with:
         </div>
     </div>
 
-    <!-- Manage Categories Popup -->
+    <!-- Manage Tags Popup -->
     <div class="manage-categories-overlay" id="manageCategoriesOverlay" style="display: none;">
         <div class="manage-categories-popup">
-            <h3>Manage Categories</h3>
+            <h3>Manage Tags</h3>
             
-            <!-- All Categories Label Customization -->
+            <!-- All Tags Label Customization -->
             <div class="form-group">
-                <label for="allCategoriesLabel">All Categories Label</label>
+                <label for="allCategoriesLabel">All Tags Label</label>
                 <input type="text" id="allCategoriesLabel" placeholder="All" value="All">
-                <small>Customize the label for showing all videos (e.g., "All Dance Videos")</small>
+                <small>Customize the label for showing all videos (e.g., "All Dancers")</small>
             </div>
             
-            <!-- Categories List -->
+            <!-- Tags List -->
             <div class="form-group">
-                <label>Categories</label>
+                <label>Tags</label>
                 <div class="categories-list" id="categoriesList">
-                    <!-- Categories will be populated dynamically -->
+                    <!-- Tags will be populated dynamically -->
                 </div>
-                <button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Category</button>
+                <button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Tag</button>
             </div>
             
             <div class="manage-categories-buttons">
@@ -6532,16 +6532,12 @@ Main page structure with:
                 <input type="text" value="${name}" placeholder="Category name..." ${isPredefined ? 'readonly' : ''} />
             `;
             
-            // Add visibility control checkboxes for all categories (not just "More Coming Soon!")
+            // Add visibility control checkbox for tag navigation
             categoryHTML += `
                 <div class="category-visibility-controls">
                     <label class="category-checkbox-label">
-                        <input type="checkbox" class="category-dropdown-checkbox" ${showInDropdown ? 'checked' : ''} />
-                        Show in dropdown
-                    </label>
-                    <label class="category-checkbox-label">
                         <input type="checkbox" class="category-tags-checkbox" ${showInTagNavigation ? 'checked' : ''} />
-                        Show in category navigation
+                        Show in tag navigation
                     </label>
                 </div>
             `;
@@ -6563,23 +6559,8 @@ Main page structure with:
                 });
             }
             
-            // Add checkbox functionality for both dropdown and category navigation
-            const dropdownCheckbox = categoryItem.querySelector('.category-dropdown-checkbox');
+            // Add checkbox functionality for tag navigation
             const tagsCheckbox = categoryItem.querySelector('.category-tags-checkbox');
-            
-            dropdownCheckbox.addEventListener('change', () => {
-                // Update preferences
-                if (!categoryPreferences.categories) {
-                    categoryPreferences.categories = {};
-                }
-                if (!categoryPreferences.categories[id]) {
-                    categoryPreferences.categories[id] = {};
-                }
-                categoryPreferences.categories[id].showInDropdown = dropdownCheckbox.checked;
-                saveCategoryPreferences();
-                
-                // Category dropdown removed
-            });
             
             tagsCheckbox.addEventListener('change', () => {
                 // Update preferences
