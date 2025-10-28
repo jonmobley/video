@@ -2567,7 +2567,8 @@ Main page structure with:
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
-                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Tags</button>
+                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
+                <button class="admin-add-video-btn" id="adminManageTagsBtn">Manage Tags</button>
                 <button class="admin-add-video-btn" id="adminOrganizeVideosBtn">Organize Videos</button>
                 <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
                 <button class="admin-exit-btn" id="adminExitBtn">Close</button>
@@ -2742,25 +2743,25 @@ Main page structure with:
         </div>
     </div>
 
-    <!-- Manage Tags Popup -->
+    <!-- Manage Categories Popup (Songs) -->
     <div class="manage-categories-overlay" id="manageCategoriesOverlay" style="display: none;">
         <div class="manage-categories-popup">
-            <h3>Manage Tags</h3>
+            <h3>Manage Categories</h3>
             
-            <!-- All Tags Label Customization -->
+            <!-- All Categories Label Customization -->
             <div class="form-group">
-                <label for="allCategoriesLabel">All Tags Label</label>
+                <label for="allCategoriesLabel">All Categories Label</label>
                 <input type="text" id="allCategoriesLabel" placeholder="All" value="All">
-                <small>Customize the label for showing all videos (e.g., "All Dancers")</small>
+                <small>Customize the label for showing all videos (e.g., "All Songs")</small>
             </div>
             
-            <!-- Tags List -->
+            <!-- Categories List -->
             <div class="form-group">
-                <label>Tags</label>
+                <label>Song Categories</label>
                 <div class="categories-list" id="categoriesList">
-                    <!-- Tags will be populated dynamically -->
+                    <!-- Categories will be populated dynamically -->
                 </div>
-                <button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Tag</button>
+                <button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Category</button>
             </div>
             
             <div class="manage-categories-buttons">
@@ -2768,6 +2769,29 @@ Main page structure with:
                 <button type="button" class="btn-cancel-categories" id="cancelManageCategoriesBtn">Cancel</button>
             </div>
             <div class="manage-categories-error" id="manageCategoriesError" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Manage Tags Popup (People: Chorus, Kids, Dancers) -->
+    <div class="manage-categories-overlay" id="manageTagsOverlay" style="display: none;">
+        <div class="manage-categories-popup">
+            <h3>Manage Tags</h3>
+            <p style="color: #aaa; font-size: 14px; margin-bottom: 20px;">Tags identify who should watch each video (e.g., Chorus, Kids, Dancers)</p>
+            
+            <!-- Tags List -->
+            <div class="form-group">
+                <label>Filter Tags</label>
+                <div class="categories-list" id="tagsList">
+                    <!-- Tags will be populated dynamically -->
+                </div>
+                <button type="button" class="btn-add-category" id="addNewTagBtn">+ Add Tag</button>
+            </div>
+            
+            <div class="manage-categories-buttons">
+                <button type="button" class="btn-save-categories" id="saveTagsBtn">Save Changes</button>
+                <button type="button" class="btn-cancel-categories" id="cancelManageTagsBtn">Cancel</button>
+            </div>
+            <div class="manage-categories-error" id="manageTagsError" style="display: none;"></div>
         </div>
     </div>
 
@@ -2952,8 +2976,8 @@ Main page structure with:
                         option.selected = true;
                     }
                     
-                    // Disable if it's the "More Coming Soon!" option
-                    if (category.disabled) {
+                    // Disable if it's a "More Coming Soon" type option
+                    if (/more|coming|soon/i.test(category.name)) {
                         option.disabled = true;
                     }
                     
@@ -4329,6 +4353,9 @@ Main page structure with:
             
             // Manage categories button listener
             document.getElementById('adminManageCategoriesBtn').addEventListener('click', openManageCategoriesPopup);
+            
+            // Manage tags button listener
+            document.getElementById('adminManageTagsBtn').addEventListener('click', openManageTagsPopup);
             
             // Organize videos button listener
             document.getElementById('adminOrganizeVideosBtn').addEventListener('click', toggleOrganizeMode);
@@ -6101,12 +6128,30 @@ Main page structure with:
                 });
             }
             
+            // Sort categories: "More Coming Soon" or similar should appear at the bottom
+            categoriesToShow.sort((a, b) => {
+                const aIsMore = /more|coming|soon/i.test(a.name);
+                const bIsMore = /more|coming|soon/i.test(b.name);
+                
+                if (aIsMore && !bIsMore) return 1;  // a goes to bottom
+                if (!aIsMore && bIsMore) return -1; // b goes to bottom
+                
+                // Both are "more" or both are regular - sort alphabetically
+                return a.name.localeCompare(b.name);
+            });
+            
             // Add categories to dropdown
             categoriesToShow.forEach(category => {
                 console.log('📋 DEBUG: Adding category:', category.id, category.name);
                 const option = document.createElement('option');
                 option.value = category.id;
                 option.textContent = category.name;
+                
+                // If it's a "more coming soon" type category, make it disabled
+                if (/more|coming|soon/i.test(category.name)) {
+                    option.disabled = true;
+                }
+                
                 select.appendChild(option);
             });
             
@@ -6633,15 +6678,6 @@ Main page structure with:
                 showInDropdown: true,
                 showInTagNavigation: false, // Should NOT show in category navigation
                 isDefault: false // User can edit/delete this category
-            },
-            {
-                id: 'more-coming-soon',
-                name: 'More Coming Soon!',
-                icon: '',
-                showInDropdown: true, // Should show in dropdown
-                showInTagNavigation: false, // Should NOT show in category navigation
-                isDefault: true,
-                disabled: true // This option should be disabled in dropdown
             }
         ];
 
@@ -6993,6 +7029,177 @@ Main page structure with:
 
         function showManageCategoriesError(message) {
             const errorDiv = document.getElementById('manageCategoriesError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // ===== MANAGE TAGS POPUP FUNCTIONS =====
+        
+        function openManageTagsPopup() {
+            console.log('🏷️ DEBUG: Opening manage tags popup');
+            
+            // Load current tags and populate the popup
+            populateManageTagsPopup();
+            
+            // Show popup
+            document.getElementById('manageTagsOverlay').style.display = 'flex';
+            
+            // Add event listeners for the popup
+            const addBtn = document.getElementById('addNewTagBtn');
+            const saveBtn = document.getElementById('saveTagsBtn');
+            const cancelBtn = document.getElementById('cancelManageTagsBtn');
+            
+            // Remove existing listeners
+            addBtn.replaceWith(addBtn.cloneNode(true));
+            saveBtn.replaceWith(saveBtn.cloneNode(true));
+            cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+            
+            // Add new listeners
+            document.getElementById('addNewTagBtn').addEventListener('click', addNewTag);
+            document.getElementById('saveTagsBtn').addEventListener('click', saveTags);
+            document.getElementById('cancelManageTagsBtn').addEventListener('click', closeManageTagsPopup);
+            
+            // Add keyboard listener
+            document.addEventListener('keydown', handleManageTagsKeydown);
+            
+            console.log('🏷️ DEBUG: Manage tags popup opened');
+        }
+        
+        function populateManageTagsPopup() {
+            const tagsList = document.getElementById('tagsList');
+            tagsList.innerHTML = '';
+            
+            // Filter to get only tags (categories with show_in_dropdown = false)
+            const tags = categories.filter(cat => !cat.show_in_dropdown);
+            
+            tags.forEach(tag => {
+                const tagItem = createTagItemElement(tag);
+                tagsList.appendChild(tagItem);
+            });
+            
+            console.log(`🏷️ DEBUG: Populated ${tags.length} tags`);
+        }
+        
+        function createTagItemElement(tag) {
+            const div = document.createElement('div');
+            div.className = 'category-item';
+            div.innerHTML = `
+                <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+                    <input type="text" 
+                           value="${tag.display_name}" 
+                           class="tag-name-input" 
+                           data-slug="${tag.slug}"
+                           placeholder="Tag name"
+                           style="flex: 1;">
+                </div>
+                <button class="btn-delete-category" data-slug="${tag.slug}">Delete</button>
+            `;
+            
+            // Add delete listener
+            div.querySelector('.btn-delete-category').addEventListener('click', function() {
+                deleteTag(tag.slug);
+            });
+            
+            return div;
+        }
+        
+        function addNewTag() {
+            const tagsList = document.getElementById('tagsList');
+            const newSlug = 'new-tag-' + Date.now();
+            
+            const newTag = {
+                slug: newSlug,
+                display_name: '',
+                show_in_dropdown: false,
+                sort_order: categories.length
+            };
+            
+            const tagItem = createTagItemElement(newTag);
+            tagsList.appendChild(tagItem);
+            
+            // Focus on the new input
+            tagItem.querySelector('.tag-name-input').focus();
+        }
+        
+        function deleteTag(slug) {
+            if (confirm('Are you sure you want to delete this tag?')) {
+                const tagItem = document.querySelector(`[data-slug="${slug}"]`).closest('.category-item');
+                tagItem.remove();
+            }
+        }
+        
+        async function saveTags() {
+            console.log('🏷️ Saving tags...');
+            
+            const tagInputs = document.querySelectorAll('#tagsList .tag-name-input');
+            const updatedTags = [];
+            
+            tagInputs.forEach((input, index) => {
+                const displayName = input.value.trim();
+                if (displayName) {
+                    const slug = input.dataset.slug.startsWith('new-tag-') 
+                        ? displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                        : input.dataset.slug;
+                    
+                    updatedTags.push({
+                        slug: slug,
+                        display_name: displayName,
+                        show_in_dropdown: false,
+                        sort_order: index,
+                        page: 'oz'
+                    });
+                }
+            });
+            
+            try {
+                // Get existing categories (songs) that have show_in_dropdown = true
+                const songCategories = categories.filter(cat => cat.show_in_dropdown);
+                
+                // Combine song categories with updated tags
+                const allCategories = [...songCategories, ...updatedTags];
+                
+                // Save to server
+                const response = await fetch('/.netlify/functions/save-categories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        page: 'oz',
+                        categories: allCategories
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to save tags');
+                
+                console.log('✅ Tags saved successfully');
+                
+                // Refresh categories from server
+                await refreshCategoriesFromServer();
+                
+                // Close popup
+                closeManageTagsPopup();
+                
+            } catch (error) {
+                console.error('❌ Error saving tags:', error);
+                showManageTagsError('Failed to save tags. Please try again.');
+            }
+        }
+        
+        function closeManageTagsPopup() {
+            document.getElementById('manageTagsOverlay').style.display = 'none';
+            document.getElementById('manageTagsError').style.display = 'none';
+            
+            // Remove keyboard listener
+            document.removeEventListener('keydown', handleManageTagsKeydown);
+        }
+        
+        function handleManageTagsKeydown(e) {
+            if (e.key === 'Escape') {
+                closeManageTagsPopup();
+            }
+        }
+        
+        function showManageTagsError(message) {
+            const errorDiv = document.getElementById('manageTagsError');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
