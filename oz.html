@@ -6821,9 +6821,10 @@ Main page structure with:
             const allCategories = new Set();
             
             if (window.serverCategories && window.serverCategories.length > 0) {
-                // Use server categories
+                // Use server categories - FILTER FOR ONLY SONG CATEGORIES (show_in_dropdown = true)
                 window.serverCategories.forEach(cat => {
-                    if (cat.id !== 'all') { // Don't include the "All" option as a manageable category
+                    // Only include categories that should show in dropdown (songs, not audience tags)
+                    if (cat.id !== 'all' && cat.show_in_dropdown !== false) {
                         allCategories.add(cat.id);
                     }
                 });
