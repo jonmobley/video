@@ -56,8 +56,18 @@ Last Updated: 2024
     
     <!-- Additional Meta Tags -->
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="var(--accent-color)" id="theme-color-meta">
+    <meta name="theme-color" content="#008f67" id="theme-color-meta">
     <link rel="canonical" href="https://vidsharepro.netlify.app/oz.html" id="canonical-link">
+    
+    <!-- Inline accent color to prevent flash of unstyled content -->
+    <style>
+        :root {
+            --accent-color: #008f67;
+            --accent-hover: #007554;
+            --accent-light: rgba(0, 143, 103, 0.1);
+            --accent-shadow: rgba(0, 143, 103, 0.3);
+        }
+    </style>
     
     <!-- 
     ========================================================================
@@ -591,6 +601,12 @@ Last Updated: 2024
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .tags-container.loaded {
+            opacity: 1;
         }
 
         .tags-container::-webkit-scrollbar {
@@ -4102,6 +4118,12 @@ Main page structure with:
             const allTag = tagFilters.querySelector('[data-tag="all"]');
             if (allTag) {
                 allTag.addEventListener('click', () => filterByTag('all'));
+            }
+            
+            // Fade in tags container smoothly once populated
+            const tagsContainer = document.querySelector('.tags-container');
+            if (tagsContainer) {
+                tagsContainer.classList.add('loaded');
             }
         }
         
