@@ -5959,6 +5959,12 @@ Main page structure with:
             
             select.innerHTML = '<option value="">Select Category</option>';
             
+            // Add "All" option
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = categoryPreferences.allLabel || 'All Songs';
+            select.appendChild(allOption);
+            
             // Get categories from server first, then fall back to predefined
             let categoriesToShow = [];
             
