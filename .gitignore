@@ -2,3 +2,10 @@
 .netlify
 .env
 node_modules/
+
+# Replit
+.replit
+replit.nix
+.config/
+.cache/
+.upm/
