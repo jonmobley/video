@@ -510,10 +510,12 @@ Last Updated: 2024
             background: transparent;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             gap: 16px;
             position: relative;
             z-index: 50;
+            width: 100%;
+            overflow-x: visible;
         }
 
         /* Desktop: horizontal layout */
@@ -574,15 +576,24 @@ Last Updated: 2024
         .tags-container {
             background: transparent;
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .tags-container::-webkit-scrollbar {
+            display: none;
         }
 
         @media screen and (min-width: 768px) {
             .tags-container {
                 width: auto;
                 flex: 1;
+                justify-content: center;
+                overflow-x: visible;
             }
         }
 
@@ -659,9 +670,8 @@ Last Updated: 2024
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            max-width: 1000px;
-            width: 100%;
             padding: 8px 0 8px 0;
+            justify-content: flex-start;
         }
 
         .tags::-webkit-scrollbar {
