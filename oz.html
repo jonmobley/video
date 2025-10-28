@@ -516,10 +516,19 @@ Last Updated: 2024
             z-index: 50;
         }
 
+        /* Desktop: horizontal layout */
+        @media screen and (min-width: 768px) {
+            .navigation-section {
+                flex-direction: row;
+                justify-content: center;
+                gap: 20px;
+            }
+        }
+
         .category-dropdown-container {
             display: flex;
             align-items: center;
-            gap: 10px;
+            flex-shrink: 0;
         }
 
         .category-dropdown {
@@ -2583,7 +2592,6 @@ Main page structure with:
         <div class="navigation-section">
             <!-- Category (Song) Dropdown -->
             <div class="category-dropdown-container">
-                <label for="categoryDropdown" style="color: #ccc; font-size: 14px; margin-right: 10px;">Song:</label>
                 <select id="categoryDropdown" class="category-dropdown">
                     <option value="all">All Songs</option>
                     <!-- Songs will be populated dynamically from database -->
