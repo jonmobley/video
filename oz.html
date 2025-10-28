@@ -5963,8 +5963,10 @@ Main page structure with:
             let categoriesToShow = [];
             
             if (window.serverCategories && window.serverCategories.length > 0) {
-                // Use server categories (excluding 'all')
-                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all');
+                // Use server categories - FILTER FOR ONLY SONG CATEGORIES (show_in_dropdown = true)
+                categoriesToShow = window.serverCategories.filter(cat => 
+                    cat.id !== 'all' && cat.show_in_dropdown !== false
+                );
             } else {
                 // Fall back to predefined categories
                 categoriesToShow = predefinedCategories.filter(category => {
@@ -6235,8 +6237,10 @@ Main page structure with:
             let categoriesToShow = [];
             
             if (window.serverCategories && window.serverCategories.length > 0) {
-                // Use server categories
-                categoriesToShow = window.serverCategories.filter(cat => cat.id !== 'all');
+                // Use server categories - FILTER FOR ONLY SONG CATEGORIES (show_in_dropdown = true)
+                categoriesToShow = window.serverCategories.filter(cat => 
+                    cat.id !== 'all' && cat.show_in_dropdown !== false
+                );
             } else {
                 // Fall back to predefined categories
                 categoriesToShow = predefinedCategories.filter(category => {
