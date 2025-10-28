@@ -514,10 +514,6 @@ Last Updated: 2024
             gap: 16px;
             position: relative;
             z-index: 50;
-            max-width: 1000px;
-            margin: 0 auto;
-            width: 100%;
-            box-sizing: border-box;
         }
 
         /* Desktop: horizontal layout */
@@ -527,7 +523,7 @@ Last Updated: 2024
                 justify-content: flex-start;
                 align-items: center;
                 gap: 12px;
-                padding: 20px 20px 12px 20px;
+                padding: 20px 0 12px 0;
             }
         }
 
@@ -2600,7 +2596,10 @@ Main page structure with:
             <button class="video-close-button" id="videoCloseBtn" onclick="stopVideoAndClosePlayer()"></button>
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
-        
+    </div>
+
+    <!-- ===== MAIN CONTENT AREA ===== -->
+    <div class="content">
         <!-- ===== CATEGORY & TAG NAVIGATION ===== -->
         <div class="navigation-section">
             <!-- Category (Song) Dropdown -->
@@ -2619,10 +2618,7 @@ Main page structure with:
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- ===== MAIN CONTENT AREA ===== -->
-    <div class="content">
         <!-- Video thumbnails grid - populated dynamically -->
         <div class="video-grid" id="videoGrid">
             <!-- Videos will be loaded dynamically -->
