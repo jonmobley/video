@@ -4134,34 +4134,49 @@ Main page structure with:
             // Load videos first
             await loadVideosFromServer();
             
-            // Extract unique song categories from videos
-            const categoryDropdown = document.getElementById('categoryDropdown');
-            if (!categoryDropdown || !window.loadedVideos) return;
-            
-            // Get unique categories (songs) from loaded videos
-            const uniqueCategories = new Set();
-            window.loadedVideos.forEach(video => {
-                if (video.category && video.category !== 'all') {
-                    uniqueCategories.add(video.category);
-                }
-            });
-            
-            // Populate dropdown
-            categoryDropdown.innerHTML = '<option value="all">All Songs</option>';
-            Array.from(uniqueCategories).sort().forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                // Convert category ID to readable name (e.g., "the-merry-land-of-oz" -> "The Merry Land of Oz")
-                option.textContent = category.split('-').map(word => 
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                ).join(' ');
-                categoryDropdown.appendChild(option);
-            });
+            // Populate dropdown from managed categories (not from video data)
+            populateCategoryDropdown();
             
             // Add change listener
-            categoryDropdown.addEventListener('change', (e) => {
-                filterByCategory(e.target.value);
-            });
+            const categoryDropdown = document.getElementById('categoryDropdown');
+            if (categoryDropdown) {
+                categoryDropdown.addEventListener('change', (e) => {
+                    filterByCategory(e.target.value);
+                });
+            }
+        }
+        
+        /**
+         * Populate the category dropdown from managed categories
+         * This uses the categories from the database/server, respecting user preferences
+         */
+        function populateCategoryDropdown() {
+            const categoryDropdown = document.getElementById('categoryDropdown');
+            if (!categoryDropdown) return;
+            
+            // Use customizable "All" label from preferences
+            const allLabel = categoryPreferences.allLabel || 'All Songs';
+            categoryDropdown.innerHTML = `<option value="all">${allLabel}</option>`;
+            
+            // Get song categories from server (filtered by show_in_dropdown = true)
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                const songCategories = window.serverCategories.filter(cat => 
+                    cat.id !== 'all' && cat.show_in_dropdown !== false
+                );
+                
+                // Sort by order field
+                songCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+                
+                // Add to dropdown
+                songCategories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categoryDropdown.appendChild(option);
+                });
+                
+                console.log(`📋 DEBUG: Populated dropdown with ${songCategories.length} song categories`);
+            }
         }
         
         /**
@@ -7019,16 +7034,13 @@ Main page structure with:
                         // Generate ID from name
                         const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
                         
-                        // Get checkbox states
-                        const dropdownCheckbox = item.querySelector('.category-dropdown-checkbox');
-                        const tagsCheckbox = item.querySelector('.category-tags-checkbox');
-                        
+                        // Song categories always show in dropdown (show_in_dropdown = true)
+                        // Tags are managed separately in the "Manage Tags" popup
                         categories.push({
                             id: id,
                             name: name,
                             order: index,
-                            showInDropdown: dropdownCheckbox ? dropdownCheckbox.checked : true,
-                            showInTagNavigation: tagsCheckbox ? tagsCheckbox.checked : true
+                            show_in_dropdown: true  // Always true for song categories
                         });
                     }
                 });
@@ -7040,10 +7052,8 @@ Main page structure with:
                 categoryPreferences.allLabel = allLabel;
                 saveCategoryPreferences();
                 
-                // Update the "All" tag text
-                updateAllTagLabel();
-                
-                // Category system removed
+                // Update the main page dropdown to reflect the new "All" label
+                populateCategoryDropdown();
                 
                 // Also update the Add Video category dropdown
                 populateAddCategoryDropdown();
@@ -7152,9 +7162,10 @@ Main page structure with:
                 // Update global categories data
                 window.serverCategories = serverCategories;
                 
-                // Category system removed - only update dropdowns for add/edit forms
-                populateAddCategoryDropdown();
-                populateEditCategoryDropdown();
+                // Update all dropdowns that use categories
+                populateCategoryDropdown();  // Main page dropdown
+                populateAddCategoryDropdown();  // Add video form
+                populateEditCategoryDropdown();  // Edit video form
                 
                 console.log('🏷️ SUCCESS: Categories refreshed from server');
             } catch (error) {
