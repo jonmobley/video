@@ -117,7 +117,7 @@ exports.handler = async (event, context) => {
           order: cat.order,
           page: cat.page,
           icon: cat.icon,
-          show_in_dropdown: cat.show_in_dropdown !== false // Default to true if not set
+          show_in_dropdown: cat.show_in_dropdown === true || cat.show_in_dropdown === 't' // Explicitly check for true or PostgreSQL 't'
         }));
         
         return {
