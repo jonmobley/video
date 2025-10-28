@@ -4585,8 +4585,11 @@ Main page structure with:
                 item.addEventListener('dragend', handleVideoDragEnd);
             });
 
-            // Add category management
-            document.getElementById('addCategoryBtn').addEventListener('click', createNewCategory);
+            // Add category management (only if element exists)
+            const addCategoryBtn = document.getElementById('addCategoryBtn');
+            if (addCategoryBtn) {
+                addCategoryBtn.addEventListener('click', createNewCategory);
+            }
             
             // Add drag and drop for category reordering
             document.querySelectorAll('.tag:not(.add-category-btn)').forEach(tag => {
