@@ -505,15 +505,67 @@ Last Updated: 2024
         /* Video info overlay removed to prevent interference with controls */
 
         /* ===== NAVIGATION AND FILTERING SECTION ===== */
+        .navigation-section {
+            padding: 20px 16px 12px 16px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .category-dropdown-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-dropdown {
+            background: #2a2a2a;
+            color: white;
+            border: 2px solid var(--accent-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            position: relative;
+            padding-right: 40px;
+            white-space: nowrap;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            height: 40px;
+            box-sizing: border-box;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%23008f67" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 20px;
+        }
+
+        .category-dropdown:hover {
+            background-color: #333333;
+            border-color: var(--accent-hover);
+        }
+
+        .category-dropdown:focus {
+            background-color: #333333;
+            border-color: var(--accent-hover);
+            box-shadow: 0 0 0 2px var(--accent-shadow);
+        }
+
         .tags-container {
-            padding: 24px 16px 12px 16px;
             background: transparent;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
-            gap: 24px;
-            position: relative;
-            z-index: 50;
+            align-items: center;
+            width: 100%;
         }
 
 
@@ -2527,7 +2579,25 @@ Main page structure with:
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
         
-        <!-- Category navigation removed - showing all videos by default -->
+        <!-- ===== CATEGORY & TAG NAVIGATION ===== -->
+        <div class="navigation-section">
+            <!-- Category (Song) Dropdown -->
+            <div class="category-dropdown-container">
+                <label for="categoryDropdown" style="color: #ccc; font-size: 14px; margin-right: 10px;">Song:</label>
+                <select id="categoryDropdown" class="category-dropdown">
+                    <option value="all">All Songs</option>
+                    <!-- Songs will be populated dynamically from database -->
+                </select>
+            </div>
+            
+            <!-- Tag (People) Filters -->
+            <div class="tags-container">
+                <div class="tags" id="tagFilters">
+                    <div class="tag active" data-tag="all">All</div>
+                    <!-- Tags will be populated dynamically -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ===== MAIN CONTENT AREA ===== -->
@@ -3866,6 +3936,112 @@ Main page structure with:
             }
         }
 
+        // ===== NAVIGATION POPULATION FUNCTIONS =====
+        
+        /**
+         * Populate tag filters (Dancers, Kids, Chorus) from database categories
+         */
+        function populateTagFilters() {
+            const tagFilters = document.getElementById('tagFilters');
+            if (!tagFilters) return;
+            
+            // Start with "All" tag
+            tagFilters.innerHTML = '<div class="tag active" data-tag="all">All</div>';
+            
+            // Add tags from server categories (these are actually tags like Dancers, Kids, Chorus)
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                window.serverCategories.forEach(cat => {
+                    if (cat.id !== 'all') {
+                        const tagElement = document.createElement('div');
+                        tagElement.className = 'tag';
+                        tagElement.setAttribute('data-tag', cat.id);
+                        tagElement.textContent = cat.name;
+                        tagElement.addEventListener('click', () => filterByTag(cat.id));
+                        tagFilters.appendChild(tagElement);
+                    }
+                });
+            }
+            
+            // Add click listener for "All" tag
+            const allTag = tagFilters.querySelector('[data-tag="all"]');
+            if (allTag) {
+                allTag.addEventListener('click', () => filterByTag('all'));
+            }
+        }
+        
+        /**
+         * Load videos and populate the song category dropdown
+         */
+        async function loadVideosAndPopulateDropdown() {
+            // Load videos first
+            await loadVideosFromServer();
+            
+            // Extract unique song categories from videos
+            const categoryDropdown = document.getElementById('categoryDropdown');
+            if (!categoryDropdown || !window.loadedVideos) return;
+            
+            // Get unique categories (songs) from loaded videos
+            const uniqueCategories = new Set();
+            window.loadedVideos.forEach(video => {
+                if (video.category && video.category !== 'all') {
+                    uniqueCategories.add(video.category);
+                }
+            });
+            
+            // Populate dropdown
+            categoryDropdown.innerHTML = '<option value="all">All Songs</option>';
+            Array.from(uniqueCategories).sort().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                // Convert category ID to readable name (e.g., "the-merry-land-of-oz" -> "The Merry Land of Oz")
+                option.textContent = category.split('-').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                categoryDropdown.appendChild(option);
+            });
+            
+            // Add change listener
+            categoryDropdown.addEventListener('change', (e) => {
+                filterByCategory(e.target.value);
+            });
+        }
+        
+        /**
+         * Filter videos by tag (Dancers, Kids, Chorus)
+         */
+        function filterByTag(tagId) {
+            // Update active tag
+            document.querySelectorAll('.tag').forEach(tag => tag.classList.remove('active'));
+            const activeTag = document.querySelector(`[data-tag="${tagId}"]`);
+            if (activeTag) activeTag.classList.add('active');
+            
+            // Filter videos
+            const videoItems = document.querySelectorAll('.video-item');
+            videoItems.forEach(item => {
+                const tags = item.dataset.tags ? item.dataset.tags.split(',') : [];
+                if (tagId === 'all' || tags.includes(tagId)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        /**
+         * Filter videos by category (song)
+         */
+        function filterByCategory(categoryId) {
+            const videoItems = document.querySelectorAll('.video-item');
+            videoItems.forEach(item => {
+                const itemCategory = item.dataset.category;
+                if (categoryId === 'all' || itemCategory === categoryId) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
         // ===== PAGE INITIALIZATION AND STARTUP =====
         
         /**
@@ -3876,12 +4052,11 @@ Main page structure with:
          * 1. Load page configuration (colors, meta tags)
          * 2. Load category preferences from localStorage
          * 3. Refresh categories from server
-         * 4. Update category dropdown
-         * 5. Update category navigation
-         * 6. Load videos from server
-         * 7. Attach event listeners
-         * 8. Check for direct video links
-         * 9. Setup admin functionality
+         * 4. Populate tag filters
+         * 5. Load videos and populate song dropdown
+         * 6. Attach event listeners
+         * 7. Check for direct video links
+         * 8. Setup admin functionality
          */
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 =================================');
@@ -3902,11 +4077,13 @@ Main page structure with:
                 await refreshCategoriesFromServer();
                 console.log('✅ Step 3 Complete: Categories refreshed from server');
                 
-                console.log('📋 Step 4-5: Category system removed - showing all videos by default');
+                console.log('📋 Step 4: Populating tag filters...');
+                populateTagFilters();
+                console.log('✅ Step 4 Complete: Tag filters populated');
                 
-                console.log('🎬 Step 6: Loading videos from server...');
-                loadVideosFromServer();
-                console.log('✅ Step 6 Initiated: Video loading started');
+                console.log('📋 Step 5: Loading videos and populating song dropdown...');
+                await loadVideosAndPopulateDropdown();
+                console.log('✅ Step 5 Complete: Videos loaded and dropdown populated');
                 
                 console.log('🎯 Step 7: Tag listeners removed - no filtering needed');
                 
