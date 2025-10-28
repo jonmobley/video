@@ -6832,10 +6832,15 @@ Main page structure with:
             
             if (window.serverCategories && window.serverCategories.length > 0) {
                 // Use server categories - FILTER FOR ONLY SONG CATEGORIES (show_in_dropdown = true)
+                console.log('🏷️ DEBUG: Filtering categories for Manage Categories popup');
+                console.log('🏷️ DEBUG: All server categories:', window.serverCategories);
                 window.serverCategories.forEach(cat => {
                     // Only include categories that should show in dropdown (songs, not audience tags)
                     if (cat.id !== 'all' && cat.show_in_dropdown !== false) {
+                        console.log(`🏷️ DEBUG: Adding category to Manage Categories: ${cat.name} (show_in_dropdown: ${cat.show_in_dropdown})`);
                         allCategories.add(cat.id);
+                    } else {
+                        console.log(`🏷️ DEBUG: Excluding from Manage Categories: ${cat.name} (id: ${cat.id}, show_in_dropdown: ${cat.show_in_dropdown})`);
                     }
                 });
             } else {
@@ -6902,15 +6907,8 @@ Main page structure with:
                 <input type="text" value="${name}" placeholder="Category name..." ${isPredefined ? 'readonly' : ''} />
             `;
             
-            // Add visibility control checkbox for tag navigation
-            categoryHTML += `
-                <div class="category-visibility-controls">
-                    <label class="category-checkbox-label">
-                        <input type="checkbox" class="category-tags-checkbox" ${showInTagNavigation ? 'checked' : ''} />
-                        Show in tag navigation
-                    </label>
-                </div>
-            `;
+            // Song categories don't need a visibility checkbox - they always show in the dropdown
+            // Only tags (managed separately) need visibility controls
             
             // Add remove button (disabled for predefined categories)
             if (!isPredefined) {
