@@ -6,6 +6,13 @@
   publish = "."                      # Serve files from root directory
   functions = "netlify/functions"    # Location of serverless functions
 
+# Development server configuration
+[dev]
+  command = "echo 'Using netlify dev'"
+  port = 5000
+  targetPort = 5000
+  autoLaunch = false
+
 # URL redirects for cleaner URLs
 [[redirects]]
   from = "/admin"
