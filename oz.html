@@ -4091,7 +4091,8 @@ Main page structure with:
         // ===== NAVIGATION POPULATION FUNCTIONS =====
         
         /**
-         * Populate tag filters (Dancers, Kids, Chorus) from database categories
+         * Populate tag filters (Dancers, Kids, Chorus) from managed tags in database
+         * Tags are categories with show_in_dropdown = false
          */
         function populateTagFilters() {
             const tagFilters = document.getElementById('tagFilters');
@@ -4100,19 +4101,19 @@ Main page structure with:
             // Start with "All" tag
             tagFilters.innerHTML = '<div class="tag active" data-tag="all">All</div>';
             
-            // Add tags from server categories (these are actually tags like Dancers, Kids, Chorus)
-            if (window.serverCategories && window.serverCategories.length > 0) {
-                window.serverCategories.forEach(cat => {
-                    if (cat.id !== 'all') {
-                        const tagElement = document.createElement('div');
-                        tagElement.className = 'tag';
-                        tagElement.setAttribute('data-tag', cat.id);
-                        tagElement.textContent = cat.name;
-                        tagElement.addEventListener('click', () => filterByTag(cat.id));
-                        tagFilters.appendChild(tagElement);
-                    }
-                });
-            }
+            // Add tags from managed tags (show_in_dropdown = false)
+            const availableTags = getAvailableTags();
+            
+            availableTags.forEach(tag => {
+                const tagElement = document.createElement('div');
+                tagElement.className = 'tag';
+                tagElement.setAttribute('data-tag', tag.id);
+                tagElement.textContent = tag.name;
+                tagElement.addEventListener('click', () => filterByTag(tag.id));
+                tagFilters.appendChild(tagElement);
+            });
+            
+            console.log(`🏷️ DEBUG: Populated ${availableTags.length} tag filters on main page`);
             
             // Add click listener for "All" tag
             const allTag = tagFilters.querySelector('[data-tag="all"]');
@@ -6049,16 +6050,23 @@ Main page structure with:
             }
         }
 
-        // Available tags for videos (separate from categories)
-        const availableTags = [
-            { id: 'kids', name: 'Kids' },
-            { id: 'chorus', name: 'Chorus' },
-            { id: 'dancers', name: 'Dancers' }
-        ];
+        /**
+         * Get available tags from managed categories (show_in_dropdown = false)
+         */
+        function getAvailableTags() {
+            if (window.serverCategories && window.serverCategories.length > 0) {
+                return window.serverCategories
+                    .filter(cat => cat.show_in_dropdown === false)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+            }
+            return [];
+        }
 
         function populateEditTagsContainer(currentTags = []) {
             const tagContainer = document.getElementById('editTagSelectionContainer');
             tagContainer.innerHTML = '';
+            
+            const availableTags = getAvailableTags();
             
             availableTags.forEach(tag => {
                 const tagSelector = document.createElement('div');
@@ -6335,9 +6343,11 @@ Main page structure with:
             
             console.log('📋 DEBUG: Add video category dropdown populated with', select.children.length - 1, 'categories');
             
-            // Also populate tag selection (using actual tags, not categories)
+            // Also populate tag selection (using managed tags from database)
             const tagContainer = document.getElementById('tagSelectionContainer');
             tagContainer.innerHTML = '';
+            
+            const availableTags = getAvailableTags();
             
             availableTags.forEach(tag => {
                 const tagSelector = document.createElement('div');
@@ -7162,12 +7172,13 @@ Main page structure with:
                 // Update global categories data
                 window.serverCategories = serverCategories;
                 
-                // Update all dropdowns that use categories
-                populateCategoryDropdown();  // Main page dropdown
+                // Update all UI elements that use categories and tags
+                populateCategoryDropdown();  // Main page dropdown (song categories)
+                populateTagFilters();  // Main page tag filters (audience tags)
                 populateAddCategoryDropdown();  // Add video form
                 populateEditCategoryDropdown();  // Edit video form
                 
-                console.log('🏷️ SUCCESS: Categories refreshed from server');
+                console.log('🏷️ SUCCESS: Categories and tags refreshed from server');
             } catch (error) {
                 console.error('🏷️ ERROR: Failed to refresh categories:', error);
             }
