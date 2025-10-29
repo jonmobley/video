@@ -5647,6 +5647,11 @@ Main page structure with:
                 // Clear unsaved changes
                 clearUnsavedChanges();
                 
+                // Clear localStorage cache to ensure changes are visible immediately
+                localStorage.removeItem('videos_oz');
+                localStorage.removeItem('categories_oz');
+                console.log('🗑️ Cleared localStorage cache - changes will be visible on next load');
+                
                 // Reset button after 2 seconds
                 setTimeout(() => {
                     saveBtn.textContent = originalText;
