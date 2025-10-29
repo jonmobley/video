@@ -4037,6 +4037,7 @@ Main page structure with:
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
                     },
                     body: JSON.stringify({
                         page: 'oz',
@@ -4301,7 +4302,8 @@ Main page structure with:
         // Edit Mode and Login Functionality
         let isEditMode = false;
         let isOrganizeMode = false;
-        const ADMIN_PASSWORD = 'admin123'; // In production, this should be more secure
+        // The password is now the same as the ADMIN_TOKEN you set in Replit Secrets
+        let adminToken = null; // Will be set after login
         let loginAttempts = 0;
         let loginCooldown = false;
 
@@ -4333,7 +4335,13 @@ Main page structure with:
             
             const password = document.getElementById('loginPassword').value;
             
-            if (password === ADMIN_PASSWORD) {
+            // Use the password as the admin token - we'll verify it on the server
+            adminToken = password;
+            
+            // Try to verify the token by making a test API call
+            fetch('/.netlify/functions/get-page-config?page=oz', {
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            }).then(() => {
                 // Login successful
                 console.log('✅ Admin login successful');
                 document.getElementById('loginOverlay').style.display = 'none';
@@ -4341,8 +4349,9 @@ Main page structure with:
                 document.getElementById('loginError').style.display = 'none';
                 loginAttempts = 0; // Reset attempts on successful login
                 enterEditMode();
-            } else {
+            }).catch(() => {
                 // Login failed
+                adminToken = null; // Clear the invalid token
                 loginAttempts++;
                 console.log('❌ Login attempt failed:', loginAttempts);
                 
@@ -4365,7 +4374,7 @@ Main page structure with:
                 
                 document.getElementById('loginPassword').value = '';
                 document.getElementById('loginPassword').focus();
-            }
+            });
         });
 
         /**
@@ -4405,6 +4414,7 @@ Main page structure with:
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${adminToken}`
                             },
                             body: JSON.stringify({
                                 page: 'oz',
@@ -5588,6 +5598,7 @@ Main page structure with:
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
                     },
                     body: JSON.stringify({ videos: videos, page: 'oz' })
                 });
@@ -5611,6 +5622,7 @@ Main page structure with:
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
                     },
                     body: JSON.stringify({ categories: categories, page: 'oz' })
                 });
@@ -5643,6 +5655,7 @@ Main page structure with:
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${adminToken}`
                             },
                             body: JSON.stringify({
                                 page: 'oz',
