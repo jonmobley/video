@@ -6139,6 +6139,15 @@ Main page structure with:
                 editBtn.setAttribute('onclick', `openEditVideoPopup('${currentEditingVideoId}', '${escapeForOnclick(newTitle)}', '${escapeForOnclick(newCategory)}')`);
             }
             
+                // CRITICAL: Update the video in the videos array so changes persist when saved
+                const videoIndex = videos.findIndex(v => v.wistiaId === currentEditingVideoId);
+                if (videoIndex !== -1) {
+                    videos[videoIndex].title = newTitle;
+                    videos[videoIndex].category = newCategory;
+                    videos[videoIndex].tags = selectedTags;
+                    console.log('📝 Updated videos array:', videos[videoIndex]);
+                }
+            
                 console.log('✅ Video updated successfully:', { id: currentEditingVideoId, title: newTitle, category: newCategory, tags: selectedTags });
                 
                 // Mark as having unsaved changes
