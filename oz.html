@@ -7223,8 +7223,8 @@ Main page structure with:
             const tagsList = document.getElementById('tagsList');
             tagsList.innerHTML = '';
             
-            // Filter to get only tags (categories with show_in_dropdown = false)
-            const tags = categories.filter(cat => !cat.show_in_dropdown);
+            // Get tags using the same function that populates tag filters
+            const tags = getAvailableTags();
             
             tags.forEach(tag => {
                 const tagItem = createTagItemElement(tag);
