@@ -181,16 +181,20 @@ exports.handler = async (event, context) => {
         }
 
         // Insert new videos
+        console.log('Attempting to insert videos:', supabaseVideos.length);
         const { data, error } = await supabase
           .from('videos')
-          .insert(supabaseVideos);
+          .insert(supabaseVideos)
+          .select();
+
+        console.log('Insert result:', { data, error, dataCount: data?.length });
 
         if (error) {
           console.error('Error saving videos to Supabase:', error);
           throw error;
         }
 
-        console.log('Successfully saved videos to Supabase');
+        console.log(`Successfully saved ${data?.length || 0} videos to Supabase`);
         
         return {
           statusCode: 200,
