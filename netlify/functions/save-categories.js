@@ -21,6 +21,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -44,13 +45,31 @@ if (supabaseUrl && supabaseKey) {
 }
 
 exports.handler = async (event, context) => {
-  // Enable CORS
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
+  // Get secured CORS headers
+  const headers = getSecuredCorsHeaders();
+
+  // Handle preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  // Require authentication for admin operations
+  const authResult = requireAuth(event);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
 
   try {
     // Log environment for debugging
@@ -59,23 +78,6 @@ exports.handler = async (event, context) => {
       hasSupabaseKey: !!supabaseKey,
       hasSupabase: !!supabase
     });
-
-    // Handle preflight requests
-    if (event.httpMethod === 'OPTIONS') {
-      return {
-        statusCode: 200,
-        headers,
-        body: ''
-      };
-    }
-
-    if (event.httpMethod !== 'POST') {
-      return {
-        statusCode: 405,
-        headers,
-        body: JSON.stringify({ error: 'Method not allowed' })
-      };
-    }
 
     const requestBody = JSON.parse(event.body);
     

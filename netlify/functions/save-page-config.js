@@ -28,19 +28,25 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client with environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client created successfully for page config');
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+  }
+}
 
 exports.handler = async (event, context) => {
-  // Enable CORS
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
+  // Get secured CORS headers
+  const headers = getSecuredCorsHeaders();
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
@@ -57,6 +63,12 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     };
+  }
+
+  // Require authentication for admin operations
+  const authResult = requireAuth(event);
+  if (!authResult.authorized) {
+    return authResult.response;
   }
 
   try {
@@ -91,6 +103,20 @@ exports.handler = async (event, context) => {
         statusCode: 400,
         headers,
         body: JSON.stringify({ error: 'Invalid accent color format. Must be hex color (e.g., #008f67)' })
+      };
+    }
+
+    // Check if Supabase is available
+    if (!supabase) {
+      console.log('Supabase not configured - page config changes not persisted');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true,
+          message: 'Page config validated but not persisted (Supabase not configured)',
+          temporary: true
+        })
       };
     }
 

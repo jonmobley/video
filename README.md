@@ -9,8 +9,17 @@ A mobile-first video sharing platform for theater groups to share dance instruct
 - 🎭 **Dance-focused categories** (Ballet, Jazz, Contemporary, Tap, etc.)
 - 🔄 **Real-time updates** across all devices
 - 🎥 **Wistia integration** with advanced video controls
-- 🔒 **No authentication required** - simple access for cast
+- 🔒 **No authentication required** - simple access for cast (admin functions are protected)
 - ⚡ **Serverless backend** with Netlify Functions
+- 🔐 **Secure admin operations** with token authentication
+
+## Security
+
+Admin operations (adding/editing videos, categories, page settings) require authentication. See [SECURITY.md](SECURITY.md) for:
+- Setting up admin authentication
+- XSS prevention guidelines
+- Environment variable configuration
+- Security best practices
 
 ## Quick Deploy to Netlify
 

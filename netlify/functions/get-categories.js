@@ -61,13 +61,28 @@ const DEFAULT_CATEGORIES = {
   ]
 };
 
+/**
+ * Generate a simple hash for ETag
+ */
+function generateHash(data) {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 exports.handler = async (event, context) => {
-  // Enable CORS
+  // Enable CORS with caching headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, If-None-Match',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, max-age=600, stale-while-revalidate=1200' // 10 min cache, 20 min stale
   };
 
   // Handle preflight requests
@@ -120,28 +135,62 @@ exports.handler = async (event, context) => {
           show_in_dropdown: cat.show_in_dropdown === true || cat.show_in_dropdown === 't' // Explicitly check for true or PostgreSQL 't'
         }));
         
+        const etag = generateHash(transformedData);
+        const clientEtag = event.headers['if-none-match'];
+        
+        if (clientEtag === etag) {
+          return {
+            statusCode: 304,
+            headers: { ...headers, 'ETag': etag },
+            body: ''
+          };
+        }
+        
         return {
           statusCode: 200,
-          headers,
+          headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(transformedData)
         };
       } catch (dbError) {
         console.error('Database query failed, using default categories:', dbError);
         // Fall back to default categories if database fails
+        const fallbackData = DEFAULT_CATEGORIES[page] || [];
+        const etag = generateHash(fallbackData);
+        const clientEtag = event.headers['if-none-match'];
+        
+        if (clientEtag === etag) {
+          return {
+            statusCode: 304,
+            headers: { ...headers, 'ETag': etag },
+            body: ''
+          };
+        }
+        
         return {
           statusCode: 200,
-          headers,
-          body: JSON.stringify(DEFAULT_CATEGORIES[page] || [])
+          headers: { ...headers, 'ETag': etag },
+          body: JSON.stringify(fallbackData)
         };
       }
     } else {
       // Supabase not configured, return default categories
       console.log('Supabase not configured, returning default categories');
+      const fallbackData = DEFAULT_CATEGORIES[page] || [];
+      const etag = generateHash(fallbackData);
+      const clientEtag = event.headers['if-none-match'];
+      
+      if (clientEtag === etag) {
+        return {
+          statusCode: 304,
+          headers: { ...headers, 'ETag': etag },
+          body: ''
+        };
+      }
       
       return {
         statusCode: 200,
-        headers,
-        body: JSON.stringify(DEFAULT_CATEGORIES[page] || [])
+        headers: { ...headers, 'ETag': etag },
+        body: JSON.stringify(fallbackData)
       };
     }
   } catch (error) {

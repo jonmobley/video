@@ -186,13 +186,28 @@ const DEFAULT_VIDEOS = {
   'vertical': [] // Empty array for vertical page
 };
 
+/**
+ * Generate a simple hash for ETag
+ */
+function generateHash(data) {
+  const str = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 exports.handler = async (event, context) => {
-  // Enable CORS
+  // Enable CORS with caching headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, If-None-Match',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' // 5 min cache, 10 min stale
   };
 
   // Handle preflight requests
@@ -248,28 +263,62 @@ exports.handler = async (event, context) => {
 
         console.log(`Successfully fetched ${videos.length} videos from Supabase for page: ${page}`);
         
+        const etag = generateHash(videos);
+        const clientEtag = event.headers['if-none-match'];
+        
+        if (clientEtag === etag) {
+          return {
+            statusCode: 304,
+            headers: { ...headers, 'ETag': etag },
+            body: ''
+          };
+        }
+        
         return {
           statusCode: 200,
-          headers,
+          headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(videos)
         };
       } catch (dbError) {
         console.error('Database query failed, using default videos:', dbError);
         // Fall back to default videos if database fails
+        const fallbackData = DEFAULT_VIDEOS[page] || [];
+        const etag = generateHash(fallbackData);
+        const clientEtag = event.headers['if-none-match'];
+        
+        if (clientEtag === etag) {
+          return {
+            statusCode: 304,
+            headers: { ...headers, 'ETag': etag },
+            body: ''
+          };
+        }
+        
         return {
           statusCode: 200,
-          headers,
-          body: JSON.stringify(DEFAULT_VIDEOS[page] || [])
+          headers: { ...headers, 'ETag': etag },
+          body: JSON.stringify(fallbackData)
         };
       }
     } else {
       // Supabase not configured, return default videos
       console.log('Supabase not configured, returning default videos');
+      const fallbackData = DEFAULT_VIDEOS[page] || [];
+      const etag = generateHash(fallbackData);
+      const clientEtag = event.headers['if-none-match'];
+      
+      if (clientEtag === etag) {
+        return {
+          statusCode: 304,
+          headers: { ...headers, 'ETag': etag },
+          body: ''
+        };
+      }
       
       return {
         statusCode: 200,
-        headers,
-        body: JSON.stringify(DEFAULT_VIDEOS[page] || [])
+        headers: { ...headers, 'ETag': etag },
+        body: JSON.stringify(fallbackData)
       };
     }
   } catch (error) {

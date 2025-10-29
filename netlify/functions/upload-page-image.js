@@ -20,13 +20,21 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs').promises;
-const path = require('path');
+const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client with environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Supabase client created successfully for metadata storage');
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+  }
+}
 
 // Maximum file size in bytes (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -35,13 +43,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 exports.handler = async (event, context) => {
-  // Enable CORS
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
+  // Get secured CORS headers
+  const headers = getSecuredCorsHeaders();
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
@@ -58,6 +61,12 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     };
+  }
+
+  // Require authentication for admin operations
+  const authResult = requireAuth(event);
+  if (!authResult.authorized) {
+    return authResult.response;
   }
 
   try {
@@ -101,43 +110,63 @@ exports.handler = async (event, context) => {
     // Generate filename
     const extension = contentType.split('/')[1];
     const filename = `og-image-${page}.${extension}`;
-    const imageUrl = `/assets/${filename}`;
-
-    // In a production environment, you would upload to a CDN or storage service
-    // For this implementation, we'll store the URL and assume the file is handled separately
     
-    // Update page config with new image URL
-    const { data, error } = await supabase
-      .from('page_config')
-      .update({ og_image_url: imageUrl })
-      .eq('id', page)
-      .select()
-      .single();
+    // Upload to Netlify Blobs
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore('page-images');
+    
+    await store.set(filename, imageBuffer, {
+      metadata: {
+        contentType: contentType,
+        page: page,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+    
+    // Generate public URL for the blob
+    // The blob will be accessible via Netlify's blob storage URL
+    const imageUrl = `/.netlify/blobs/page-images/${filename}`;
+    
+    // Update page config with new image URL if Supabase is configured
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('page_config')
+        .update({ og_image_url: imageUrl })
+        .eq('page', page)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Supabase error:', error);
+      if (error) {
+        console.error('Supabase error:', error);
+        // Continue anyway - image was uploaded successfully
+      }
+
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
-        body: JSON.stringify({ error: error.message })
+        body: JSON.stringify({
+          imageUrl,
+          pageConfig: data,
+          message: 'Image uploaded successfully to Netlify Blobs'
+        })
+      };
+    } else {
+      // Supabase not configured, just return the image URL
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          imageUrl,
+          message: 'Image uploaded successfully to Netlify Blobs (Supabase not configured for metadata storage)'
+        })
       };
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        imageUrl,
-        pageConfig: data,
-        message: 'Image URL updated successfully. Note: In production, implement actual file storage.'
-      })
-    };
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ error: error.message || 'Internal server error' })
     };
   }
 };
