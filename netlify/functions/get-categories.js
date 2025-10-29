@@ -129,6 +129,7 @@ exports.handler = async (event, context) => {
         }
 
         console.log(`Successfully fetched ${data.length} categories from Supabase for page: ${page}`);
+        console.log('Raw Supabase data:', JSON.stringify(data, null, 2));
         
         // Transform data to use category_key as id if available
         const transformedData = data.map(cat => ({
