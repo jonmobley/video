@@ -7259,13 +7259,13 @@ Main page structure with:
         
         function addNewTag() {
             const tagsList = document.getElementById('tagsList');
-            const newSlug = 'new-tag-' + Date.now();
+            const newTagId = 'new-tag-' + Date.now();
             
             const newTag = {
-                slug: newSlug,
-                display_name: '',
+                id: newTagId,
+                name: '',
                 show_in_dropdown: false,
-                sort_order: categories.length
+                order: getAvailableTags().length
             };
             
             const tagItem = createTagItemElement(newTag);
@@ -7289,28 +7289,41 @@ Main page structure with:
             const updatedTags = [];
             
             tagInputs.forEach((input, index) => {
-                const displayName = input.value.trim();
-                if (displayName) {
-                    const slug = input.dataset.slug.startsWith('new-tag-') 
-                        ? displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-                        : input.dataset.slug;
+                const tagName = input.value.trim();
+                if (tagName) {
+                    const tagId = input.dataset.tagId;
+                    const categoryKey = tagId.startsWith('new-tag-') 
+                        ? tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+                        : tagId;
                     
                     updatedTags.push({
-                        slug: slug,
-                        display_name: displayName,
+                        id: `oz-tag-${categoryKey}`,
+                        name: tagName,
+                        category_key: categoryKey,
                         show_in_dropdown: false,
-                        sort_order: index,
+                        order: index,
                         page: 'oz'
                     });
                 }
             });
             
             try {
-                // Get existing categories (songs) that have show_in_dropdown = true
-                const songCategories = categories.filter(cat => cat.show_in_dropdown);
+                // Get existing song categories (show_in_dropdown = true) from window.serverCategories
+                const songCategories = window.serverCategories 
+                    ? window.serverCategories.filter(cat => cat.show_in_dropdown === true).map(cat => ({
+                        id: `oz-${cat.id}`,
+                        name: cat.name,
+                        category_key: cat.id,
+                        show_in_dropdown: true,
+                        order: cat.order,
+                        page: 'oz'
+                    }))
+                    : [];
                 
                 // Combine song categories with updated tags
                 const allCategories = [...songCategories, ...updatedTags];
+                
+                console.log('🏷️ Saving combined categories:', allCategories);
                 
                 // Save to server
                 const response = await fetch('/.netlify/functions/save-categories', {
