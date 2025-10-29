@@ -4335,46 +4335,17 @@ Main page structure with:
             
             const password = document.getElementById('loginPassword').value;
             
-            // Use the password as the admin token - we'll verify it on the server
+            // Store the password as the admin token
+            // The server will verify it when we try to save
             adminToken = password;
             
-            // Try to verify the token by making a test API call
-            fetch('/.netlify/functions/get-page-config?page=oz', {
-                headers: { 'Authorization': `Bearer ${adminToken}` }
-            }).then(() => {
-                // Login successful
-                console.log('✅ Admin login successful');
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginError').style.display = 'none';
-                loginAttempts = 0; // Reset attempts on successful login
-                enterEditMode();
-            }).catch(() => {
-                // Login failed
-                adminToken = null; // Clear the invalid token
-                loginAttempts++;
-                console.log('❌ Login attempt failed:', loginAttempts);
-                
-                if (loginAttempts >= 3) {
-                    // Implement cooldown after 3 failed attempts
-                    loginCooldown = true;
-                    document.getElementById('loginError').textContent = 'Too many failed attempts. Access blocked for 30 seconds.';
-                    document.getElementById('loginError').style.display = 'block';
-                    
-                    // Reset cooldown after 30 seconds
-                    setTimeout(() => {
-                        loginCooldown = false;
-                        loginAttempts = 0;
-                        document.getElementById('loginError').style.display = 'none';
-                    }, 30000);
-                } else {
-                    document.getElementById('loginError').textContent = `Incorrect password (${loginAttempts}/3 attempts)`;
-                    document.getElementById('loginError').style.display = 'block';
-                }
-                
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginPassword').focus();
-            });
+            // Enter edit mode - the token will be validated on first save attempt
+            console.log('✅ Admin login - token stored for server validation');
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+            loginAttempts = 0;
+            enterEditMode();
         });
 
         /**
