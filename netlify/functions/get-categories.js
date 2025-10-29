@@ -42,22 +42,28 @@ if (supabaseUrl && supabaseKey) {
 // Default categories for fallback
 // Used when Supabase is unavailable or not configured
 // Ensures basic functionality during development and outages
-// Categories are SONG NAMES, not audience types (those are tags)
+// 
+// IMPORTANT: show_in_dropdown field determines where items appear:
+//   - show_in_dropdown: true  = Categories/Songs (appear in dropdown menu)
+//   - show_in_dropdown: false = Tags/Audiences (appear as filter pills)
 const DEFAULT_CATEGORIES = {
   'oz': [
-    { id: 'all', name: 'All Songs', order: 0, page: 'oz' },
-    { id: 'oz', name: 'Oz', order: 1, page: 'oz' },
-    { id: 'munchkinland', name: 'Munchkinland', order: 2, page: 'oz' },
-    { id: 'jitterbug', name: 'Jitterbug', order: 3, page: 'oz' },
-    { id: 'yellowbrickroad', name: 'Yellow Brick Road', order: 4, page: 'oz' }
+    // Song categories (show in dropdown)
+    { id: 'oz', name: 'Oz', order: 1, page: 'oz', show_in_dropdown: true },
+    { id: 'munchkinland', name: 'Munchkinland', order: 2, page: 'oz', show_in_dropdown: true },
+    { id: 'jitterbug', name: 'Jitterbug', order: 3, page: 'oz', show_in_dropdown: true },
+    { id: 'yellowbrickroad', name: 'Yellow Brick Road', order: 4, page: 'oz', show_in_dropdown: true },
+    // Audience tags (show as filter pills)
+    { id: 'chorus', name: 'Chorus', order: 10, page: 'oz', show_in_dropdown: false },
+    { id: 'kids', name: 'Kids', order: 11, page: 'oz', show_in_dropdown: false },
+    { id: 'dancers', name: 'Dancers', order: 12, page: 'oz', show_in_dropdown: false }
   ],
   'disc': [
-    { id: 'all', name: 'All Videos', order: 0, page: 'disc' },
-    { id: 'conflict', name: 'Conflict', order: 1, page: 'disc' },
-    { id: 'adapted', name: 'Adapted', order: 2, page: 'disc' }
+    { id: 'conflict', name: 'Conflict', order: 1, page: 'disc', show_in_dropdown: true },
+    { id: 'adapted', name: 'Adapted', order: 2, page: 'disc', show_in_dropdown: true }
   ],
   'vertical': [
-    { id: 'all', name: 'All Videos', order: 0, page: 'vertical' }
+    { id: 'performance', name: 'Performance', order: 1, page: 'vertical', show_in_dropdown: true }
   ]
 };
 
