@@ -1,0 +1,248 @@
+ 🚀 =================================
+ 🚀 OZ PAGE INITIALIZATION STARTING
+ 🚀 =================================
+ 🏷️ Step 1: Loading category preferences...
+ ✅ Step 1 Complete: Category preferences loaded
+ ⚡ Step 2: Loading all API data in parallel...
+ 🏷️ DEBUG: Refreshing categories from server...
+ 🏷️ DEBUG: Loading categories from server...
+ ⏰ CACHE EXPIRED: categories_oz (age: 872s)
+ 🎬 === LOADING VIDEOS FROM SERVER ===
+ ⏰ CACHE EXPIRED: videos_oz (age: 872s)
+ 🎬 Making API call to: /.netlify/functions/get-videos?page=oz
+favicon.ico:1  Failed to load resource: the server responded with a status of 404 ()
+ 🏷️ DEBUG: Loaded categories from server: Array(7)
+ 🔄 MIGRATION: Added showInTagNavigation=false to category oz to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category chorus to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category munchkinland to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category kids to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category dancers to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category jitterbug to prevent duplicates
+ 🔄 MIGRATION: Added showInTagNavigation=false to category yellowbrickroad to prevent duplicates
+ 💾 CACHED: categories_oz
+ 📋 DEBUG: Populated dropdown with 4 song categories
+ 🏷️ DEBUG: Populated 3 tag filters on main page
+ 📋 DEBUG: === POPULATING ADD VIDEO CATEGORY DROPDOWN ===
+ 📋 DEBUG: Found category select element: 
+ 📋 DEBUG: Adding category: jitterbug Jitterbug
+ 📋 DEBUG: Adding category: munchkinland Munchkinland
+ 📋 DEBUG: Adding category: oz Oz
+ 📋 DEBUG: Adding category: yellowbrickroad Yellow Brick Road
+ 📋 DEBUG: Add video category dropdown populated with 5 categories
+ 🏷️ SUCCESS: Categories and tags refreshed from server
+ ✅ Videos loaded successfully: 20 videos
+ 🎬 Video data sample: Array(2)
+ 💾 CACHED: videos_oz
+ 🎬 DEBUG: === RENDERING VIDEO GRID ===
+ 🎬 DEBUG: Videos to render: 20
+ 🎬 DEBUG: Featured video: null
+ 🎬 DEBUG: Rendering video 1/20: Object
+ 🎬 DEBUG: Generated HTML for ssgxvlsdmx: 
+                    <div class="video-item" data-category="chorus" data-tags="chorus,kids" data-title="Oz: Section One - Chorus and Kids Stage L" data-wistia="ssgxvlsdmx">
+                        <bu...
+ 🎬 DEBUG: Rendering video 2/20: Object
+ 🎬 DEBUG: Generated HTML for eklwt6f33t: 
+                    <div class="video-item" data-category="dancers" data-tags="dancers" data-title="Oz: Section One - Dancers" data-wistia="eklwt6f33t">
+                        <button class="video-d...
+ 🎬 DEBUG: Rendering video 3/20: Object
+ 🎬 DEBUG: Generated HTML for xqxp9qk6ab: 
+                    <div class="video-item" data-category="chorus" data-tags="chorus" data-title="Oz: Section One - Chorus and Kids Stage R" data-wistia="xqxp9qk6ab">
+                        <button ...
+ 🎬 DEBUG: Rendering video 4/20: Object
+ 🎬 DEBUG: Generated HTML for 000m161308: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Oz: Section 2 - Group C Couples" data-wistia="000m161308">
+                        <button class="video-del...
+ 🎬 DEBUG: Rendering video 5/20: Object
+ 🎬 DEBUG: Generated HTML for ll2faj2g39: 
+                    <div class="video-item" data-category="all" data-tags="kids" data-title="Oz: Section 2 - Group B Kids" data-wistia="ll2faj2g39">
+                        <button class="video-delet...
+ 🎬 DEBUG: Rendering video 6/20: Object
+ 🎬 DEBUG: Generated HTML for opaaep5w5d: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Oz: Section 2 - Group A Ladies Ensemble" data-wistia="opaaep5w5d">
+                        <button class="v...
+ 🎬 DEBUG: Rendering video 7/20: Object
+ 🎬 DEBUG: Generated HTML for ta05f8v38t: 
+                    <div class="video-item" data-category="all" data-tags="kids" data-title="Munchkinland - House: Kids" data-wistia="ta05f8v38t">
+                        <button class="video-delete-...
+ 🎬 DEBUG: Rendering video 8/20: Object
+ 🎬 DEBUG: Generated HTML for jzk0fvefdo: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - House: Adults" data-wistia="jzk0fvefdo">
+                        <button class="video-delete...
+ 🎬 DEBUG: Rendering video 9/20: Object
+ 🎬 DEBUG: Generated HTML for wjojusd29y: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - #1 Kids" data-wistia="wjojusd29y">
+                        <button class="video-delete-btn" ...
+ 🎬 DEBUG: Rendering video 10/20: Object
+ 🎬 DEBUG: Generated HTML for 2y9llqqi84: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Ding Dong #1 Adults" data-wistia="2y9llqqi84">
+                        <button class="video-...
+ 🎬 DEBUG: Rendering video 11/20: Object
+ 🎬 DEBUG: Generated HTML for rmezdo35qv: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Major Part: Everyone" data-wistia="rmezdo35qv">
+                        <button class="video...
+ 🎬 DEBUG: Rendering video 12/20: Object
+ 🎬 DEBUG: Generated HTML for 6mr6fkd4m5: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Ding Dong #2 Kids" data-wistia="6mr6fkd4m5">
+                        <button class="video-de...
+ 🎬 DEBUG: Rendering video 13/20: Object
+ 🎬 DEBUG: Generated HTML for bajwwtzlls: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Ding Dong #2: Adults" data-wistia="bajwwtzlls">
+                        <button class="video...
+ 🎬 DEBUG: Rendering video 14/20: Object
+ 🎬 DEBUG: Generated HTML for 5mfq6j8en7: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Lullaby League: Willow, Jane, Ella" data-wistia="5mfq6j8en7">
+                        <butto...
+ 🎬 DEBUG: Rendering video 15/20: Object
+ 🎬 DEBUG: Generated HTML for uqk31ikglo: 
+                    <div class="video-item" data-category="all" data-tags="all" data-title="Munchkinland - Lollipop Guild: Kids (Boys Only)" data-wistia="uqk31ikglo">
+                        <button ...
+ 🎬 DEBUG: Rendering video 16/20: Object
+ 🎬 DEBUG: Generated HTML for 0c1ivf0lpv: 
+                    <div class="video-item" data-category="all" data-tags="kids,dancers" data-title="Jitterbug: Diddit Part K + D" data-wistia="0c1ivf0lpv">
+                        <button class="vid...
+ 🎬 DEBUG: Rendering video 17/20: Object
+ 🎬 DEBUG: Generated HTML for pqfi9vz2xv: 
+                    <div class="video-item" data-category="all" data-tags="kids" data-title="Jitterbug: Dance Break - Kids" data-wistia="pqfi9vz2xv">
+                        <button class="video-dele...
+ 🎬 DEBUG: Rendering video 18/20: Object
+ 🎬 DEBUG: Generated HTML for m7g3azxec4: 
+                    <div class="video-item" data-category="all" data-tags="dancers" data-title="Jitterbug: Dance Break - Dancers" data-wistia="m7g3azxec4">
+                        <button class="vide...
+ 🎬 DEBUG: Rendering video 19/20: Object
+ 🎬 DEBUG: Generated HTML for xs8e2dd9hg: 
+                    <div class="video-item" data-category="all" data-tags="kids,chorus" data-title="Yellow Brick Road: Chorus + Kids (Stage R)" data-wistia="xs8e2dd9hg">
+                        <butt...
+ 🎬 DEBUG: Rendering video 20/20: Object
+ 🎬 DEBUG: Generated HTML for dti0xwa45w: 
+                    <div class="video-item" data-category="all" data-tags="kids" data-title="Yellow Brick Road: Chorus + Kids (Stage L)" data-wistia="dti0xwa45w">
+                        <button clas...
+ 🔗 Built video URL mappings: 20 videos
+ 🎬 DEBUG: Video grid HTML set, checking for duration elements...
+ 🕐 DEBUG: === LOADING DURATION FOR: ssgxvlsdmx ===
+ 🕐 DEBUG: Thumbnail duration element found: 
+ 🕐 CACHE HIT: Using cached duration for ssgxvlsdmx
+ 🕐 DEBUG: === LOADING DURATION FOR: eklwt6f33t ===
+ 🕐 DEBUG: Thumbnail duration element found: 
+ 🕐 CACHE HIT: Using cached duration for eklwt6f33t
+ 🕐 DEBUG: === LOADING DURATION FOR: xqxp9qk6ab ===
+ 🕐 DEBUG: Thumbnail duration element found: 
+ 🕐 CACHE HIT: Using cached duration for xqxp9qk6ab
+ 🕐 DEBUG: === LOADING DURATION FOR: 000m161308 ===
+ 🕐 DEBUG: Thumbnail duration element found: 
+ 🕐 CACHE HIT: Using cached duration for 000m161308
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: ll2faj2g39 ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-ll2faj2g39">​6:56​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for ll2faj2g39
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: opaaep5w5d ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-opaaep5w5d">​7:47​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for opaaep5w5d
+oz:5943 No featured content set, showing grid only
+oz:4179 📋 DEBUG: Populated dropdown with 4 song categories
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: ta05f8v38t ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-ta05f8v38t">​5:47​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for ta05f8v38t
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: jzk0fvefdo ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-jzk0fvefdo">​2:25​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for jzk0fvefdo
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: wjojusd29y ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-wjojusd29y">​6:34​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for wjojusd29y
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: 2y9llqqi84 ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-2y9llqqi84">​4:38​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for 2y9llqqi84
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: rmezdo35qv ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-rmezdo35qv">​5:12​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for rmezdo35qv
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: 6mr6fkd4m5 ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-6mr6fkd4m5">​6:22​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for 6mr6fkd4m5
+oz:3535 🎬 DEBUG: Duration element for ssgxvlsdmx: Object
+oz:3535 🎬 DEBUG: Duration element for eklwt6f33t: Object
+oz:3535 🎬 DEBUG: Duration element for xqxp9qk6ab: Object
+oz:3535 🎬 DEBUG: Duration element for 000m161308: Object
+oz:3535 🎬 DEBUG: Duration element for ll2faj2g39: Object
+oz:3535 🎬 DEBUG: Duration element for opaaep5w5d: Object
+oz:3535 🎬 DEBUG: Duration element for ta05f8v38t: Object
+oz:3535 🎬 DEBUG: Duration element for jzk0fvefdo: Object
+oz:3535 🎬 DEBUG: Duration element for wjojusd29y: Object
+oz:3535 🎬 DEBUG: Duration element for 2y9llqqi84: Object
+oz:3535 🎬 DEBUG: Duration element for rmezdo35qv: Object
+oz:3535 🎬 DEBUG: Duration element for 6mr6fkd4m5: Object
+oz:3535 🎬 DEBUG: Duration element for bajwwtzlls: Object
+oz:3535 🎬 DEBUG: Duration element for 5mfq6j8en7: Object
+oz:3535 🎬 DEBUG: Duration element for uqk31ikglo: Object
+oz:3535 🎬 DEBUG: Duration element for 0c1ivf0lpv: Object
+oz:3535 🎬 DEBUG: Duration element for pqfi9vz2xv: Object
+oz:3535 🎬 DEBUG: Duration element for m7g3azxec4: Object
+oz:3535 🎬 DEBUG: Duration element for xs8e2dd9hg: Object
+oz:3535 🎬 DEBUG: Duration element for dti0xwa45w: Object
+oz:3923 🎨 DEBUG: Loaded page config: Object
+oz:3926 🎨 DEBUG: Setting accent color to: #008f67
+oz:3984 🎨 DEBUG: applyAccentColor called with: #008f67
+oz:4266 ✅ Step 2 Complete: All API data loaded in 1090ms
+oz:4267 🎨 Current accent color: #008f67
+oz:4270 📋 Step 3: Populating tag filters...
+oz:4116 🏷️ DEBUG: Populated 3 tag filters on main page
+oz:4272 ✅ Step 3 Complete: Tag filters populated
+oz:4274 🎯 Step 4: Tag listeners removed - no filtering needed
+oz:4276 🚀 =================================
+oz:4277 🚀 OZ PAGE INITIALIZATION COMPLETE (1090ms)
+oz:4278 🚀 =================================
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for ta05f8v38t
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for jzk0fvefdo
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for wjojusd29y
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for xqxp9qk6ab
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for 000m161308
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for eklwt6f33t
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for 2y9llqqi84
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for rmezdo35qv
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for ssgxvlsdmx
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for uqk31ikglo
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for dti0xwa45w
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for m7g3azxec4
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for xs8e2dd9hg
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for 6mr6fkd4m5
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for bajwwtzlls
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for 5mfq6j8en7
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for ll2faj2g39
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for opaaep5w5d
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for 0c1ivf0lpv
+oz:3744 🖼️ CACHE HIT: Using cached thumbnail for pqfi9vz2xv
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: bajwwtzlls ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-bajwwtzlls">​5:51​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for bajwwtzlls
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: 5mfq6j8en7 ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-5mfq6j8en7">​3:26​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for 5mfq6j8en7
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: uqk31ikglo ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-uqk31ikglo">​3:05​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for uqk31ikglo
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: 0c1ivf0lpv ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-0c1ivf0lpv">​4:59​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for 0c1ivf0lpv
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: pqfi9vz2xv ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-pqfi9vz2xv">​6:29​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for pqfi9vz2xv
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: m7g3azxec4 ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-m7g3azxec4">​6:07​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for m7g3azxec4
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: xs8e2dd9hg ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-xs8e2dd9hg">​4:12​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for xs8e2dd9hg
+oz:3639 🕐 DEBUG: === LOADING DURATION FOR: dti0xwa45w ===
+oz:3642 🕐 DEBUG: Thumbnail duration element found: <div class=​"thumbnail-duration" id=​"thumb-duration-dti0xwa45w">​3:05​</div>​
+oz:3652 🕐 CACHE HIT: Using cached duration for dti0xwa45w
+oz:4338 ✅ Admin login successful
+oz:4519 Edit mode enabled
+oz:5950 ✏️ Edit button clicked for video: dti0xwa45w Yellow Brick Road: Chorus + Kids (Stage L) all
+oz:6110 ✏️ Submitting Edit Video form: Object
+oz:6158 ✅ Video updated successfully: Object
+oz:5950 ✏️ Edit button clicked for video: dti0xwa45w Yellow Brick Road: Chorus + Kids (Stage L) yellowbrickroad
+oz:6110 ✏️ Submitting Edit Video form: Object
+oz:6158 ✅ Video updated successfully: Object
+oz:5583 Saving videos: Array(20)
+oz:5584 Saving categories: Array(4)
+.netlify/functions/save-videos:1  Failed to load resource: the server responded with a status of 500 ()
+oz:5682 Save failed: Error: Failed to save videos: Server configuration error: ADMIN_TOKEN not set. Please configure ADMIN_TOKEN in environment variables.
+    at HTMLButtonElement.saveAllChanges (oz:5606:27)
+saveAllChanges @ oz:5682
