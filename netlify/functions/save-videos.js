@@ -97,11 +97,11 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // Require authentication for admin operations
-  const authResult = requireAuth(event);
-  if (!authResult.authorized) {
-    return authResult.response;
-  }
+  // TODO: RE-ENABLE BEFORE DEPLOYMENT - Authentication temporarily disabled for development
+  // const authResult = requireAuth(event);
+  // if (!authResult.authorized) {
+  //   return authResult.response;
+  // }
 
   try {
     // Log environment for debugging
