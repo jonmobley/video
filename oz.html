@@ -6952,23 +6952,6 @@ Main page structure with:
                 });
             }
             
-            // Add checkbox functionality for tag navigation
-            const tagsCheckbox = categoryItem.querySelector('.category-tags-checkbox');
-            
-            tagsCheckbox.addEventListener('change', () => {
-                // Update preferences
-                if (!categoryPreferences.categories) {
-                    categoryPreferences.categories = {};
-                }
-                if (!categoryPreferences.categories[id]) {
-                    categoryPreferences.categories[id] = {};
-                }
-                categoryPreferences.categories[id].showInTagNavigation = tagsCheckbox.checked;
-                saveCategoryPreferences();
-                
-                // Category navigation removed
-            });
-            
             // Add reorder functionality
             categoryItem.querySelector('.category-up-btn').addEventListener('click', () => {
                 moveCategoryUp(categoryItem);
