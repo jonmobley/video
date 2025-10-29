@@ -3429,13 +3429,7 @@ Main page structure with:
             const videosToDisplay = videos.filter(video => video.wistiaId !== featuredContent.videoId);
             
             if (videosToDisplay.length === 0 && videos.length === 0) {
-                videoGrid.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #666;">
-                        <h3>No videos yet</h3>
-                        <p>Use the admin panel to add dance instruction videos</p>
-                        <a href="/admin.html" style="color: var(--accent-color); text-decoration: none; margin-top: 12px; display: inline-block;">Go to Admin Panel</a>
-                    </div>
-                `;
+                videoGrid.innerHTML = '';
                 return;
             }
             
