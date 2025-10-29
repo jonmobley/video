@@ -4162,7 +4162,7 @@ Main page structure with:
             // Get song categories from server (filtered by show_in_dropdown = true)
             if (window.serverCategories && window.serverCategories.length > 0) {
                 const songCategories = window.serverCategories.filter(cat => 
-                    cat.id !== 'all' && cat.show_in_dropdown !== false
+                    cat.id !== 'all' && cat.show_in_dropdown === true
                 );
                 
                 // Sort by order field
