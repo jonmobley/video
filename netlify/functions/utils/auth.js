@@ -16,8 +16,6 @@
  *   };
  */
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-
 /**
  * Check if request is authorized
  * @param {Object} event - Netlify function event object
@@ -30,6 +28,12 @@ function requireAuth(event) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
   };
+
+  // Get ADMIN_TOKEN fresh from environment each time
+  const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+  
+  console.log('🔐 Auth check - ADMIN_TOKEN present:', !!ADMIN_TOKEN);
+  console.log('🔐 Auth check - Authorization header:', event.headers.authorization ? 'present' : 'missing');
 
   // If no admin token is configured, deny access with helpful message
   if (!ADMIN_TOKEN) {
