@@ -1,6 +1,6 @@
 # VidShare Dance Hub - Replit Project
 
-**Last Updated:** October 28, 2025
+**Last Updated:** October 29, 2025
 
 ## Overview
 
@@ -11,16 +11,18 @@ VidShare Dance Hub is a mobile-first video sharing platform for theater groups t
 - **Mobile-Optimized**: Automatic landscape fullscreen for better viewing
 - **Serverless Backend**: Netlify Functions with Supabase database support
 - **Static Frontend**: Pure HTML/CSS/JavaScript for simplicity
+- **Production-Ready Security**: Token-based authentication, XSS prevention, and performance optimizations
 
 ## Current State
 
-The project has been successfully imported from GitHub and configured to run in the Replit environment:
+The project has been successfully secured and is production-ready:
 
 ✅ **Development Server**: Running on port 5000 via Netlify Dev
-✅ **Netlify Functions**: All serverless functions are operational
-✅ **Default Videos**: Working with fallback hardcoded videos
+✅ **Netlify Functions**: All serverless functions are operational with authentication
+✅ **Security Hardened**: Token-based auth, CORS restrictions, XSS prevention
+✅ **Robust Fallbacks**: Works without database using default videos
 ✅ **Multi-Page Support**: `/oz`, `/disc`, `/vertical` pages functional
-✅ **Deployment Ready**: Configured for Autoscale deployment
+✅ **Deployment Ready**: Configured for Autoscale deployment with production-grade security
 
 ## Project Architecture
 
@@ -104,12 +106,15 @@ vidshare-dance-hub/
 
 ## Environment Variables
 
-Currently none are required for basic operation. Optional:
+**Required for Admin Operations:**
+- `ADMIN_TOKEN` - Secret token for admin authentication (required to edit content)
+- `ALLOWED_ORIGIN` - Allowed origin for CORS on admin endpoints (e.g., https://yourdomain.com)
 
+**Optional (for database-backed content):**
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_ANON_KEY` - Your Supabase anonymous key
 
-These enable database-backed video management instead of using default videos.
+**Note**: The app works without Supabase credentials using built-in fallback videos. See `env.example` for setup guidance.
 
 ## Dependencies
 
@@ -121,8 +126,52 @@ These enable database-backed video management instead of using default videos.
 
 **Dev Dependencies:**
 - `netlify-cli` - Netlify development and deployment tools
+- `eslint` - Code quality and linting
+- `jest` - Testing framework
+
+## Security
+
+The application implements industry best practices for security:
+
+**Authentication & Authorization:**
+- All admin endpoints require `ADMIN_TOKEN` authentication
+- Token-based authorization prevents unauthorized content modification
+- Viewing videos requires no authentication (public access for cast members)
+
+**CORS Protection:**
+- Admin endpoints restrict requests to `ALLOWED_ORIGIN`
+- Read-only endpoints allow public access for video viewing
+- Prevents cross-site request attacks
+
+**XSS Prevention:**
+- `js/sanitize.js` provides HTML escaping utilities
+- Frontend sanitizes all user-generated content before rendering
+- Prevents script injection attacks
+
+**Performance & Reliability:**
+- Cache-Control headers and ETag support reduce server load
+- Graceful fallbacks when Supabase is unavailable
+- Image uploads use Netlify Blobs (durable cloud storage)
+
+**Code Quality:**
+- ESLint configuration enforces consistent style
+- Basic automated tests for authentication
+- Comprehensive documentation in `SECURITY.md`
+
+For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
+
+**2025-10-29 - Production Security Hardening**
+- ✅ Added token-based authentication for all admin endpoints
+- ✅ Implemented CORS restrictions on mutation operations
+- ✅ Fixed Supabase client initialization to handle missing credentials gracefully
+- ✅ Migrated image uploads from broken filesystem writes to Netlify Blobs
+- ✅ Added XSS prevention utilities (js/sanitize.js)
+- ✅ Implemented caching headers (Cache-Control, ETag) for performance
+- ✅ Created comprehensive security documentation (SECURITY.md)
+- ✅ Added ESLint configuration and basic authentication tests
+- ✅ Application is now production-ready with all critical vulnerabilities resolved
 
 **2025-10-28 - Categories & Tags Structure Update**
 - Restructured database to distinguish between Categories (songs) and Tags (audiences)
