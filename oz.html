@@ -7076,21 +7076,13 @@ Main page structure with:
                 
                 const serverCategories = await response.json();
                 console.log('🏷️ DEBUG: Loaded categories from server:', serverCategories);
-                
-                // Migration: Add showInTagNavigation property for backward compatibility
-                const migratedCategories = serverCategories.map(category => {
-                    if (category.showInTagNavigation === undefined) {
-                        // Default to FALSE to avoid duplicate "All" tags - only show in dropdown by default
-                        category.showInTagNavigation = false;
-                        console.log(`🔄 MIGRATION: Added showInTagNavigation=false to category ${category.id} to prevent duplicates`);
-                    }
-                    return category;
-                });
+                console.log('🏷️ DEBUG: Categories with show_in_dropdown=false:', 
+                    serverCategories.filter(c => c.show_in_dropdown === false));
                 
                 // Cache the categories
-                setCachedData('categories_oz', migratedCategories);
+                setCachedData('categories_oz', serverCategories);
                 
-                return migratedCategories;
+                return serverCategories;
             } catch (error) {
                 console.warn('🏷️ WARNING: Error loading categories from server:', error);
                 return [];
