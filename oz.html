@@ -6992,11 +6992,16 @@ Main page structure with:
                 const upBtn = item.querySelector('.category-up-btn');
                 const downBtn = item.querySelector('.category-down-btn');
                 
-                // Disable up button for first item
-                upBtn.disabled = (index === 0);
+                // Only update if buttons exist
+                if (upBtn) {
+                    // Disable up button for first item
+                    upBtn.disabled = (index === 0);
+                }
                 
-                // Disable down button for last item
-                downBtn.disabled = (index === categoryItems.length - 1);
+                if (downBtn) {
+                    // Disable down button for last item
+                    downBtn.disabled = (index === categoryItems.length - 1);
+                }
             });
         }
 
