@@ -19,25 +19,23 @@
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase client
+// DISABLED: Using fallback data instead of remote Supabase database
+// The remote database is outdated and missing the show_in_dropdown column
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-let supabase = null;
+let supabase = null; // Force null to always use fallback data
 
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey,
-  urlLength: supabaseUrl ? supabaseUrl.length : 0,
-  urlStart: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined'
-});
+console.log('Supabase DISABLED - using fallback data');
 
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+// COMMENTED OUT: Supabase initialization disabled
+// if (supabaseUrl && supabaseKey) {
+//   try {
+//     supabase = createClient(supabaseUrl, supabaseKey);
+//     console.log('Supabase client created successfully');
+//   } catch (error) {
+//     console.error('Error creating Supabase client:', error);
+//   }
+// }
 
 // Default categories for fallback
 // Used when Supabase is unavailable or not configured
