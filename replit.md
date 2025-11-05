@@ -1,6 +1,6 @@
 # VidShare Dance Hub - Replit Project
 
-**Last Updated:** October 29, 2025
+**Last Updated:** November 05, 2025
 
 ## Overview
 
@@ -161,6 +161,17 @@ The application implements industry best practices for security:
 For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
+
+**2025-11-05 - Critical Bug Fix: Category/Tag Data Integrity**
+- ✅ **CRITICAL FIX**: Resolved data loss bug where saving song categories would delete all tags
+- ✅ Implemented scoped deletion in `save-categories.js` using explicit `category_scope` parameter
+- ✅ Songs and tags now save independently without cross-deletion
+- ✅ Backend handles legacy NULL `show_in_dropdown` values for idempotent saves
+- ✅ Frontend sends explicit scope: 'songs' for Manage Categories, 'tags' for Manage Tags
+- ✅ Fixed Manage Categories popup JavaScript error (null button references)
+- ✅ Removed old migration code that was discarding `show_in_dropdown` field
+- ✅ Restored all 20 OZ videos and proper category/tag structure to database
+- ⚠️ **TODO**: Re-enable authentication on save endpoints before production deployment
 
 **2025-10-29 - Production Security Hardening**
 - ✅ Added token-based authentication for all admin endpoints

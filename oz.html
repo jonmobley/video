@@ -7048,8 +7048,8 @@ Main page structure with:
                 // Also update the Add Video category dropdown
                 populateAddCategoryDropdown();
                 
-                // Save categories to server
-                saveCategoriesAsync(categories);
+                // Save categories to server with explicit 'songs' scope
+                saveCategoriesAsync(categories, 'songs');
                 
                 closeManageCategoriesPopup();
                 console.log('🏷️ SUCCESS: Categories updated successfully!');
@@ -7094,17 +7094,21 @@ Main page structure with:
             }
         }
 
-        async function saveCategoriesAsync(categories) {
+        async function saveCategoriesAsync(categories, categoryScope = 'songs') {
             try {
-                console.log('🏷️ DEBUG: Saving categories to server:', categories);
+                console.log('🏷️ DEBUG: Saving categories to server:', categories, 'scope:', categoryScope);
                 
-                // Save categories to server
+                // Save categories to server with explicit scope to prevent cross-scope deletion
                 const categoryResponse = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ categories: categories, page: 'oz' })
+                    body: JSON.stringify({ 
+                        categories: categories, 
+                        page: 'oz',
+                        category_scope: categoryScope // Explicit scope: 'songs' or 'tags'
+                    })
                 });
                 
                 if (!categoryResponse.ok) {
@@ -7297,30 +7301,17 @@ Main page structure with:
             });
             
             try {
-                // Get existing song categories (show_in_dropdown = true) from window.serverCategories
-                const songCategories = window.serverCategories 
-                    ? window.serverCategories.filter(cat => cat.show_in_dropdown === true).map(cat => ({
-                        id: `oz-${cat.id}`,
-                        name: cat.name,
-                        category_key: cat.id,
-                        show_in_dropdown: true,
-                        order: cat.order,
-                        page: 'oz'
-                    }))
-                    : [];
+                console.log('🏷️ Saving tags only (scoped to prevent deleting song categories):', updatedTags);
                 
-                // Combine song categories with updated tags
-                const allCategories = [...songCategories, ...updatedTags];
-                
-                console.log('🏷️ Saving combined categories:', allCategories);
-                
-                // Save to server
+                // Save ONLY tags to server with explicit 'tags' scope
+                // This prevents deleting song categories
                 const response = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         page: 'oz',
-                        categories: allCategories
+                        categories: updatedTags,
+                        category_scope: 'tags' // Explicit scope: only save/replace tags
                     })
                 });
                 

@@ -82,18 +82,20 @@ exports.handler = async (event, context) => {
     const requestBody = JSON.parse(event.body);
     
     // Support both array of categories and object with categories and page
-    let categories, page;
+    let categories, page, categoryScope;
     if (Array.isArray(requestBody)) {
       // Backward compatibility - if just an array is sent, default to 'oz' page
       categories = requestBody;
       page = 'oz';
+      categoryScope = 'songs'; // Default to songs for backward compatibility
     } else {
-      // New format: { categories: [...], page: 'oz' }
+      // New format: { categories: [...], page: 'oz', category_scope: 'songs' | 'tags' }
       categories = requestBody.categories || [];
       page = requestBody.page || 'oz';
+      categoryScope = requestBody.category_scope || 'songs'; // Explicit scope from client
     }
     
-    console.log(`Saving ${categories.length} categories for page: ${page}`);
+    console.log(`Saving ${categories.length} categories for page: ${page}, scope: ${categoryScope}`);
     
     // Validate category data
     if (!Array.isArray(categories)) {
@@ -131,6 +133,10 @@ exports.handler = async (event, context) => {
           hasCategoryKeyColumn = false;
         }
 
+        // Determine show_in_dropdown value based on explicit category scope
+        // 'songs' scope = true (show in dropdown), 'tags' scope = false (filter pills only)
+        const showInDropdownValue = categoryScope === 'songs';
+        
         // Prepare data for Supabase with composite keys
         const supabaseCategories = categories.map((category, index) => {
           const baseData = {
@@ -138,7 +144,9 @@ exports.handler = async (event, context) => {
             name: category.name,
             color: category.color || null,
             order: category.order !== undefined ? category.order : index, // Use index if no order specified
-            page: page
+            page: page,
+            // Use explicit scope to set show_in_dropdown, ensuring consistency
+            show_in_dropdown: showInDropdownValue
           };
           
           // Only add category_key if the column exists
@@ -149,11 +157,26 @@ exports.handler = async (event, context) => {
           return baseData;
         });
 
-        // Delete existing categories for this page and insert new ones
-        const { error: deleteError } = await supabase
+        // Only delete categories with the same show_in_dropdown value to preserve tags/categories
+        // This prevents song categories from deleting tags and vice versa
+        // Include NULL values in BOTH scopes to clean up legacy data
+        let deleteQuery = supabase
           .from('categories')
           .delete()
-          .eq('page', page); // Delete only records for this page
+          .eq('page', page);
+        
+        // For songs: delete true OR null
+        // For tags: delete false OR null
+        // This ensures complete replacement of the scoped category set and cleans up legacy NULL rows
+        if (showInDropdownValue) {
+          // Saving songs - delete true and legacy NULL rows
+          deleteQuery = deleteQuery.or('show_in_dropdown.is.true,show_in_dropdown.is.null');
+        } else {
+          // Saving tags - delete false and legacy NULL rows
+          deleteQuery = deleteQuery.or('show_in_dropdown.is.false,show_in_dropdown.is.null');
+        }
+        
+        const { error: deleteError } = await deleteQuery;
 
         if (deleteError) {
           console.error('Error deleting existing categories:', deleteError);
