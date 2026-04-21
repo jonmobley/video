@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch – VidShare</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #fff;
+    }
+
+    /* Video container: lets the video size itself naturally */
+    .video-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 100vw;
+      max-height: 100vh;
+      flex: 1;
+    }
+
+    video {
+      display: block;
+      max-width: 100%;
+      max-height: 100vh;
+      width: auto;
+      height: auto;
+      background: #000;
+    }
+
+    /* Vertical video on mobile: fill the screen naturally */
+    @media (max-width: 600px) {
+      .video-wrap {
+        align-items: flex-start;
+        padding-top: env(safe-area-inset-top);
+      }
+
+      video {
+        width: 100vw;
+        max-height: 100svh;
+        object-fit: contain;
+      }
+    }
+
+    /* Top bar */
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+      z-index: 10;
+      opacity: 1;
+      transition: opacity 0.4s ease;
+    }
+
+    .top-bar.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .top-bar-logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+
+    .share-btn {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      border-radius: 20px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s;
+    }
+
+    .share-btn:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* Loading / error states */
+    .state-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+      padding: 40px 24px;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .state-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .state-sub {
+      font-size: 0.9rem;
+      color: #888;
+      max-width: 280px;
+    }
+
+    .upload-link {
+      margin-top: 8px;
+      color: #007AFF;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    /* Copy toast */
+    .toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar" id="topBar">
+    <a href="/" class="top-bar-logo">VidShare</a>
+    <button class="share-btn" id="shareBtn">Share</button>
+  </div>
+
+  <div id="root"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const root = document.getElementById('root');
+    const topBar = document.getElementById('topBar');
+    const shareBtn = document.getElementById('shareBtn');
+    const toast = document.getElementById('toast');
+
+    let hideBarTimer = null;
+
+    function showLoading() {
+      root.innerHTML = `
+        <div class="state-overlay">
+          <div class="spinner"></div>
+          <div class="state-title">Loading video…</div>
+        </div>
+      `;
+    }
+
+    function showError(msg) {
+      root.innerHTML = `
+        <div class="state-overlay">
+          <div style="font-size:2.5rem">⚠️</div>
+          <div class="state-title">Video not found</div>
+          <div class="state-sub">${msg || 'This link may be expired or invalid.'}</div>
+          <a href="/upload" class="upload-link">Upload a video</a>
+        </div>
+      `;
+    }
+
+    function showVideo(videoUrl) {
+      root.innerHTML = `
+        <div class="video-wrap">
+          <video
+            id="videoEl"
+            src="${videoUrl}"
+            controls
+            autoplay
+            playsinline
+            preload="auto"
+          ></video>
+        </div>
+      `;
+
+      const videoEl = document.getElementById('videoEl');
+
+      // Hide top bar while playing after a moment of inactivity
+      function resetBarTimer() {
+        topBar.classList.remove('hidden');
+        clearTimeout(hideBarTimer);
+        hideBarTimer = setTimeout(() => {
+          if (!videoEl.paused) topBar.classList.add('hidden');
+        }, 3000);
+      }
+
+      videoEl.addEventListener('play', resetBarTimer);
+      videoEl.addEventListener('pause', () => {
+        clearTimeout(hideBarTimer);
+        topBar.classList.remove('hidden');
+      });
+      document.addEventListener('touchstart', resetBarTimer, { passive: true });
+      document.addEventListener('mousemove', resetBarTimer);
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    async function copyLink() {
+      const url = window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      showToast('Link copied!');
+    }
+
+    async function shareLink() {
+      const url = window.location.href;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Watch this video', url });
+          return;
+        } catch {}
+      }
+      copyLink();
+    }
+
+    shareBtn.addEventListener('click', shareLink);
+
+    // Load the video
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get('id');
+
+      if (!videoId) {
+        showError('No video ID provided.');
+        return;
+      }
+
+      showLoading();
+
+      // The video is stored directly in Netlify Blobs at this path
+      const videoUrl = `/.netlify/blobs/video-uploads/${encodeURIComponent(videoId)}`;
+
+      // Probe the URL with a HEAD request to see if it exists
+      try {
+        const probe = await fetch(videoUrl, { method: 'HEAD' });
+        if (!probe.ok) {
+          showError('This video could not be found.');
+          return;
+        }
+      } catch {
+        // If HEAD fails (CORS etc.) just try to play anyway
+      }
+
+      showVideo(videoUrl);
+    }
+
+    init();
+  </script>
+</body>
+</html>

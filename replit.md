@@ -162,6 +162,17 @@ For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
 
+**2026-04-21 - Video Upload & Share Feature**
+- ✅ Added `/upload` page: mobile-friendly video upload with chunked uploading (handles large files), progress bar, and one-tap copy of share link
+- ✅ Added `/watch` page: full-screen video player, supports vertical and horizontal video automatically, Share button uses native share sheet on mobile
+- ✅ Added `upload-chunk.js` Netlify function: stores video chunks in Netlify Blobs
+- ✅ Added `finalize-video.js` Netlify function: assembles chunks into final video blob, returns playback URL
+- ✅ Videos stored in Netlify Blobs (`video-uploads` store), served at `/.netlify/blobs/video-uploads/{videoId}`
+- ✅ Updated `index.html` with Upload a Video button
+- ✅ Updated `netlify.toml` with `/upload` and `/watch` redirects
+
+
+
 **2025-11-05 - Critical Bug Fix: Category/Tag Data Integrity**
 - ✅ **CRITICAL FIX**: Resolved data loss bug where saving song categories would delete all tags
 - ✅ Implemented scoped deletion in `save-categories.js` using explicit `category_scope` parameter

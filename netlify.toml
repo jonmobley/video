@@ -21,6 +21,16 @@
   to = "/oz.html"
   status = 200                       # Rewrite (URL stays as /oz)
 
+[[redirects]]
+  from = "/upload"
+  to = "/upload.html"
+  status = 200
+
+[[redirects]]
+  from = "/watch"
+  to = "/watch.html"
+  status = 200
+
 # Security headers for all pages
 [[headers]]
   for = "/*"

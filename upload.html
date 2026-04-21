@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Upload Video – VidShare</title>
+  <link rel="stylesheet" href="/styles/common.css">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 40px 20px;
+      background: #0a0a0a;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .page-title {
+      font-size: 1.1rem;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .card {
+      background: #1c1c1e;
+      border-radius: 20px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #3A3A3C;
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: #007AFF;
+      background: rgba(0, 122, 255, 0.06);
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .drop-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .drop-sub {
+      font-size: 0.9rem;
+      color: #888;
+    }
+
+    /* File selected state */
+    .file-preview {
+      display: none;
+      align-items: center;
+      gap: 16px;
+      margin-top: 20px;
+      padding: 16px;
+      background: #2c2c2e;
+      border-radius: 12px;
+    }
+
+    .file-preview.visible {
+      display: flex;
+    }
+
+    .file-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .file-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .file-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-size {
+      font-size: 0.82rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .file-remove {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Upload button */
+    .upload-btn {
+      margin-top: 24px;
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      border-radius: 14px;
+      display: none;
+    }
+
+    .upload-btn.visible {
+      display: flex;
+    }
+
+    /* Progress */
+    .progress-area {
+      display: none;
+      margin-top: 24px;
+    }
+
+    .progress-area.visible {
+      display: block;
+    }
+
+    .progress-label {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-bar-track {
+      background: #2c2c2e;
+      border-radius: 999px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      background: linear-gradient(90deg, #007AFF, #4ecdc4);
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    /* Success state */
+    .success-area {
+      display: none;
+      margin-top: 24px;
+      text-align: center;
+    }
+
+    .success-area.visible {
+      display: block;
+    }
+
+    .success-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    .success-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .success-sub {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    .share-link-box {
+      background: #2c2c2e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      word-break: break-all;
+      font-size: 0.85rem;
+      color: #aaa;
+      text-align: left;
+      border: 1px solid #3A3A3C;
+    }
+
+    .copy-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1rem;
+      border-radius: 14px;
+    }
+
+    .copy-btn.copied {
+      background: #30d158;
+    }
+
+    .watch-btn {
+      display: block;
+      margin-top: 12px;
+      text-align: center;
+      color: #007AFF;
+      font-size: 0.95rem;
+      text-decoration: none;
+      padding: 12px;
+    }
+
+    /* Another upload */
+    .another-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 14px;
+      font-size: 0.95rem;
+      border-radius: 14px;
+      background: #2c2c2e;
+      color: #fff;
+    }
+
+    .another-btn:hover {
+      background: #3A3A3C;
+    }
+
+    /* Error */
+    .error-msg {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      background: rgba(255, 59, 48, 0.12);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      border-radius: 10px;
+      color: #ff6b6b;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/" class="logo">VidShare</a>
+    <div class="page-title">Upload a video</div>
+  </div>
+
+  <div class="card">
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*" capture>
+      <span class="drop-icon">🎬</span>
+      <div class="drop-label">Tap to choose a video</div>
+      <div class="drop-sub">Any format · Vertical or horizontal</div>
+    </div>
+
+    <!-- File preview -->
+    <div class="file-preview" id="filePreview">
+      <span class="file-icon">🎥</span>
+      <div class="file-info">
+        <div class="file-name" id="fileName"></div>
+        <div class="file-size" id="fileSize"></div>
+      </div>
+      <button class="file-remove" id="fileRemove" title="Remove">✕</button>
+    </div>
+
+    <!-- Upload button -->
+    <button class="btn upload-btn" id="uploadBtn">Upload &amp; Get Link</button>
+
+    <!-- Progress -->
+    <div class="progress-area" id="progressArea">
+      <div class="progress-label">
+        <span id="progressText">Uploading…</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Success -->
+    <div class="success-area" id="successArea">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Your video is ready!</div>
+      <div class="success-sub">Copy the link below and send it to anyone.</div>
+      <div class="share-link-box" id="shareLink"></div>
+      <button class="btn copy-btn" id="copyBtn">Copy Link</button>
+      <a class="watch-btn" id="watchLink" target="_blank">Watch it now ↗</a>
+      <button class="btn another-btn" id="anotherBtn">Upload another video</button>
+    </div>
+  </div>
+
+  <script>
+    const CHUNK_SIZE = 3 * 1024 * 1024; // 3MB binary per chunk
+
+    const dropZone   = document.getElementById('dropZone');
+    const fileInput  = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const fileName   = document.getElementById('fileName');
+    const fileSize   = document.getElementById('fileSize');
+    const fileRemove = document.getElementById('fileRemove');
+    const uploadBtn  = document.getElementById('uploadBtn');
+    const progressArea = document.getElementById('progressArea');
+    const progressText = document.getElementById('progressText');
+    const progressPct  = document.getElementById('progressPct');
+    const progressFill = document.getElementById('progressFill');
+    const errorMsg   = document.getElementById('errorMsg');
+    const successArea = document.getElementById('successArea');
+    const shareLink  = document.getElementById('shareLink');
+    const copyBtn    = document.getElementById('copyBtn');
+    const watchLink  = document.getElementById('watchLink');
+    const anotherBtn = document.getElementById('anotherBtn');
+
+    let selectedFile = null;
+
+    function formatBytes(bytes) {
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function generateId() {
+      const arr = new Uint8Array(12);
+      crypto.getRandomValues(arr);
+      return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function getExtension(file) {
+      const parts = file.name.split('.');
+      if (parts.length > 1) return parts.pop().toLowerCase();
+      // Fall back from MIME type
+      const mime = file.type;
+      if (mime === 'video/mp4') return 'mp4';
+      if (mime === 'video/quicktime') return 'mov';
+      if (mime === 'video/webm') return 'webm';
+      return 'mp4';
+    }
+
+    function setFile(file) {
+      selectedFile = file;
+      fileName.textContent = file.name;
+      fileSize.textContent = formatBytes(file.size);
+      filePreview.classList.add('visible');
+      uploadBtn.classList.add('visible');
+      dropZone.style.display = 'none';
+      hideError();
+    }
+
+    function clearFile() {
+      selectedFile = null;
+      fileInput.value = '';
+      filePreview.classList.remove('visible');
+      uploadBtn.classList.remove('visible');
+      dropZone.style.display = '';
+      hideError();
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('visible');
+    }
+
+    function hideError() {
+      errorMsg.classList.remove('visible');
+    }
+
+    function setProgress(pct, label) {
+      progressFill.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+      progressText.textContent = label || 'Uploading…';
+    }
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    fileRemove.addEventListener('click', clearFile);
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('video/')) {
+        setFile(file);
+      } else {
+        showError('Please drop a video file.');
+      }
+    });
+
+    uploadBtn.addEventListener('click', startUpload);
+
+    async function startUpload() {
+      if (!selectedFile) return;
+
+      const file = selectedFile;
+      const ext = getExtension(file);
+      const videoId = generateId() + '.' + ext;
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      // UI: uploading state
+      uploadBtn.classList.remove('visible');
+      filePreview.classList.remove('visible');
+      progressArea.classList.add('visible');
+      hideError();
+      setProgress(0, 'Preparing…');
+
+      try {
+        // Upload chunks
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const slice = file.slice(start, end);
+          const arrayBuffer = await slice.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+          const pct = Math.round((i / totalChunks) * 85);
+          setProgress(pct, `Uploading… (${i + 1} of ${totalChunks})`);
+
+          const res = await fetch('/.netlify/functions/upload-chunk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId,
+              chunkIndex: i,
+              totalChunks,
+              data: base64,
+              contentType: file.type || 'video/mp4'
+            })
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Chunk ${i} failed`);
+          }
+        }
+
+        setProgress(90, 'Finalizing…');
+
+        // Finalize
+        const finalRes = await fetch('/.netlify/functions/finalize-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId,
+            totalChunks,
+            contentType: file.type || 'video/mp4'
+          })
+        });
+
+        if (!finalRes.ok) {
+          const err = await finalRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Finalize failed');
+        }
+
+        setProgress(100, 'Done!');
+
+        // Build share URL
+        const watchUrl = window.location.origin + '/watch?id=' + encodeURIComponent(videoId);
+
+        // Show success
+        setTimeout(() => {
+          progressArea.classList.remove('visible');
+          successArea.classList.add('visible');
+          shareLink.textContent = watchUrl;
+          watchLink.href = watchUrl;
+        }, 400);
+
+      } catch (err) {
+        progressArea.classList.remove('visible');
+        uploadBtn.classList.add('visible');
+        filePreview.classList.add('visible');
+        showError('Upload failed: ' + err.message);
+      }
+    }
+
+    copyBtn.addEventListener('click', async () => {
+      const url = shareLink.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      copyBtn.textContent = '✓ Copied!';
+      copyBtn.classList.add('copied');
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy Link';
+        copyBtn.classList.remove('copied');
+      }, 2500);
+    });
+
+    anotherBtn.addEventListener('click', () => {
+      successArea.classList.remove('visible');
+      clearFile();
+    });
+  </script>
+</body>
+</html>
