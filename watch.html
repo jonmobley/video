@@ -287,10 +287,9 @@
 
       showLoading();
 
-      // The video is stored directly in Netlify Blobs at this path
-      const videoUrl = `/.netlify/blobs/video-uploads/${encodeURIComponent(videoId)}`;
+      const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
 
-      // Probe the URL with a HEAD request to see if it exists
+      // Probe the URL to see if the video exists
       try {
         const probe = await fetch(videoUrl, { method: 'HEAD' });
         if (!probe.ok) {
@@ -298,7 +297,7 @@
           return;
         }
       } catch {
-        // If HEAD fails (CORS etc.) just try to play anyway
+        // If HEAD fails just try to play anyway
       }
 
       showVideo(videoUrl);

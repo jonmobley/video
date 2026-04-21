@@ -466,7 +466,7 @@
           const pct = Math.round((i / totalChunks) * 85);
           setProgress(pct, `Uploading… (${i + 1} of ${totalChunks})`);
 
-          const res = await fetch('/.netlify/functions/upload-chunk', {
+          const res = await fetch('/api/upload-chunk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -487,7 +487,7 @@
         setProgress(90, 'Finalizing…');
 
         // Finalize
-        const finalRes = await fetch('/.netlify/functions/finalize-video', {
+        const finalRes = await fetch('/api/finalize-video', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
