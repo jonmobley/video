@@ -40,3 +40,4 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
+run = ["netlify", "dev", "--port", "5000"]
