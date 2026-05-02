@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Upload Video – VidShare</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b6b'/%3E%3Cstop offset='1' stop-color='%234ecdc4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Cpath d='M22 18 L46 32 L22 46 Z' fill='url(%23g)'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/styles/common.css">
   <style>
     body {
@@ -73,9 +74,58 @@
 
     .fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-    /* Upload button */
-    .upload-btn { margin-top: 20px; width: 100%; padding: 15px; font-size: 1.05rem; border-radius: 14px; display: none; }
+    /* Upload button — gradient, on-brand */
+    .upload-btn {
+      margin-top: 20px; width: 100%; padding: 15px;
+      font-size: 1.05rem; border-radius: 14px; display: none;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #fff; border: none; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(78,205,196,0.22);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
     .upload-btn.visible { display: flex; }
+    .upload-btn:hover {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      filter: brightness(1.08);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(78,205,196,0.32);
+    }
+    .upload-btn:active { transform: translateY(0); filter: brightness(0.96); }
+
+    /* Copy button — also gradient for consistency, green on copied */
+    .copy-btn {
+      width: 100%; padding: 14px; font-size: 0.95rem; border-radius: 14px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #fff; border: none; font-weight: 600;
+      transition: filter 0.2s ease, transform 0.2s ease;
+    }
+    .copy-btn:hover { background: linear-gradient(45deg, #ff6b6b, #4ecdc4); filter: brightness(1.08); transform: translateY(-1px); }
+    .copy-btn.copied,
+    .copy-btn.copied:hover { background: #30d158; filter: none; }
+
+    /* Icon styling for inline SVGs replacing emoji */
+    .icon-svg { display: block; }
+    .drop-icon-wrap {
+      width: 56px; height: 56px; margin: 0 auto 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(78,205,196,0.15));
+      display: flex; align-items: center; justify-content: center;
+    }
+    .drop-icon-wrap svg { width: 28px; height: 28px; }
+    .file-icon-wrap {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 9px;
+      background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(78,205,196,0.15));
+      display: flex; align-items: center; justify-content: center;
+    }
+    .file-icon-wrap svg { width: 18px; height: 18px; }
+    .success-icon-wrap {
+      width: 56px; height: 56px; margin: 0 auto 12px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .success-icon-wrap svg { width: 30px; height: 30px; }
 
     /* Progress */
     .progress-area { display: none; margin-top: 20px; }
@@ -96,9 +146,6 @@
       margin-bottom: 12px; word-break: break-all; font-size: 0.82rem;
       color: #aaa; text-align: left; border: 1px solid #3A3A3C;
     }
-
-    .copy-btn { width: 100%; padding: 14px; font-size: 0.95rem; border-radius: 14px; }
-    .copy-btn.copied { background: #30d158; }
 
     .qr-wrap { margin: 18px 0 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .qr-wrap img { border-radius: 12px; border: 3px solid #2c2c2e; }
@@ -138,14 +185,25 @@
   <div class="card">
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="video/*">
-      <span class="drop-icon">🎬</span>
+      <span class="drop-icon-wrap">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <defs><linearGradient id="vsGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
+          <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
+          <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+      </span>
       <div class="drop-label">Tap to choose a video</div>
       <div class="drop-sub">Any format · Vertical or horizontal</div>
       <div class="size-limit">Max 1 GB</div>
     </div>
 
     <div class="file-preview" id="filePreview">
-      <span class="file-icon">🎥</span>
+      <span class="file-icon-wrap">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2" y="6" width="14" height="12" rx="2"/>
+          <path d="M22 8l-6 4 6 4V8z"/>
+        </svg>
+      </span>
       <div class="file-info">
         <div class="file-name" id="fileName"></div>
         <div class="file-size-txt" id="fileSizeTxt"></div>
@@ -190,7 +248,11 @@
     <div class="error-msg" id="errorMsg"></div>
 
     <div class="success-area" id="successArea">
-      <div class="success-icon">✅</div>
+      <div class="success-icon-wrap">
+        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="5 12 10 17 19 8"/>
+        </svg>
+      </div>
       <div class="success-title">Ready to share!</div>
       <div class="success-sub" id="successSub">Copy the link and send it to anyone.</div>
 
@@ -379,7 +441,7 @@
           metaRow.appendChild(expBadge);
           if (password) {
             const pb = document.createElement('span');
-            pb.className = 'meta-badge'; pb.textContent = '🔒 Password protected';
+            pb.className = 'meta-badge'; pb.textContent = 'Password protected';
             metaRow.appendChild(pb);
           }
 
@@ -393,7 +455,7 @@
 
           // Auto-copy
           navigator.clipboard.writeText(watchUrl).then(() => {
-            copyBtn.textContent = '✓ Copied!';
+            copyBtn.textContent = 'Copied!';
             copyBtn.classList.add('copied');
             setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 3000);
           }).catch(() => {});
@@ -417,7 +479,7 @@
         document.body.appendChild(ta); ta.focus(); ta.select();
         document.execCommand('copy'); document.body.removeChild(ta);
       }
-      copyBtn.textContent = '✓ Copied!';
+      copyBtn.textContent = 'Copied!';
       copyBtn.classList.add('copied');
       setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 2500);
     });
