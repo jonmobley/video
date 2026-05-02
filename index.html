@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="VidShare — share videos from your phone in seconds. No signup. Optional password and auto-expiry.">
+    <meta name="description" content="VidShare — share videos from your phone in seconds. No signup required. Optional account to manage uploads. Optional password and auto-expiry.">
     <title>VidShare — Share videos in seconds</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b6b'/%3E%3Cstop offset='1' stop-color='%234ecdc4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Cpath d='M22 18 L46 32 L22 46 Z' fill='url(%23g)'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles/common.css">
@@ -321,22 +321,32 @@
 <body>
     <nav class="nav">
         <a href="/" class="logo">VidShare</a>
-        <a href="/upload" class="nav-link">Upload →</a>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <a href="/login" class="nav-link" id="navAuth" style="display:none;">Sign in</a>
+            <a href="/account" class="nav-link" id="navAccount" style="display:none;">My videos</a>
+            <a href="/upload" class="nav-link">Upload →</a>
+        </div>
     </nav>
+    <script>
+      // Show "Sign in" or "My videos" depending on session — non-blocking.
+      fetch('/api/auth/me').then(r => {
+        document.getElementById(r.ok ? 'navAccount' : 'navAuth').style.display = 'inline-block';
+      }).catch(() => { document.getElementById('navAuth').style.display = 'inline-block'; });
+    </script>
 
     <main>
         <section class="hero">
             <h1>Share a video in <span class="accent">seconds</span>.</h1>
             <p class="sub">
                 Upload from your phone, get a clean shareable link.
-                No signup, no app to install — just drop a file and send the link.
+                No signup required, no app to install — just drop a file and send the link. Or create an account to manage your uploads.
             </p>
             <div class="cta-row">
                 <a href="/upload" class="btn btn-primary">Upload a Video</a>
                 <a href="#how" class="btn btn-secondary">How it works</a>
             </div>
             <div class="trust-row">
-                <span>No signup</span>
+                <span>No signup required</span>
                 <span>No watermark</span>
                 <span>Up to 1&nbsp;GB</span>
             </div>
@@ -397,7 +407,7 @@
 
         <section class="bottom-cta">
             <h2>Ready to share?</h2>
-            <p>It takes about 30&nbsp;seconds. No account required.</p>
+            <p>It takes about 30&nbsp;seconds. Sign up to keep your links organized — or upload anonymously.</p>
             <a href="/upload" class="btn btn-primary">Upload Your Video</a>
         </section>
     </main>

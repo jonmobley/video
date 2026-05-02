@@ -162,6 +162,31 @@ For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
 
+**2026-05-02 - User accounts & "My Videos" management**
+- ✅ New tables: `vs_users` (id/email/password_hash/created_at) and `vs_meta` (key/value, used to persist a stable session-signing secret)
+- ✅ `vs_uploads.user_id` column (nullable, `ON DELETE SET NULL`) — anonymous uploads still supported, deleting an account doesn't break existing share links
+- ✅ Password hashing for users: scrypt with random per-user salt; format `scrypt$<salt>$<hash>`. Verified with `crypto.timingSafeEqual`
+- ✅ Session model: HttpOnly + SameSite=Lax + Secure signed cookies (`vs_session = userId.expMs.hmac`), 30-day TTL. No DB row per session
+- ✅ Endpoints: `POST /api/auth/{signup,login,logout}`, `GET /api/auth/me`, `GET /api/my-videos`, `DELETE /api/my-videos/:id`. Ownership check baked into the WHERE on delete (can't touch other users' rows). Generic "Incorrect email or password" message on login fail (no email enumeration)
+- ✅ `/api/finalize-video` now attributes the upload to `req.userId` when signed in, otherwise NULL (anonymous)
+- ✅ New pages: `/login` (tabbed sign-in / create-account) and `/account` (My Videos list with copy-link / open / delete + signed-in email pill + sign-out)
+- ✅ Landing nav is auth-aware — non-blocking probe of `/api/auth/me` shows either "Sign in" or "My videos"
+- ✅ Hero copy softened from "No signup" → "No signup required, or create an account to manage uploads"
+
+**2026-05-02 - Watch page redesign**
+- ✅ Removed VidShare wordmark from watch-page header; added "Powered by VidShare" footer with gradient link to `/`
+- ✅ Removed expiration display entirely from watch page
+- ✅ Header/footer are static flex siblings (not fixed) — guaranteed never to overlap the video
+- ✅ Video centered with comfortable padding (24px desktop / 12px mobile), capped at 1100px max-width, rounded corners + shadow
+
+**2026-05-02 - Upload UX polish**
+- ✅ Title is now required (was optional) and auto-fills from filename — strips extension, replaces `-`/`_` with spaces (`AG+_Classic_Coverage.mp4` → `AG+ Classic Coverage`); user can edit freely
+- ✅ Upload button stays disabled until both file + title are present
+- ✅ Server `/api/finalize-video` validates non-blank title (≤ 120 chars)
+- ✅ Fixed "Maximum call stack size exceeded" on uploads ≥ ~125 KB chunks: replaced naive `btoa(String.fromCharCode(...new Uint8Array(ab)))` with chunked 32 KB-window encoder
+- ✅ Progress label simplified to "Uploading… <pct>%" (removed confusing "X of Y chunks")
+- ✅ All buttons (`.btn.upload-btn`, `.btn.copy-btn`, `.btn.btn-primary`, `.btn.btn-secondary`) use higher-specificity selectors with brand gradient to defeat common.css's default blue `.btn:hover`
+
 **2026-05-02 - Hardening pass after architect review**
 - ✅ Refactored to dedicated `vs_uploads` and `vs_upload_chunks` tables (avoids collision with the wistia catalog `videos` table used by oz.html/disc.html)
 - ✅ Atomic finalize: BEGIN/COMMIT transaction wraps metadata insert + chunk swap so a failure can never leave half-written state

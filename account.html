@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>My Videos – VidShare</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b6b'/%3E%3Cstop offset='1' stop-color='%234ecdc4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Cpath d='M22 18 L46 32 L22 46 Z' fill='url(%23g)'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; min-height: 100vh; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-bottom: 1px solid #1a1a1a;
+    }
+    .nav-left { display: flex; align-items: center; gap: 18px; }
+    .logo {
+      font-size: 1.2rem; font-weight: 800; text-decoration: none;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-link {
+      font-size: 0.9rem; color: #aaa; text-decoration: none;
+      padding: 8px 14px; border-radius: 10px; transition: all 0.2s;
+    }
+    .nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .upload-cta {
+      padding: 9px 16px; border-radius: 10px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #fff; text-decoration: none; font-size: 0.88rem; font-weight: 600;
+    }
+    .upload-cta:hover { filter: brightness(1.08); }
+    .logout-btn {
+      background: none; border: 1px solid #2c2c2e; color: #aaa;
+      padding: 8px 14px; border-radius: 10px; font-size: 0.85rem;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .logout-btn:hover { color: #fff; border-color: #3a3a3c; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 32px 24px 80px; }
+    .header-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; gap: 12px; flex-wrap: wrap; }
+    h1 { font-size: 1.6rem; font-weight: 700; }
+    .header-sub { color: #888; font-size: 0.9rem; margin-bottom: 26px; }
+    .email-pill { font-size: 0.85rem; color: #888; }
+    .email-pill strong { color: #ddd; font-weight: 600; }
+
+    .empty {
+      padding: 50px 30px; text-align: center;
+      background: #0d0d0d; border: 1px dashed #1c1c1e; border-radius: 16px;
+    }
+    .empty-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+    .empty-sub { color: #888; font-size: 0.9rem; margin-bottom: 18px; }
+
+    .video-list { display: flex; flex-direction: column; gap: 12px; }
+    .video-card {
+      background: #0d0d0d; border: 1px solid #1c1c1e; border-radius: 14px;
+      padding: 16px 18px; display: flex; align-items: center; gap: 16px;
+    }
+    .vc-main { flex: 1; min-width: 0; }
+    .vc-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vc-meta { font-size: 0.8rem; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
+    .vc-meta .lock { color: #4ecdc4; }
+    .vc-meta .exp { color: #ffb86b; }
+    .vc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .vc-btn {
+      padding: 8px 14px; border-radius: 9px; font-size: 0.82rem; font-weight: 600;
+      border: 1px solid #2c2c2e; background: #1c1c1e; color: #fff;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+      text-decoration: none; display: inline-block;
+    }
+    .vc-btn:hover { background: #2c2c2e; border-color: #3a3a3c; }
+    .vc-btn.danger:hover { background: rgba(255,107,107,0.12); border-color: rgba(255,107,107,0.4); color: #ff8e8e; }
+    .vc-btn.copied { background: #30d158; border-color: #30d158; color: #fff; }
+
+    .toast {
+      position: fixed; bottom: 30px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px); color: #fff;
+      padding: 12px 24px; border-radius: 999px; font-size: 0.88rem;
+      font-weight: 600; opacity: 0; transition: all 0.3s ease;
+      pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 60px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .nav { padding: 14px 16px; gap: 8px; }
+      .nav-left { gap: 10px; }
+      .nav-link, .logout-btn { padding: 7px 10px; font-size: 0.82rem; }
+      main { padding: 22px 16px 80px; }
+      .video-card { flex-direction: column; align-items: stretch; gap: 12px; }
+      .vc-actions { justify-content: flex-end; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-left">
+      <a href="/" class="logo">VidShare</a>
+      <a href="/account" class="nav-link">My videos</a>
+    </div>
+    <div class="nav-left">
+      <a href="/upload" class="upload-cta">+ Upload</a>
+      <button class="logout-btn" id="logoutBtn">Sign out</button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="header-row">
+      <h1>My videos</h1>
+      <div class="email-pill" id="emailPill"></div>
+    </div>
+    <div class="header-sub" id="headerSub">Loading your uploads…</div>
+
+    <div id="content"><div class="spinner"></div></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const content    = document.getElementById('content');
+    const emailPill  = document.getElementById('emailPill');
+    const headerSub  = document.getElementById('headerSub');
+    const toast      = document.getElementById('toast');
+    const logoutBtn  = document.getElementById('logoutBtn');
+
+    function showToast(msg) {
+      toast.textContent = msg; toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function formatBytes(b) {
+      if (!b) return '—';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+      if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    }
+    function formatViews(n) {
+      if (n === 1) return '1 view';
+      if (n < 1000) return n + ' views';
+      return (n / 1000).toFixed(1) + 'k views';
+    }
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    function formatExpiry(iso) {
+      if (!iso) return null;
+      const diff = new Date(iso) - Date.now();
+      if (diff <= 0) return 'Expired';
+      const days = Math.floor(diff / 86400000);
+      if (days >= 1) return `Expires in ${days} day${days === 1 ? '' : 's'}`;
+      const hours = Math.floor(diff / 3600000);
+      return `Expires in ${hours} hour${hours === 1 ? '' : 's'}`;
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    async function loadAccount() {
+      // Auth gate
+      const me = await fetch('/api/auth/me');
+      if (!me.ok) {
+        window.location.replace('/login?next=' + encodeURIComponent('/account'));
+        return;
+      }
+      const meData = await me.json();
+      emailPill.innerHTML = 'Signed in as <strong>' + escapeHtml(meData.email) + '</strong>';
+
+      const res = await fetch('/api/my-videos');
+      if (!res.ok) {
+        content.innerHTML = '<div class="empty"><div class="empty-title">Could not load videos</div><div class="empty-sub">Please refresh the page.</div></div>';
+        headerSub.textContent = '';
+        return;
+      }
+      const { videos } = await res.json();
+      renderVideos(videos);
+    }
+
+    function renderVideos(videos) {
+      if (!videos.length) {
+        headerSub.textContent = 'You haven\u2019t uploaded any videos yet.';
+        content.innerHTML = `
+          <div class="empty">
+            <div class="empty-title">No videos yet</div>
+            <div class="empty-sub">Upload your first video to get a shareable link.</div>
+            <a href="/upload" class="upload-cta">+ Upload a video</a>
+          </div>`;
+        return;
+      }
+      headerSub.textContent = `${videos.length} video${videos.length === 1 ? '' : 's'}`;
+      content.innerHTML = '<div class="video-list">' + videos.map(renderCard).join('') + '</div>';
+      attachCardHandlers();
+    }
+
+    function renderCard(v) {
+      const watchUrl = `/watch?id=${encodeURIComponent(v.id)}`;
+      const exp = formatExpiry(v.expires_at);
+      return `
+        <div class="video-card" data-id="${escapeHtml(v.id)}">
+          <div class="vc-main">
+            <div class="vc-title">${escapeHtml(v.title || 'Untitled')}</div>
+            <div class="vc-meta">
+              <span>${formatDate(v.uploaded_at)}</span>
+              <span>${formatBytes(v.file_size)}</span>
+              <span>${formatViews(v.view_count)}</span>
+              ${v.has_password ? '<span class="lock">Password</span>' : ''}
+              ${exp ? `<span class="exp">${exp}</span>` : ''}
+            </div>
+          </div>
+          <div class="vc-actions">
+            <a class="vc-btn" href="${watchUrl}" target="_blank" rel="noopener">Open</a>
+            <button class="vc-btn copy-btn" data-url="${watchUrl}">Copy link</button>
+            <button class="vc-btn danger delete-btn">Delete</button>
+          </div>
+        </div>`;
+    }
+
+    function attachCardHandlers() {
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const url = window.location.origin + btn.dataset.url;
+          try { await navigator.clipboard.writeText(url); }
+          catch {
+            const ta = document.createElement('textarea');
+            ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+          }
+          const original = btn.textContent;
+          btn.textContent = 'Copied!'; btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+        });
+      });
+
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const card = btn.closest('.video-card');
+          const id = card.dataset.id;
+          const title = card.querySelector('.vc-title').textContent;
+          if (!confirm(`Delete "${title}"? This cannot be undone — the share link will stop working immediately.`)) return;
+          btn.disabled = true; btn.textContent = 'Deleting…';
+          const res = await fetch(`/api/my-videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (!res.ok) {
+            btn.disabled = false; btn.textContent = 'Delete';
+            showToast('Could not delete video.');
+            return;
+          }
+          card.style.transition = 'opacity 0.2s, transform 0.2s';
+          card.style.opacity = '0'; card.style.transform = 'scale(0.97)';
+          setTimeout(() => { card.remove(); checkEmpty(); }, 200);
+          showToast('Deleted');
+        });
+      });
+    }
+
+    function checkEmpty() {
+      const remaining = document.querySelectorAll('.video-card').length;
+      if (remaining === 0) renderVideos([]);
+      else headerSub.textContent = `${remaining} video${remaining === 1 ? '' : 's'}`;
+    }
+
+    logoutBtn.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+
+    loadAccount();
+  </script>
+</body>
+</html>

@@ -71,6 +71,108 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ── User accounts: password hashing (scrypt) ────────────────────────────────
+// Format: `scrypt$<saltHex>$<hashHex>`. Each signup gets its own salt so
+// identical passwords across users hash differently.
+function hashUserPassword(pw) {
+  const salt = crypto.randomBytes(16);
+  const derived = crypto.scryptSync(pw, salt, 64);
+  return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`;
+}
+function verifyUserPassword(pw, stored) {
+  const parts = (stored || '').split('$');
+  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+  const salt = Buffer.from(parts[1], 'hex');
+  const expected = Buffer.from(parts[2], 'hex');
+  if (expected.length === 0) return false;
+  const provided = crypto.scryptSync(pw, salt, expected.length);
+  return crypto.timingSafeEqual(expected, provided);
+}
+
+// ── Sessions: signed cookies, no DB row per session ──────────────────────────
+// Cookie value is `userId.expMs.hmac` signed with SESSION_SECRET, which is
+// generated on first boot and persisted in vs_meta so it survives restarts.
+const SESSION_COOKIE = 'vs_session';
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+let SESSION_SECRET = null;
+
+async function loadOrCreateSessionSecret() {
+  const existing = await pool.query(`SELECT value FROM vs_meta WHERE key = 'session_secret'`);
+  if (existing.rows.length) { SESSION_SECRET = existing.rows[0].value; return; }
+  const fresh = crypto.randomBytes(48).toString('hex');
+  await pool.query(
+    `INSERT INTO vs_meta (key, value) VALUES ('session_secret', $1)
+     ON CONFLICT (key) DO NOTHING`,
+    [fresh]
+  );
+  const row = await pool.query(`SELECT value FROM vs_meta WHERE key = 'session_secret'`);
+  SESSION_SECRET = row.rows[0].value;
+}
+
+function signSession(userId) {
+  const exp = Date.now() + SESSION_TTL_MS;
+  const payload = `${userId}.${exp}`;
+  const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return `${payload}.${hmac}`;
+}
+function verifySession(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [userId, expStr, hmac] = parts;
+  const expected = crypto.createHmac('sha256', SESSION_SECRET).update(`${userId}.${expStr}`).digest('hex');
+  const a = Buffer.from(hmac, 'hex');
+  const b = Buffer.from(expected, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  const exp = parseInt(expStr, 10);
+  if (!Number.isFinite(exp) || Date.now() > exp) return null;
+  return userId;
+}
+
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  for (const pair of header.split(';')) {
+    const idx = pair.indexOf('=');
+    if (idx < 0) continue;
+    out[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return out;
+}
+
+// Always sets req.userId (may be null). Doesn't block anonymous traffic.
+function attachUser(req, res, next) {
+  const cookies = parseCookies(req.headers.cookie);
+  req.userId = verifySession(cookies[SESSION_COOKIE]);
+  next();
+}
+function requireUser(req, res, next) {
+  if (!req.userId) return res.status(401).json({ error: 'Sign in required' });
+  next();
+}
+
+function setSessionCookie(res, userId) {
+  const token = signSession(userId);
+  // Secure flag: Replit proxies HTTPS in deployment; harmless on local.
+  const flags = [
+    `${SESSION_COOKIE}=${token}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
+    'Secure'
+  ];
+  res.setHeader('Set-Cookie', flags.join('; '));
+}
+function clearSessionCookie(res) {
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+}
+
+// Lightweight email validation — server-side. We're not strict about RFC 5322;
+// just enough to catch obvious typos. Real validation = a confirmation email,
+// which is out of scope here.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function ensureSchema() {
   await pool.query(`
@@ -93,6 +195,23 @@ async function ensureSchema() {
     );
     ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
+
+    -- User accounts (added later — uses uuid via crypto, not pgcrypto, so no extension required)
+    CREATE TABLE IF NOT EXISTS vs_users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS vs_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    -- Attribute uploads to a user (nullable — anonymous uploads still work).
+    -- ON DELETE SET NULL keeps the videos accessible if the account is removed.
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS user_id TEXT
+      REFERENCES vs_users(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS idx_vs_uploads_user_id ON vs_uploads(user_id) WHERE user_id IS NOT NULL;
   `);
 
   // NOTE: We deliberately do NOT add an FK from vs_upload_chunks → vs_uploads.
@@ -130,6 +249,7 @@ async function cleanupExpired() {
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '8mb' }));
+app.use(attachUser);
 app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -220,15 +340,16 @@ app.post('/api/finalize-video', async (req, res) => {
     await client.query('BEGIN');
     try {
       await client.query(
-        `INSERT INTO vs_uploads (id, content_type, title, expires_at, password_hash, file_size)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO vs_uploads (id, content_type, title, expires_at, password_hash, file_size, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (id) DO UPDATE SET
            content_type = EXCLUDED.content_type,
            title = EXCLUDED.title,
            expires_at = EXCLUDED.expires_at,
            password_hash = EXCLUDED.password_hash,
-           file_size = EXCLUDED.file_size`,
-        [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length]
+           file_size = EXCLUDED.file_size,
+           user_id = EXCLUDED.user_id`,
+        [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length, req.userId || null]
       );
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       await client.query(
@@ -413,16 +534,113 @@ app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Auth: signup / login / logout / me ───────────────────────────────────────
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.password || '';
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email.' });
+    if (password.length < 8)   return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (password.length > 200) return res.status(400).json({ error: 'Password is too long.' });
+
+    const exists = await pool.query('SELECT 1 FROM vs_users WHERE email = $1', [email]);
+    if (exists.rows.length) return res.status(409).json({ error: 'An account with that email already exists.' });
+
+    const id = crypto.randomBytes(12).toString('hex');
+    await pool.query(
+      'INSERT INTO vs_users (id, email, password_hash) VALUES ($1, $2, $3)',
+      [id, email, hashUserPassword(password)]
+    );
+    setSessionCookie(res, id);
+    res.json({ email });
+  } catch (err) {
+    console.error('signup error:', err);
+    res.status(500).json({ error: 'Could not create account.' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const email = (req.body.email || '').trim().toLowerCase();
+    const password = req.body.password || '';
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
+
+    const result = await pool.query('SELECT id, password_hash FROM vs_users WHERE email = $1', [email]);
+    // Generic error message either way — don't leak which emails are registered.
+    const fail = () => res.status(401).json({ error: 'Incorrect email or password.' });
+    if (!result.rows.length) return fail();
+    const ok = verifyUserPassword(password, result.rows[0].password_hash);
+    if (!ok) return fail();
+
+    setSessionCookie(res, result.rows[0].id);
+    res.json({ email });
+  } catch (err) {
+    console.error('login error:', err);
+    res.status(500).json({ error: 'Could not sign in.' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  clearSessionCookie(res);
+  res.json({ success: true });
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: 'Not signed in' });
+  const result = await pool.query('SELECT email FROM vs_users WHERE id = $1', [req.userId]);
+  if (!result.rows.length) { clearSessionCookie(res); return res.status(401).json({ error: 'Not signed in' }); }
+  res.json({ email: result.rows[0].email });
+});
+
+// ── My videos: list + delete ─────────────────────────────────────────────────
+app.get('/api/my-videos', requireUser, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
+              (password_hash IS NOT NULL) AS has_password
+       FROM vs_uploads
+       WHERE user_id = $1
+       ORDER BY uploaded_at DESC`,
+      [req.userId]
+    );
+    res.json({ videos: result.rows });
+  } catch (err) {
+    console.error('my-videos list error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/my-videos/:id', requireUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Ownership check baked into the WHERE — won't touch other users' rows.
+    const owned = await pool.query(
+      'SELECT 1 FROM vs_uploads WHERE id = $1 AND user_id = $2',
+      [id, req.userId]
+    );
+    if (!owned.rows.length) return res.status(404).json({ error: 'Video not found' });
+    await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
+    await pool.query('DELETE FROM vs_uploads WHERE id = $1 AND user_id = $2', [id, req.userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('my-videos delete error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Clean URL routes ──────────────────────────────────────────────────────────
-app.get('/upload', (req, res) => res.sendFile(path.join(__dirname, 'upload.html')));
-app.get('/watch', (req, res) => res.sendFile(path.join(__dirname, 'watch.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
-app.get('/oz', (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
-app.get('/disc', (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html')));
+app.get('/watch',   (req, res) => res.sendFile(path.join(__dirname, 'watch.html')));
+app.get('/admin',   (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));
+app.get('/oz',      (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
+app.get('/disc',    (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 ensureSchema()
   .then(async () => {
+    await loadOrCreateSessionSecret();
     await cleanupExpired();
     setInterval(cleanupExpired, 60 * 60 * 1000);
     setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
