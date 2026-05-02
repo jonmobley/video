@@ -97,7 +97,10 @@
     const errorBox   = document.getElementById('errorBox');
     const form       = document.getElementById('authForm');
 
-    let mode = 'login';
+    // Default to whichever tab the URL requested (e.g. /login?tab=signup),
+    // otherwise sign-in. Anything other than "signup" is treated as login.
+    const urlParams = new URLSearchParams(window.location.search);
+    let mode = urlParams.get('tab') === 'signup' ? 'signup' : 'login';
 
     function setMode(next) {
       mode = next;
@@ -116,6 +119,9 @@
       hideError();
     }
     tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+
+    // Apply the URL-derived initial tab (no-op if it's the default 'login').
+    if (mode === 'signup') setMode('signup');
 
     function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('visible'); }
     function hideError()    { errorBox.classList.remove('visible'); }

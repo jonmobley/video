@@ -170,6 +170,21 @@
     }
     .another-btn:hover { background: #3A3A3C; }
 
+    /* Soft account nudge — only shown to anonymous uploaders. Visually
+       subordinate to the primary Copy Link / Watch actions. */
+    .account-nudge {
+      display: none; margin-top: 14px;
+      font-size: 0.82rem; color: #777; line-height: 1.5;
+    }
+    .account-nudge.visible { display: block; }
+    .account-nudge a {
+      font-weight: 600; text-decoration: none;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .account-nudge a:hover { filter: brightness(1.1); }
+
     /* Error */
     .error-msg {
       display: none; margin-top: 14px; padding: 12px 14px;
@@ -271,6 +286,11 @@
 
       <a class="watch-link-btn" id="watchLinkBtn" target="_blank">Watch it now ↗</a>
       <button class="btn another-btn" id="anotherBtn">Upload another video</button>
+
+      <p class="account-nudge" id="accountNudge">
+        Want to manage this video later?
+        <a href="/login?tab=signup">Create a free account →</a>
+      </p>
     </div>
   </div>
 
@@ -300,8 +320,18 @@
     const qrImg       = els('qrImg');
     const metaRow     = els('metaRow');
     const successSub  = els('successSub');
+    const accountNudge = els('accountNudge');
 
     let selectedFile = null;
+
+    // Auth state is fetched once on page load. We expose it as a Promise so
+    // the success handler can await it — this avoids a race where a fast
+    // upload from a signed-in user shows the nudge before /api/auth/me
+    // returns. On any error we fail CLOSED (treat as signed-in → no nudge)
+    // so signed-in users are never nagged.
+    const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(r => r.ok)
+      .catch(() => true);
 
     // Chunked base64 encode. The naive `String.fromCharCode(...bytes)` spreads
     // every byte as a function argument, which overflows the JS call stack on
@@ -498,6 +528,12 @@
             ? 'Share the link — recipients will need the password to watch.'
             : 'Copy the link and send it to anyone.';
 
+          // Soft nudge to create an account — only for anonymous uploaders.
+          // Wait for the auth probe; fail-closed (no nudge) on error.
+          authReady.then(signedIn => {
+            accountNudge.classList.toggle('visible', !signedIn);
+          });
+
           // QR code
           qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=1c1c1e&data=' + encodeURIComponent(watchUrl);
 
@@ -534,6 +570,7 @@
 
     anotherBtn.addEventListener('click', () => {
       successArea.classList.remove('visible');
+      accountNudge.classList.remove('visible');
       els('titleInput').value = '';
       els('passwordInput').value = '';
       clearFile();
