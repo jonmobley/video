@@ -441,7 +441,7 @@
           const ab = await slice.arrayBuffer();
           const base64 = arrayBufferToBase64(ab);
 
-          setProgress(Math.round((i / totalChunks) * 85), `Uploading… (${i + 1} of ${totalChunks})`);
+          setProgress(Math.round((i / totalChunks) * 85), 'Uploading…');
 
           const res = await fetch('/api/upload-chunk', {
             method: 'POST',
