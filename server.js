@@ -172,6 +172,13 @@ app.post('/api/finalize-video', async (req, res) => {
   if (!videoId || !totalChunks || !contentType) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+  const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+  if (!trimmedTitle) {
+    return res.status(400).json({ error: 'A title is required.' });
+  }
+  if (trimmedTitle.length > 120) {
+    return res.status(400).json({ error: 'Title must be 120 characters or fewer.' });
+  }
 
   const client = await pool.connect();
   try {
@@ -221,7 +228,7 @@ app.post('/api/finalize-video', async (req, res) => {
            expires_at = EXCLUDED.expires_at,
            password_hash = EXCLUDED.password_hash,
            file_size = EXCLUDED.file_size`,
-        [videoId, contentType, title || '', expiresAt, passwordHash, assembled.length]
+        [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length]
       );
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       await client.query(

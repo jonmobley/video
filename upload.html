@@ -216,8 +216,8 @@
 
     <div class="fields" id="fieldsArea" style="display:none;">
       <div class="field">
-        <label>Title (optional)</label>
-        <input type="text" id="titleInput" placeholder="e.g. Practice run – June 3" maxlength="120">
+        <label>Title</label>
+        <input type="text" id="titleInput" placeholder="e.g. Practice run – June 3" maxlength="120" required>
       </div>
       <div class="fields-row">
         <div class="field">
@@ -338,6 +338,17 @@
       return 'mp4';
     }
 
+    // Derive a friendly title from the filename:
+    //   "my-clip_take_2.MP4" → "my clip take 2"
+    // - Strip the final extension (only the last `.`)
+    // - Replace `-` and `_` runs with spaces
+    // - Collapse extra whitespace
+    function deriveTitleFromFilename(name) {
+      const lastDot = name.lastIndexOf('.');
+      const base = lastDot > 0 ? name.slice(0, lastDot) : name;
+      return base.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
     function setFile(file) {
       if (file.size > MAX_SIZE) {
         showError(`File is too large (${formatBytes(file.size)}). Maximum size is 1 GB.`);
@@ -350,7 +361,22 @@
       fieldsArea.style.display = 'flex';
       uploadBtn.classList.add('visible');
       dropZone.style.display = 'none';
+
+      // Auto-fill the title from the filename. User can edit it freely.
+      // Only fill if the title input is empty so we don't clobber edits when
+      // they pick a different file after typing.
+      const titleEl = els('titleInput');
+      if (!titleEl.value.trim()) {
+        titleEl.value = deriveTitleFromFilename(file.name);
+      }
+      updateUploadBtnState();
       hideError();
+    }
+
+    function updateUploadBtnState() {
+      const hasFile = !!selectedFile;
+      const hasTitle = els('titleInput').value.trim().length > 0;
+      uploadBtn.disabled = !(hasFile && hasTitle);
     }
 
     function clearFile() {
@@ -373,6 +399,7 @@
 
     fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
     fileRemove.addEventListener('click', clearFile);
+    document.addEventListener('input', e => { if (e.target.id === 'titleInput') updateUploadBtnState(); });
 
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
@@ -387,11 +414,16 @@
 
     async function startUpload() {
       if (!selectedFile) return;
+      const title = els('titleInput').value.trim();
+      if (!title) {
+        showError('Please add a title for your video.');
+        els('titleInput').focus();
+        return;
+      }
       const file = selectedFile;
       const ext = getExt(file);
       const videoId = genId() + '.' + ext;
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-      const title = els('titleInput').value.trim();
       const expiryDays = els('expirySelect').value;
       const password = els('passwordInput').value;
 
@@ -505,6 +537,7 @@
       els('titleInput').value = '';
       els('passwordInput').value = '';
       clearFile();
+      updateUploadBtnState();
     });
   </script>
 </body>
