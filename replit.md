@@ -162,6 +162,18 @@ For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
 
+**2026-05-02 - Hardening pass after architect review**
+- ✅ Refactored to dedicated `vs_uploads` and `vs_upload_chunks` tables (avoids collision with the wistia catalog `videos` table used by oz.html/disc.html)
+- ✅ Atomic finalize: BEGIN/COMMIT transaction wraps metadata insert + chunk swap so a failure can never leave half-written state
+- ✅ Chunk continuity check: verifies COUNT, MIN, MAX of chunk indices match exactly 0..totalChunks-1 (catches missing/duplicate chunks)
+- ✅ Orphan-chunk pruning: hourly cleanup deletes chunks whose parent `vs_uploads` row no longer exists (FK was attempted but is incompatible with chunk-first-then-finalize upload protocol)
+- ✅ BIGINT serialization: pg type parser registered so `file_size` is returned as a number (was string, broke admin's storage-used calculation)
+- ✅ Rate-limit Maps bounded: periodic eviction every 10 min prevents memory growth from unique IPs
+- ✅ Brute-force protection: `/api/verify-password` throttled to 8 attempts per 5 min per (IP, video) pair
+- ✅ Constant-time hash comparison via `crypto.timingSafeEqual`
+- ✅ `Referrer-Policy: no-referrer` on watch page so `?pt=` token never leaks via Referer header
+- ✅ Index on `vs_uploads.expires_at` for fast cleanup queries
+
 **2026-05-02 - Full feature build-out**
 - ✅ Video expiry: choose 1 day, 7 days, 30 days, or never — expired videos auto-deleted on server startup + hourly
 - ✅ File size limit: 100 MB enforced client-side and server-side with clear messaging on upload page

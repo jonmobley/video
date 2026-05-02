@@ -1,7 +1,11 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
+
+// Parse PostgreSQL BIGINT (OID 20) and NUMERIC LENGTH results as JS numbers
+// so file_size is returned as a number rather than a string in JSON responses.
+types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,15 +23,35 @@ const uploadCounts = new Map();
 const MAX_UPLOADS_PER_HOUR = 10;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 
-function isRateLimited(ip) {
+// Verify-password throttle: prevents brute-forcing protected video passwords
+const verifyAttempts = new Map();
+const MAX_VERIFY_PER_WINDOW = 8;
+const VERIFY_WINDOW_MS = 5 * 60 * 1000;
+
+function checkAndIncrement(map, key, max, windowMs) {
   const now = Date.now();
-  let entry = uploadCounts.get(ip);
+  let entry = map.get(key);
   if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    entry = { count: 0, resetAt: now + windowMs };
   }
   entry.count++;
-  uploadCounts.set(ip, entry);
-  return entry.count > MAX_UPLOADS_PER_HOUR;
+  map.set(key, entry);
+  return entry.count > max;
+}
+
+function isRateLimited(ip) {
+  return checkAndIncrement(uploadCounts, ip, MAX_UPLOADS_PER_HOUR, RATE_WINDOW_MS);
+}
+
+function isVerifyThrottled(key) {
+  return checkAndIncrement(verifyAttempts, key, MAX_VERIFY_PER_WINDOW, VERIFY_WINDOW_MS);
+}
+
+// Periodic eviction prevents unbounded Map growth from unique IPs
+function evictExpiredRateLimits() {
+  const now = Date.now();
+  for (const [k, v] of uploadCounts) if (now > v.resetAt) uploadCounts.delete(k);
+  for (const [k, v] of verifyAttempts) if (now > v.resetAt) verifyAttempts.delete(k);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,7 +74,7 @@ function requireAdmin(req, res, next) {
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function ensureSchema() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS videos (
+    CREATE TABLE IF NOT EXISTS vs_uploads (
       id TEXT PRIMARY KEY,
       content_type TEXT NOT NULL,
       uploaded_at TIMESTAMPTZ DEFAULT NOW(),
@@ -60,31 +84,45 @@ async function ensureSchema() {
       view_count INTEGER DEFAULT 0,
       file_size BIGINT DEFAULT 0
     );
-    CREATE TABLE IF NOT EXISTS video_chunks (
+    CREATE TABLE IF NOT EXISTS vs_upload_chunks (
       video_id TEXT NOT NULL,
       chunk_index INTEGER NOT NULL,
       data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (video_id, chunk_index)
     );
-    ALTER TABLE videos ADD COLUMN IF NOT EXISTS title TEXT DEFAULT '';
-    ALTER TABLE videos ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
-    ALTER TABLE videos ADD COLUMN IF NOT EXISTS password_hash TEXT;
-    ALTER TABLE videos ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0;
-    ALTER TABLE videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+    ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
   `);
+
+  // NOTE: We deliberately do NOT add an FK from vs_upload_chunks → vs_uploads.
+  // Upload protocol is "stream chunks, THEN finalize creates the parent row",
+  // so a FK would block legal inserts. Orphan chunks (from abandoned uploads)
+  // are pruned by cleanupOrphanChunks() below.
 }
 
 // ── Cleanup expired videos ───────────────────────────────────────────────────
 async function cleanupExpired() {
   try {
     const res = await pool.query(
-      'SELECT id FROM videos WHERE expires_at IS NOT NULL AND expires_at < NOW()'
+      'SELECT id FROM vs_uploads WHERE expires_at IS NOT NULL AND expires_at < NOW()'
     );
     for (const { id } of res.rows) {
-      await pool.query('DELETE FROM video_chunks WHERE video_id = $1', [id]);
-      await pool.query('DELETE FROM videos WHERE id = $1', [id]);
+      await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
+      await pool.query('DELETE FROM vs_uploads WHERE id = $1', [id]);
     }
     if (res.rows.length) console.log(`Cleaned up ${res.rows.length} expired video(s)`);
+
+    // Prune orphan chunks from ABANDONED uploads — chunks older than 6 hours
+    // with no matching parent row. The age-gate is critical: in-progress
+    // uploads are "orphan" until finalize creates the parent row, so we
+    // must not delete recent chunks.
+    const orphan = await pool.query(`
+      DELETE FROM vs_upload_chunks
+      WHERE created_at < NOW() - INTERVAL '6 hours'
+        AND video_id NOT IN (SELECT id FROM vs_uploads)
+    `);
+    if (orphan.rowCount) console.log(`Pruned ${orphan.rowCount} orphan chunk(s)`);
   } catch (err) {
     console.error('Cleanup error:', err.message);
   }
@@ -115,7 +153,7 @@ app.post('/api/upload-chunk', async (req, res) => {
 
     const buffer = Buffer.from(data, 'base64');
     await pool.query(
-      `INSERT INTO video_chunks (video_id, chunk_index, data)
+      `INSERT INTO vs_upload_chunks (video_id, chunk_index, data)
        VALUES ($1, $2, $3)
        ON CONFLICT (video_id, chunk_index) DO UPDATE SET data = EXCLUDED.data`,
       [videoId, chunkIndex, buffer]
@@ -130,56 +168,78 @@ app.post('/api/upload-chunk', async (req, res) => {
 
 // ── Finalize video ───────────────────────────────────────────────────────────
 app.post('/api/finalize-video', async (req, res) => {
-  try {
-    const { videoId, totalChunks, contentType, title, expiryDays, password } = req.body;
-    if (!videoId || !totalChunks || !contentType) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+  const { videoId, totalChunks, contentType, title, expiryDays, password } = req.body;
+  if (!videoId || !totalChunks || !contentType) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-    const result = await pool.query(
-      'SELECT data FROM video_chunks WHERE video_id = $1 ORDER BY chunk_index ASC',
+  const client = await pool.connect();
+  try {
+    // Validate chunk continuity OUTSIDE the transaction (no locks needed for read).
+    // Verify count, min, and max indices are exactly 0..totalChunks-1.
+    const continuity = await client.query(
+      `SELECT COUNT(*)::int AS cnt,
+              MIN(chunk_index)::int AS min_idx,
+              MAX(chunk_index)::int AS max_idx
+       FROM vs_upload_chunks WHERE video_id = $1`,
       [videoId]
     );
-
-    if (result.rows.length !== totalChunks) {
-      return res.status(400).json({ error: `Expected ${totalChunks} chunks, got ${result.rows.length}` });
+    const { cnt, min_idx, max_idx } = continuity.rows[0];
+    if (cnt !== totalChunks || min_idx !== 0 || max_idx !== totalChunks - 1) {
+      return res.status(400).json({
+        error: `Chunk integrity failure: expected ${totalChunks} contiguous chunks (0..${totalChunks - 1}), got ${cnt} with range ${min_idx}..${max_idx}.`
+      });
     }
 
-    const assembled = Buffer.concat(result.rows.map(r => r.data));
+    const dataResult = await client.query(
+      'SELECT data FROM vs_upload_chunks WHERE video_id = $1 ORDER BY chunk_index ASC',
+      [videoId]
+    );
+    const assembled = Buffer.concat(dataResult.rows.map(r => r.data));
 
     if (assembled.length > MAX_FILE_SIZE) {
-      await pool.query('DELETE FROM video_chunks WHERE video_id = $1', [videoId]);
+      await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       return res.status(400).json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` });
     }
 
     const expiresAt = expiryDays && expiryDays !== 'never'
       ? new Date(Date.now() + parseInt(expiryDays) * 24 * 60 * 60 * 1000)
       : null;
-
     const passwordHash = password ? hashPassword(password) : null;
 
-    await pool.query(
-      `INSERT INTO videos (id, content_type, title, expires_at, password_hash, file_size)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET
-         content_type = EXCLUDED.content_type,
-         title = EXCLUDED.title,
-         expires_at = EXCLUDED.expires_at,
-         password_hash = EXCLUDED.password_hash,
-         file_size = EXCLUDED.file_size`,
-      [videoId, contentType, title || '', expiresAt, passwordHash, assembled.length]
-    );
-
-    await pool.query('DELETE FROM video_chunks WHERE video_id = $1', [videoId]);
-    await pool.query(
-      'INSERT INTO video_chunks (video_id, chunk_index, data) VALUES ($1, 0, $2)',
-      [videoId, assembled]
-    );
+    // Atomic finalize: insert metadata, swap chunks → assembled blob, all-or-nothing.
+    // ROLLBACK on error keeps state consistent; abandoned chunks (no parent row)
+    // are pruned later by the age-gated orphan cleanup in cleanupExpired().
+    await client.query('BEGIN');
+    try {
+      await client.query(
+        `INSERT INTO vs_uploads (id, content_type, title, expires_at, password_hash, file_size)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (id) DO UPDATE SET
+           content_type = EXCLUDED.content_type,
+           title = EXCLUDED.title,
+           expires_at = EXCLUDED.expires_at,
+           password_hash = EXCLUDED.password_hash,
+           file_size = EXCLUDED.file_size`,
+        [videoId, contentType, title || '', expiresAt, passwordHash, assembled.length]
+      );
+      await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
+      await client.query(
+        'INSERT INTO vs_upload_chunks (video_id, chunk_index, data) VALUES ($1, 0, $2)',
+        [videoId, assembled]
+      );
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    }
 
     res.json({ success: true, videoUrl: `/api/video/${encodeURIComponent(videoId)}` });
   } catch (err) {
     console.error('finalize-video error:', err);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -188,7 +248,7 @@ app.get('/api/video-meta/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'SELECT id, title, expires_at, password_hash, view_count, file_size, uploaded_at, content_type FROM videos WHERE id = $1',
+      'SELECT id, title, expires_at, password_hash, view_count, file_size, uploaded_at, content_type FROM vs_uploads WHERE id = $1',
       [id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Video not found' });
@@ -220,13 +280,23 @@ app.post('/api/verify-password', async (req, res) => {
     const { videoId, password } = req.body;
     if (!videoId || !password) return res.status(400).json({ error: 'Missing fields' });
 
+    // Throttle by ip+videoId to slow brute-force on protected videos
+    const throttleKey = getIp(req) + '|' + videoId;
+    if (isVerifyThrottled(throttleKey)) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes.' });
+    }
+
     const result = await pool.query(
-      'SELECT password_hash FROM videos WHERE id = $1',
+      'SELECT password_hash FROM vs_uploads WHERE id = $1',
       [videoId]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Video not found' });
 
-    const valid = result.rows[0].password_hash === hashPassword(password);
+    // Constant-time comparison prevents timing-based hash discovery
+    const expected = result.rows[0].password_hash || '';
+    const provided = hashPassword(password);
+    const valid = expected.length === provided.length &&
+      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
     res.json({ valid });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -239,7 +309,7 @@ app.get('/api/video/:id', async (req, res) => {
     const { id } = req.params;
 
     const metaResult = await pool.query(
-      'SELECT content_type, expires_at, password_hash FROM videos WHERE id = $1',
+      'SELECT content_type, expires_at, password_hash FROM vs_uploads WHERE id = $1',
       [id]
     );
     if (!metaResult.rows.length) return res.status(404).json({ error: 'Video not found' });
@@ -260,7 +330,7 @@ app.get('/api/video/:id', async (req, res) => {
 
     // Get total size first
     const sizeResult = await pool.query(
-      'SELECT LENGTH(data) as size FROM video_chunks WHERE video_id = $1 AND chunk_index = 0',
+      'SELECT LENGTH(data) as size FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
       [id]
     );
     if (!sizeResult.rows.length) return res.status(404).json({ error: 'Video data not found' });
@@ -269,7 +339,7 @@ app.get('/api/video/:id', async (req, res) => {
     const range = req.headers.range;
 
     // Increment view count (fire and forget)
-    pool.query('UPDATE videos SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
+    pool.query('UPDATE vs_uploads SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
 
     if (range) {
       const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
@@ -279,7 +349,7 @@ app.get('/api/video/:id', async (req, res) => {
 
       // Use PostgreSQL SUBSTRING to read only the needed bytes (1-indexed)
       const dataResult = await pool.query(
-        'SELECT SUBSTRING(data FROM $2::int FOR $3::int) as chunk FROM video_chunks WHERE video_id = $1 AND chunk_index = 0',
+        'SELECT SUBSTRING(data FROM $2::int FOR $3::int) as chunk FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
         [id, start + 1, chunkLen]
       );
 
@@ -293,7 +363,7 @@ app.get('/api/video/:id', async (req, res) => {
       res.end(dataResult.rows[0].chunk);
     } else {
       const dataResult = await pool.query(
-        'SELECT data FROM video_chunks WHERE video_id = $1 AND chunk_index = 0',
+        'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
         [id]
       );
       res.writeHead(200, {
@@ -316,7 +386,7 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     const result = await pool.query(
       `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
               (password_hash IS NOT NULL) as has_password
-       FROM videos ORDER BY uploaded_at DESC`
+       FROM vs_uploads ORDER BY uploaded_at DESC`
     );
     res.json({ videos: result.rows });
   } catch (err) {
@@ -328,8 +398,8 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
 app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('DELETE FROM video_chunks WHERE video_id = $1', [id]);
-    await pool.query('DELETE FROM videos WHERE id = $1', [id]);
+    await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
+    await pool.query('DELETE FROM vs_uploads WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -348,6 +418,7 @@ ensureSchema()
   .then(async () => {
     await cleanupExpired();
     setInterval(cleanupExpired, 60 * 60 * 1000);
+    setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
     app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
   })
   .catch(err => {
