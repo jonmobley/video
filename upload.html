@@ -326,12 +326,12 @@
 
     // Auth state is fetched once on page load. We expose it as a Promise so
     // the success handler can await it — this avoids a race where a fast
-    // upload from a signed-in user shows the nudge before /api/auth/me
-    // returns. On any error we fail CLOSED (treat as signed-in → no nudge)
-    // so signed-in users are never nagged.
+    // upload could decide nudge visibility before /api/auth/me returns.
+    // On any error we fail OPEN (treat as anonymous → nudge shown) so a
+    // failed probe still surfaces the account suggestion.
     const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(r => r.ok)
-      .catch(() => true);
+      .catch(() => false);
 
     // Chunked base64 encode. The naive `String.fromCharCode(...bytes)` spreads
     // every byte as a function argument, which overflows the JS call stack on
