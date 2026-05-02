@@ -11,60 +11,66 @@
     body {
       background: #000; min-height: 100vh;
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #fff;
     }
 
-    .video-wrap {
-      display: flex; align-items: center; justify-content: center;
-      width: 100%; max-width: 100vw; max-height: 100vh; flex: 1;
-    }
-    video {
-      display: block; max-width: 100%; max-height: 100vh;
-      width: auto; height: auto; background: #000;
-    }
-    @media (max-width: 600px) {
-      .video-wrap { align-items: flex-start; padding-top: env(safe-area-inset-top); }
-      video { width: 100vw; max-height: 100svh; object-fit: contain; }
-    }
-
-    /* Top bar */
+    /* ── Header (static, never overlaps video) ──────────────────────────── */
     .top-bar {
-      position: fixed; top: 0; left: 0; right: 0;
-      padding: 14px 18px; display: flex; align-items: center;
-      justify-content: space-between; gap: 12px;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
-      z-index: 10; opacity: 1; transition: opacity 0.4s ease;
-    }
-    .top-bar.hidden { opacity: 0; pointer-events: none; }
-    .top-bar-logo {
-      font-size: 1rem; font-weight: 700;
-      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; text-decoration: none; flex-shrink: 0;
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid #1a1a1a;
+      flex-shrink: 0;
     }
     .top-bar-title {
-      flex: 1; font-size: 0.9rem; font-weight: 600; color: #ddd;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+      flex: 1; font-size: 1rem; font-weight: 600; color: #f2f2f2;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .share-btn {
-      background: rgba(255,255,255,0.15); border: none; border-radius: 20px;
-      color: #fff; font-size: 0.82rem; font-weight: 600; padding: 7px 14px;
+      background: rgba(255,255,255,0.10); border: none; border-radius: 20px;
+      color: #fff; font-size: 0.85rem; font-weight: 600; padding: 8px 16px;
       cursor: pointer; font-family: inherit; transition: background 0.2s; flex-shrink: 0;
     }
-    .share-btn:hover { background: rgba(255,255,255,0.25); }
+    .share-btn:hover { background: rgba(255,255,255,0.20); }
 
-    /* Expiry bar */
-    .expiry-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      padding: 10px 18px; text-align: center;
-      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
-      font-size: 0.78rem; color: rgba(255,255,255,0.45);
-      z-index: 10; pointer-events: none;
+    /* ── Stage (video area) ──────────────────────────────────────────────── */
+    .stage {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+      min-height: 0;
+    }
+    .video-wrap {
+      width: 100%; max-width: 1100px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    video {
+      display: block;
+      width: 100%; height: auto;
+      max-height: calc(100vh - 160px);
+      background: #000; border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      object-fit: contain;
+    }
+    @media (max-width: 600px) {
+      .stage { padding: 12px; }
+      video { border-radius: 8px; max-height: calc(100vh - 140px); }
     }
 
-    /* Loading/error */
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    .footer {
+      flex-shrink: 0; padding: 14px 20px; text-align: center;
+      font-size: 0.82rem; color: rgba(255,255,255,0.45);
+      border-top: 1px solid #1a1a1a;
+    }
+    .footer a {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none; font-weight: 700;
+    }
+    .footer a:hover { filter: brightness(1.1); }
+
+    /* ── Loading / error states ──────────────────────────────────────────── */
     .state-overlay {
       display: flex; flex-direction: column; align-items: center;
       gap: 16px; text-align: center; padding: 40px 24px;
@@ -77,35 +83,40 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .state-title { font-size: 1.05rem; font-weight: 600; }
-    .state-sub { font-size: 0.88rem; color: #666; max-width: 280px; }
-    .upload-link { color: #007AFF; text-decoration: none; font-size: 0.9rem; margin-top: 6px; }
+    .state-sub { font-size: 0.88rem; color: #888; max-width: 320px; }
+    .upload-link {
+      display: inline-block; margin-top: 6px; padding: 10px 18px; border-radius: 10px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600;
+    }
 
-    /* Password prompt */
+    /* ── Password prompt ─────────────────────────────────────────────────── */
     .pw-card {
-      background: #1c1c1e; border-radius: 20px; padding: 32px 24px;
-      width: 100%; max-width: 360px; text-align: center;
+      background: #111; border: 1px solid #1f1f1f; border-radius: 20px;
+      padding: 32px 24px; width: 100%; max-width: 360px; text-align: center;
     }
     .pw-icon { font-size: 2.5rem; margin-bottom: 14px; }
     .pw-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
     .pw-sub { font-size: 0.88rem; color: #888; margin-bottom: 22px; }
     .pw-input {
-      width: 100%; padding: 14px; background: #2c2c2e; border: 1px solid #38383A;
+      width: 100%; padding: 14px; background: #1c1c1e; border: 1px solid #2c2c2e;
       border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit;
       outline: none; margin-bottom: 14px; text-align: center; letter-spacing: 0.1em;
     }
-    .pw-input:focus { border-color: #007AFF; }
+    .pw-input:focus { border-color: #4ecdc4; }
     .pw-btn {
-      width: 100%; padding: 14px; background: #007AFF; color: #fff;
-      border: none; border-radius: 12px; font-size: 1rem; font-weight: 600;
-      font-family: inherit; cursor: pointer; transition: background 0.2s;
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: #fff; font-size: 1rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: filter 0.2s;
     }
-    .pw-btn:hover { background: #0056CC; }
+    .pw-btn:hover { filter: brightness(1.08); }
     .pw-error { font-size: 0.85rem; color: #ff6b6b; margin-top: 10px; display: none; }
     .pw-error.visible { display: block; }
 
-    /* Toast */
+    /* ── Toast ───────────────────────────────────────────────────────────── */
     .toast {
-      position: fixed; bottom: 40px; left: 50%;
+      position: fixed; bottom: 60px; left: 50%;
       transform: translateX(-50%) translateY(20px);
       background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px); color: #fff;
@@ -117,49 +128,28 @@
   </style>
 </head>
 <body>
-  <div class="top-bar" id="topBar">
-    <a href="/" class="top-bar-logo">VidShare</a>
+  <header class="top-bar">
     <div class="top-bar-title" id="topBarTitle"></div>
     <button class="share-btn" id="shareBtn">Share</button>
-  </div>
+  </header>
 
-  <div id="root"></div>
-  <div class="expiry-bar" id="expiryBar"></div>
+  <main class="stage" id="root"></main>
+
+  <footer class="footer">
+    Powered by <a href="/">VidShare</a>
+  </footer>
+
   <div class="toast" id="toast"></div>
 
   <script>
-    const root       = document.getElementById('root');
-    const topBar     = document.getElementById('topBar');
+    const root        = document.getElementById('root');
     const topBarTitle = document.getElementById('topBarTitle');
-    const shareBtn   = document.getElementById('shareBtn');
-    const expiryBar  = document.getElementById('expiryBar');
-    const toast      = document.getElementById('toast');
+    const shareBtn    = document.getElementById('shareBtn');
+    const toast       = document.getElementById('toast');
 
-    let hideBarTimer = null;
-    let videoPassword = null; // stored after successful unlock
-
-    // ── Helpers ────────────────────────────────────────────────────────────────
     function showToast(msg) {
       toast.textContent = msg; toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2500);
-    }
-
-    function formatExpiry(expiresAt) {
-      if (!expiresAt) return null;
-      const diff = new Date(expiresAt) - Date.now();
-      if (diff <= 0) return 'Expired';
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      if (days > 1) return `Expires in ${days} days`;
-      if (days === 1) return 'Expires tomorrow';
-      if (hours > 1) return `Expires in ${hours} hours`;
-      return 'Expires soon';
-    }
-
-    function formatViews(n) {
-      if (n === 1) return '1 view';
-      if (n < 1000) return n + ' views';
-      return (n / 1000).toFixed(1) + 'k views';
     }
 
     function showLoading() {
@@ -176,26 +166,11 @@
         </div>`;
     }
 
-    function showVideo(videoUrl, meta) {
+    function showVideo(videoUrl) {
       root.innerHTML = `
         <div class="video-wrap">
           <video id="videoEl" src="${videoUrl}" controls autoplay playsinline preload="auto"></video>
         </div>`;
-
-      const videoEl = document.getElementById('videoEl');
-
-      function resetBarTimer() {
-        topBar.classList.remove('hidden');
-        clearTimeout(hideBarTimer);
-        hideBarTimer = setTimeout(() => {
-          if (!videoEl.paused) topBar.classList.add('hidden');
-        }, 3000);
-      }
-
-      videoEl.addEventListener('play', resetBarTimer);
-      videoEl.addEventListener('pause', () => { clearTimeout(hideBarTimer); topBar.classList.remove('hidden'); });
-      document.addEventListener('touchstart', resetBarTimer, { passive: true });
-      document.addEventListener('mousemove', resetBarTimer);
     }
 
     function showPasswordPrompt(videoId) {
@@ -225,7 +200,6 @@
           });
           const data = await res.json();
           if (data.valid) {
-            videoPassword = pw;
             loadVideo(videoId, pw);
           } else {
             pwError.classList.add('visible');
@@ -242,7 +216,6 @@
       setTimeout(() => pwInput.focus(), 100);
     }
 
-    // ── Share / copy ───────────────────────────────────────────────────────────
     async function doShare() {
       const url = window.location.href;
       if (navigator.share) {
@@ -260,7 +233,6 @@
     }
     shareBtn.addEventListener('click', doShare);
 
-    // ── Load video ─────────────────────────────────────────────────────────────
     function buildVideoUrl(videoId, password) {
       let url = `/api/video/${encodeURIComponent(videoId)}`;
       if (password) url += '?pt=' + encodeURIComponent(password);
@@ -285,7 +257,6 @@
 
       showLoading();
 
-      // Fetch metadata
       try {
         const metaRes = await fetch(`/api/video-meta/${encodeURIComponent(videoId)}`);
 
@@ -300,26 +271,10 @@
 
         if (metaRes.ok) {
           const meta = await metaRes.json();
-
-          // Update title
           if (meta.title) {
             topBarTitle.textContent = meta.title;
             document.title = meta.title + ' – VidShare';
           }
-
-          // Expiry bar
-          const expText = formatExpiry(meta.expiresAt);
-          if (expText) expiryBar.textContent = expText;
-
-          // Views
-          if (meta.viewCount > 0) {
-            const vb = document.createElement('span');
-            vb.textContent = ' · ' + formatViews(meta.viewCount);
-            vb.style.opacity = '0.5';
-            expiryBar.appendChild(vb);
-          }
-
-          // Password check
           if (meta.hasPassword) {
             showPasswordPrompt(videoId);
             return;
