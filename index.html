@@ -3,83 +3,394 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VidShare</title>
+    <meta name="description" content="VidShare — share videos from your phone in seconds. No signup. Optional password and auto-expiry.">
+    <title>VidShare — Share videos in seconds</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b6b'/%3E%3Cstop offset='1' stop-color='%234ecdc4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Cpath d='M22 18 L46 32 L22 46 Z' fill='url(%23g)'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles/common.css">
     <style>
         body {
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
             display: flex;
+            flex-direction: column;
+            background: radial-gradient(ellipse at top, rgba(78,205,196,0.08), transparent 60%),
+                        radial-gradient(ellipse at bottom, rgba(255,107,107,0.06), transparent 60%),
+                        #0a0a0a;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
+            padding: 22px 28px;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
         }
-
-        .container {
-            text-align: center;
-            max-width: 600px;
-            padding: 40px;
-        }
-
-        .logo {
-            font-size: 4rem;
+        .nav .logo {
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 30px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+        .nav a.nav-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.92rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav a.nav-link:hover { color: #fff; }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 24px 60px;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            max-width: 720px;
+            margin-top: 40px;
+        }
+        .hero h1 {
+            font-size: clamp(2.4rem, 6vw, 4rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+            margin-bottom: 20px;
+        }
+        .hero h1 .accent {
             background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-
-        .tagline {
-            font-size: 1.5rem;
-            color: #cccccc;
-            margin-bottom: 50px;
+        .hero .sub {
+            font-size: clamp(1rem, 2.2vw, 1.25rem);
+            color: #aaa;
+            line-height: 1.55;
+            max-width: 560px;
+            margin: 0 auto 32px;
             font-weight: 300;
         }
+        .cta-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .btn-primary {
+            font-size: 1.05rem;
+            padding: 16px 32px;
+            border-radius: 14px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: #fff;
+            border: none;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(78,205,196,0.25);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 36px rgba(78,205,196,0.35);
+        }
+        .btn-secondary {
+            font-size: 1rem;
+            padding: 16px 28px;
+            border-radius: 14px;
+            background: #1c1c1e;
+            color: #fff;
+            border: 1px solid #2c2c2e;
+        }
+        .btn-secondary:hover { background: #2c2c2e; transform: translateY(-1px); }
 
-        .footer {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
+        .trust-row {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.82rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        .trust-row span::before {
+            content: "✓ ";
+            color: #4ecdc4;
+            font-weight: 700;
+        }
+
+        /* Phone mockup */
+        .phone-preview {
+            margin: 56px auto 0;
+            width: 240px;
+            height: 480px;
+            background: #1c1c1e;
+            border-radius: 36px;
+            border: 8px solid #0f0f0f;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6),
+                        0 0 0 1px rgba(255,255,255,0.04) inset;
+            position: relative;
+            overflow: hidden;
+        }
+        .phone-preview::before {
+            content: '';
+            position: absolute;
+            top: 10px; left: 50%;
             transform: translateX(-50%);
+            width: 70px; height: 18px;
+            background: #0f0f0f;
+            border-radius: 12px;
+            z-index: 2;
+        }
+        .phone-screen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, #1c1c1e, #2c2c2e);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 24px 24px;
+            text-align: center;
+        }
+        .phone-icon {
+            font-size: 2.6rem;
+            margin-bottom: 14px;
+        }
+        .phone-text {
+            font-size: 0.78rem;
+            color: #aaa;
+            line-height: 1.5;
+        }
+        .phone-link {
+            margin-top: 16px;
+            background: #2c2c2e;
+            border: 1px solid #3A3A3C;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            color: #4ecdc4;
+            word-break: break-all;
+            width: 100%;
+        }
+
+        /* Features */
+        .features {
+            margin-top: 100px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+            max-width: 1000px;
+            width: 100%;
+        }
+        .feature {
+            background: #1c1c1e;
+            border: 1px solid #232325;
+            border-radius: 18px;
+            padding: 26px 22px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .feature:hover {
+            transform: translateY(-3px);
+            border-color: #2c2c2e;
+        }
+        .feature-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, rgba(255,107,107,0.18), rgba(78,205,196,0.18));
+        }
+        .feature-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .feature-desc {
+            font-size: 0.88rem;
+            color: #888;
+            line-height: 1.5;
+        }
+
+        /* How it works */
+        .how {
+            margin-top: 100px;
+            max-width: 900px;
+            width: 100%;
+        }
+        .section-title {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .section-sub {
+            text-align: center;
+            color: #888;
+            font-size: 0.95rem;
+            margin-bottom: 36px;
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+        .step {
+            position: relative;
+            background: #1c1c1e;
+            border: 1px solid #232325;
+            border-radius: 18px;
+            padding: 24px 22px;
+        }
+        .step-num {
+            position: absolute;
+            top: -14px; left: 22px;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: #0a0a0a;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .step-title { font-weight: 600; margin: 4px 0 6px; font-size: 1rem; }
+        .step-desc { font-size: 0.88rem; color: #888; line-height: 1.5; }
+
+        /* Bottom CTA */
+        .bottom-cta {
+            margin-top: 100px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(78,205,196,0.08));
+            border: 1px solid #232325;
+            border-radius: 24px;
+            padding: 48px 28px;
+            max-width: 720px;
+            width: 100%;
+        }
+        .bottom-cta h2 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .bottom-cta p {
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 1rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 20px 24px;
             color: #444;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
         }
+        footer a { color: #666; text-decoration: none; }
+        footer a:hover { color: #aaa; }
 
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-            
-            .logo {
-                font-size: 3rem;
-            }
-            
-            .tagline {
-                font-size: 1.2rem;
-            }
-        }
-
-        /* Subtle animation */
-        @keyframes glow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .logo {
-            animation: glow 4s ease-in-out infinite;
+        @media (max-width: 600px) {
+            .nav { padding: 18px 20px; }
+            .hero { margin-top: 24px; }
+            .phone-preview { width: 200px; height: 400px; margin-top: 40px; }
+            .features, .how, .bottom-cta { margin-top: 70px; }
+            .bottom-cta { padding: 36px 22px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">VidShare</div>
-        <div class="tagline">Share videos. Build community.</div>
-        <a href="/upload" class="btn" style="margin-top: 32px; font-size: 1.1rem; padding: 16px 36px; border-radius: 14px;">Upload a Video</a>
-    </div>
+    <nav class="nav">
+        <a href="/" class="logo">VidShare</a>
+        <a href="/upload" class="nav-link">Upload →</a>
+    </nav>
 
-    <div class="footer">
-        Powered by VidShare
-    </div>
+    <main>
+        <section class="hero">
+            <h1>Share a video in <span class="accent">seconds</span>.</h1>
+            <p class="sub">
+                Upload from your phone, get a clean shareable link.
+                No signup, no app to install — just drop a file and send the link.
+            </p>
+            <div class="cta-row">
+                <a href="/upload" class="btn btn-primary">Upload a Video</a>
+                <a href="#how" class="btn btn-secondary">How it works</a>
+            </div>
+            <div class="trust-row">
+                <span>No signup</span>
+                <span>No watermark</span>
+                <span>Up to 100&nbsp;MB</span>
+            </div>
+
+            <div class="phone-preview" aria-hidden="true">
+                <div class="phone-screen">
+                    <div class="phone-icon">🎬</div>
+                    <div class="phone-text">Your video is ready to share</div>
+                    <div class="phone-link">vidshare.app/watch?id=…</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <div class="feature-title">Vertical or horizontal</div>
+                <div class="feature-desc">Phone clips, drone shots, screen recordings — the player adapts to fit any video.</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <div class="feature-title">Optional password</div>
+                <div class="feature-desc">Lock sensitive videos behind a password. Recipients enter it to watch.</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⏳</div>
+                <div class="feature-title">Auto-expiry</div>
+                <div class="feature-desc">Choose 1 day, 7 days, 30 days, or keep forever. Old videos clean themselves up.</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📲</div>
+                <div class="feature-title">QR code & auto-copy</div>
+                <div class="feature-desc">Get a QR code for instant sharing. The link copies to your clipboard automatically.</div>
+            </div>
+        </section>
+
+        <section class="how" id="how">
+            <h2 class="section-title">How it works</h2>
+            <p class="section-sub">Three quick steps from your camera roll to a shareable link.</p>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-title">Pick your video</div>
+                    <div class="step-desc">Tap the upload button, pick a clip from your phone or computer (up to 100 MB).</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-title">Set your options</div>
+                    <div class="step-desc">Add a title, set expiry, lock with a password — or leave blank to share publicly.</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-title">Send the link</div>
+                    <div class="step-desc">Your link is auto-copied. Send it via text, email, or scan the QR code.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bottom-cta">
+            <h2>Ready to share?</h2>
+            <p>It takes about 30&nbsp;seconds. No account required.</p>
+            <a href="/upload" class="btn btn-primary">Upload Your Video</a>
+        </section>
+    </main>
+
+    <footer>
+        <p>Powered by VidShare · <a href="/upload">Upload</a></p>
+    </footer>
 </body>
 </html>
