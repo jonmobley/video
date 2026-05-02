@@ -529,7 +529,7 @@
             : 'Copy the link and send it to anyone.';
 
           // Soft nudge to create an account — only for anonymous uploaders.
-          // Wait for the auth probe; fail-closed (no nudge) on error.
+          // Wait for the auth probe; fails open (nudge shown) on error.
           authReady.then(signedIn => {
             accountNudge.classList.toggle('visible', !signedIn);
           });
