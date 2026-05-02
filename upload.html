@@ -74,34 +74,37 @@
 
     .fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-    /* Upload button — gradient, on-brand */
-    .upload-btn {
+    /* Upload button — gradient, on-brand. Higher specificity (button.btn.upload-btn)
+       defeats common.css's .btn { background: #007AFF } default. */
+    button.btn.upload-btn,
+    button.btn.upload-btn:hover {
       margin-top: 20px; width: 100%; padding: 15px;
-      font-size: 1.05rem; border-radius: 14px; display: none;
+      font-size: 1.05rem; border-radius: 14px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
       color: #fff; border: none; font-weight: 600;
       box-shadow: 0 8px 24px rgba(78,205,196,0.22);
       transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }
-    .upload-btn.visible { display: flex; }
-    .upload-btn:hover {
-      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    button.btn.upload-btn { display: none; }
+    button.btn.upload-btn.visible { display: flex; }
+    button.btn.upload-btn:hover {
       filter: brightness(1.08);
       transform: translateY(-2px);
       box-shadow: 0 12px 30px rgba(78,205,196,0.32);
     }
-    .upload-btn:active { transform: translateY(0); filter: brightness(0.96); }
+    button.btn.upload-btn:active { transform: translateY(0); filter: brightness(0.96); }
 
-    /* Copy button — also gradient for consistency, green on copied */
-    .copy-btn {
+    /* Copy button — gradient for consistency, green on copied */
+    button.btn.copy-btn,
+    button.btn.copy-btn:hover {
       width: 100%; padding: 14px; font-size: 0.95rem; border-radius: 14px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
       color: #fff; border: none; font-weight: 600;
       transition: filter 0.2s ease, transform 0.2s ease;
     }
-    .copy-btn:hover { background: linear-gradient(45deg, #ff6b6b, #4ecdc4); filter: brightness(1.08); transform: translateY(-1px); }
-    .copy-btn.copied,
-    .copy-btn.copied:hover { background: #30d158; filter: none; }
+    button.btn.copy-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    button.btn.copy-btn.copied,
+    button.btn.copy-btn.copied:hover { background: #30d158; filter: none; transform: none; }
 
     /* Icon styling for inline SVGs replacing emoji */
     .icon-svg { display: block; }
@@ -300,6 +303,19 @@
 
     let selectedFile = null;
 
+    // Chunked base64 encode. The naive `String.fromCharCode(...bytes)` spreads
+    // every byte as a function argument, which overflows the JS call stack on
+    // any chunk larger than ~100 KB. We process in 32 KB windows instead.
+    function arrayBufferToBase64(ab) {
+      const bytes = new Uint8Array(ab);
+      const WINDOW = 0x8000; // 32 KB
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += WINDOW) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + WINDOW));
+      }
+      return btoa(binary);
+    }
+
     function formatBytes(b) {
       if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
       if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
@@ -391,7 +407,7 @@
           const start = i * CHUNK_SIZE;
           const slice = file.slice(start, Math.min(start + CHUNK_SIZE, file.size));
           const ab = await slice.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+          const base64 = arrayBufferToBase64(ab);
 
           setProgress(Math.round((i / totalChunks) * 85), `Uploading… (${i + 1} of ${totalChunks})`);
 
