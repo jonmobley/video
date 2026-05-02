@@ -141,7 +141,7 @@
       <span class="drop-icon">🎬</span>
       <div class="drop-label">Tap to choose a video</div>
       <div class="drop-sub">Any format · Vertical or horizontal</div>
-      <div class="size-limit">Max 100 MB</div>
+      <div class="size-limit">Max 1 GB</div>
     </div>
 
     <div class="file-preview" id="filePreview">
@@ -211,7 +211,7 @@
 
   <script>
     const CHUNK_SIZE = 3 * 1024 * 1024;
-    const MAX_SIZE = 100 * 1024 * 1024;
+    const MAX_SIZE = 1024 * 1024 * 1024;
 
     const els = id => document.getElementById(id);
     const dropZone    = els('dropZone');
@@ -240,7 +240,8 @@
 
     function formatBytes(b) {
       if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
-      return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      if (b < 1024 * 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
     }
 
     function genId() {
@@ -261,7 +262,7 @@
 
     function setFile(file) {
       if (file.size > MAX_SIZE) {
-        showError(`File is too large (${formatBytes(file.size)}). Maximum size is 100 MB.`);
+        showError(`File is too large (${formatBytes(file.size)}). Maximum size is 1 GB.`);
         return;
       }
       selectedFile = file;

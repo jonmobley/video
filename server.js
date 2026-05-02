@@ -9,7 +9,7 @@ types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -199,7 +199,7 @@ app.post('/api/finalize-video', async (req, res) => {
 
     if (assembled.length > MAX_FILE_SIZE) {
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
-      return res.status(400).json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.` });
+      return res.status(400).json({ error: `File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(0)} GB.` });
     }
 
     const expiresAt = expiryDays && expiryDays !== 'never'

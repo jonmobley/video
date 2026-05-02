@@ -176,7 +176,7 @@ For deployment security checklist, see `SECURITY.md`.
 
 **2026-05-02 - Full feature build-out**
 - ✅ Video expiry: choose 1 day, 7 days, 30 days, or never — expired videos auto-deleted on server startup + hourly
-- ✅ File size limit: 100 MB enforced client-side and server-side with clear messaging on upload page
+- ✅ File size limit: 1 GB enforced client-side and server-side with clear messaging on upload page
 - ✅ Optional video title: shown in watch page top bar and browser tab
 - ✅ Auto-copy link: share link copied to clipboard automatically after upload
 - ✅ QR code: displayed on success screen using qrserver.com (no package needed)
