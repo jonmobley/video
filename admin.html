@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – VidShare</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a; color: #fff; min-height: 100vh; padding: 0 0 60px;
+    }
+
+    .top-bar {
+      background: #1c1c1e; padding: 16px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #2c2c2e; position: sticky; top: 0; z-index: 10;
+    }
+    .logo {
+      font-size: 1.2rem; font-weight: 700;
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; text-decoration: none;
+    }
+    .logout-btn {
+      background: none; border: 1px solid #3A3A3C; color: #888;
+      padding: 7px 14px; border-radius: 8px; font-size: 0.82rem;
+      cursor: pointer; font-family: inherit;
+    }
+    .logout-btn:hover { color: #fff; border-color: #555; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+
+    /* Login screen */
+    #loginScreen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 60px); padding: 40px 20px;
+    }
+    .login-card {
+      background: #1c1c1e; border-radius: 20px; padding: 36px 28px;
+      width: 100%; max-width: 380px; text-align: center;
+    }
+    .login-icon { font-size: 2.8rem; margin-bottom: 16px; }
+    .login-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+    .login-sub { font-size: 0.9rem; color: #888; margin-bottom: 28px; }
+    .token-input {
+      width: 100%; padding: 14px; background: #2c2c2e; border: 1px solid #38383A;
+      border-radius: 10px; color: #fff; font-size: 0.95rem; font-family: monospace;
+      outline: none; margin-bottom: 14px;
+    }
+    .token-input:focus { border-color: #007AFF; }
+    .token-input::placeholder { color: #555; font-family: inherit; }
+    .login-btn {
+      width: 100%; padding: 14px; background: #007AFF; color: #fff; border: none;
+      border-radius: 12px; font-size: 1rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .login-btn:hover { background: #0056CC; }
+    .login-error { font-size: 0.85rem; color: #ff6b6b; margin-top: 12px; display: none; }
+    .login-error.visible { display: block; }
+
+    /* Dashboard */
+    #dashboard { display: none; }
+
+    .stats-row { display: flex; gap: 14px; margin-bottom: 28px; flex-wrap: wrap; }
+    .stat-card {
+      background: #1c1c1e; border-radius: 14px; padding: 18px 22px;
+      flex: 1; min-width: 120px;
+    }
+    .stat-val { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+    .stat-label { font-size: 0.78rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .section-title {
+      font-size: 0.78rem; font-weight: 600; color: #888;
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
+    }
+
+    /* Video table */
+    .video-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .video-row {
+      background: #1c1c1e; border-radius: 14px; padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .video-row:hover { background: #242424; }
+
+    .video-main { flex: 1; overflow: hidden; min-width: 0; }
+    .video-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .video-title.untitled { color: #555; font-style: italic; }
+    .video-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .video-meta span { font-size: 0.76rem; color: #666; }
+    .video-meta .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-pw { background: rgba(255,159,10,0.15); color: #ff9f0a; }
+    .badge-exp { background: rgba(255,59,48,0.15); color: #ff6b6b; }
+    .badge-ok { background: rgba(48,209,88,0.15); color: #30d158; }
+
+    .video-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .watch-lnk {
+      background: rgba(0,122,255,0.15); color: #007AFF;
+      text-decoration: none; padding: 7px 12px; border-radius: 8px;
+      font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .watch-lnk:hover { background: rgba(0,122,255,0.25); }
+    .del-btn {
+      background: rgba(255,59,48,0.12); color: #ff6b6b;
+      border: none; padding: 7px 12px; border-radius: 8px;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: background 0.2s;
+    }
+    .del-btn:hover { background: rgba(255,59,48,0.25); }
+    .del-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: #555; }
+    .empty-icon { font-size: 3rem; margin-bottom: 14px; }
+
+    .refresh-btn {
+      background: #2c2c2e; color: #fff; border: none; padding: 10px 18px;
+      border-radius: 10px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; margin-bottom: 24px;
+    }
+    .refresh-btn:hover { background: #3A3A3C; }
+
+    .loading-spinner {
+      width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #fff; border-radius: 50%; animation: spin 0.9s linear infinite;
+      margin: 60px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <a href="/" class="logo">VidShare</a>
+    <button class="logout-btn" id="logoutBtn" style="display:none">Sign out</button>
+  </div>
+
+  <!-- Login -->
+  <div id="loginScreen">
+    <div class="login-card">
+      <div class="login-icon">🔐</div>
+      <div class="login-title">Admin</div>
+      <div class="login-sub">Enter your admin token to manage uploaded videos.</div>
+      <input class="token-input" id="tokenInput" type="password" placeholder="Admin token">
+      <button class="login-btn" id="loginBtn">Sign In</button>
+      <div class="login-error" id="loginError">Invalid token. Please try again.</div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <div class="container">
+      <div class="stats-row" id="statsRow"></div>
+      <div class="section-title">All Videos</div>
+      <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
+      <div class="video-list" id="videoList"></div>
+    </div>
+  </div>
+
+  <script>
+    let adminToken = sessionStorage.getItem('vs_admin_token') || '';
+
+    const loginScreen = document.getElementById('loginScreen');
+    const dashboard   = document.getElementById('dashboard');
+    const tokenInput  = document.getElementById('tokenInput');
+    const loginBtn    = document.getElementById('loginBtn');
+    const loginError  = document.getElementById('loginError');
+    const logoutBtn   = document.getElementById('logoutBtn');
+    const statsRow    = document.getElementById('statsRow');
+    const videoList   = document.getElementById('videoList');
+    const refreshBtn  = document.getElementById('refreshBtn');
+
+    function formatBytes(b) {
+      if (!b) return '—';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      return (b / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function formatDate(dt) {
+      if (!dt) return '—';
+      return new Date(dt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function expiryBadge(expiresAt) {
+      if (!expiresAt) return '<span class="badge badge-ok">No expiry</span>';
+      const diff = new Date(expiresAt) - Date.now();
+      if (diff <= 0) return '<span class="badge badge-exp">Expired</span>';
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      if (days <= 1) return `<span class="badge badge-exp">Expires today</span>`;
+      return `<span class="badge badge-ok">Expires in ${days}d</span>`;
+    }
+
+    async function loadVideos() {
+      videoList.innerHTML = '<div class="loading-spinner"></div>';
+      statsRow.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/admin/videos', {
+          headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+
+        if (res.status === 403) {
+          logout();
+          return;
+        }
+
+        const data = await res.json();
+        const videos = data.videos || [];
+
+        // Stats
+        const totalSize = videos.reduce((s, v) => s + (v.file_size || 0), 0);
+        const totalViews = videos.reduce((s, v) => s + (v.view_count || 0), 0);
+        const expiredCount = videos.filter(v => v.expires_at && new Date(v.expires_at) < new Date()).length;
+
+        statsRow.innerHTML = `
+          <div class="stat-card"><div class="stat-val">${videos.length}</div><div class="stat-label">Total videos</div></div>
+          <div class="stat-card"><div class="stat-val">${formatBytes(totalSize)}</div><div class="stat-label">Storage used</div></div>
+          <div class="stat-card"><div class="stat-val">${totalViews.toLocaleString()}</div><div class="stat-label">Total views</div></div>
+          <div class="stat-card"><div class="stat-val">${expiredCount}</div><div class="stat-label">Expired</div></div>
+        `;
+
+        if (!videos.length) {
+          videoList.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div>No videos uploaded yet.</div></div>`;
+          return;
+        }
+
+        videoList.innerHTML = '';
+        for (const v of videos) {
+          const row = document.createElement('div');
+          row.className = 'video-row';
+          row.innerHTML = `
+            <div class="video-main">
+              <div class="video-title ${v.title ? '' : 'untitled'}">${v.title || 'Untitled'}</div>
+              <div class="video-meta">
+                <span>${formatDate(v.uploaded_at)}</span>
+                <span>${formatBytes(v.file_size)}</span>
+                <span>${v.view_count || 0} view${v.view_count === 1 ? '' : 's'}</span>
+                ${v.has_password ? '<span class="badge badge-pw">🔒 Password</span>' : ''}
+                ${expiryBadge(v.expires_at)}
+              </div>
+            </div>
+            <div class="video-actions">
+              <a class="watch-lnk" href="/watch?id=${encodeURIComponent(v.id)}" target="_blank">Watch</a>
+              <button class="del-btn" data-id="${v.id}">Delete</button>
+            </div>
+          `;
+          row.querySelector('.del-btn').addEventListener('click', async function() {
+            if (!confirm('Delete this video? This cannot be undone.')) return;
+            this.disabled = true; this.textContent = '…';
+            try {
+              const dr = await fetch('/api/admin/video/' + encodeURIComponent(v.id), {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + adminToken }
+              });
+              if (dr.ok) row.remove();
+              else { this.disabled = false; this.textContent = 'Delete'; alert('Delete failed.'); }
+            } catch { this.disabled = false; this.textContent = 'Delete'; }
+          });
+          videoList.appendChild(row);
+        }
+      } catch (err) {
+        videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
+      }
+    }
+
+    async function tryLogin() {
+      const token = tokenInput.value.trim();
+      if (!token) return;
+      loginBtn.disabled = true; loginBtn.textContent = 'Checking…';
+      try {
+        const res = await fetch('/api/admin/videos', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok || res.status === 200) {
+          adminToken = token;
+          sessionStorage.setItem('vs_admin_token', token);
+          showDashboard();
+        } else {
+          loginError.classList.add('visible');
+          loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
+        }
+      } catch {
+        loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
+      }
+    }
+
+    function showDashboard() {
+      loginScreen.style.display = 'none';
+      dashboard.style.display = 'block';
+      logoutBtn.style.display = 'inline-block';
+      loadVideos();
+    }
+
+    function logout() {
+      adminToken = '';
+      sessionStorage.removeItem('vs_admin_token');
+      loginScreen.style.display = 'flex';
+      dashboard.style.display = 'none';
+      logoutBtn.style.display = 'none';
+      tokenInput.value = '';
+      loginError.classList.remove('visible');
+      loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
+    }
+
+    loginBtn.addEventListener('click', tryLogin);
+    tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    logoutBtn.addEventListener('click', logout);
+    refreshBtn.addEventListener('click', loadVideos);
+
+    // Auto-login if token saved
+    if (adminToken) showDashboard();
+    else loginScreen.style.display = 'flex';
+  </script>
+</body>
+</html>

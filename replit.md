@@ -162,14 +162,25 @@ For deployment security checklist, see `SECURITY.md`.
 
 ## Recent Changes
 
-**2026-04-21 - Video Upload & Share Feature**
-- ✅ Added `/upload` page: mobile-friendly video upload with chunked uploading (handles large files), progress bar, and one-tap copy of share link
-- ✅ Added `/watch` page: full-screen video player, supports vertical and horizontal video automatically, Share button uses native share sheet on mobile
-- ✅ Added `upload-chunk.js` Netlify function: stores video chunks in Netlify Blobs
-- ✅ Added `finalize-video.js` Netlify function: assembles chunks into final video blob, returns playback URL
-- ✅ Videos stored in Netlify Blobs (`video-uploads` store), served at `/.netlify/blobs/video-uploads/{videoId}`
+**2026-05-02 - Full feature build-out**
+- ✅ Video expiry: choose 1 day, 7 days, 30 days, or never — expired videos auto-deleted on server startup + hourly
+- ✅ File size limit: 100 MB enforced client-side and server-side with clear messaging on upload page
+- ✅ Optional video title: shown in watch page top bar and browser tab
+- ✅ Auto-copy link: share link copied to clipboard automatically after upload
+- ✅ QR code: displayed on success screen using qrserver.com (no package needed)
+- ✅ Password protection: optional PIN at upload; watch page shows password prompt, token passed via query string for video streaming
+- ✅ Rate limiting: 10 uploads per hour per IP (in-memory)
+- ✅ Admin page (`/admin`): login with ADMIN_TOKEN, shows stats (count, storage, views, expired), lists all videos with delete buttons
+- ✅ Watch page: shows title, expiry countdown, view count, native Share sheet on mobile
+- ✅ Efficient range-request video serving using PostgreSQL SUBSTRING (reads only needed bytes)
+
+**2026-04-21 - Video Upload & Share Feature (initial)**
+- ✅ Added `/upload` and `/watch` pages
+- ✅ Migrated from Netlify Functions + Netlify Blobs to Express + Replit PostgreSQL
+- ✅ Chunked upload (3MB per chunk), handles large files with progress bar
+- ✅ Vertical video supported automatically on watch page
 - ✅ Updated `index.html` with Upload a Video button
-- ✅ Updated `netlify.toml` with `/upload` and `/watch` redirects
+- ✅ Run command changed to `node server.js`
 
 
 

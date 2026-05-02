@@ -6,223 +6,182 @@
   <title>Watch – VidShare</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
-      background: #000;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      background: #000; min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #fff;
     }
 
-    /* Video container: lets the video size itself naturally */
     .video-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      max-width: 100vw;
-      max-height: 100vh;
-      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 100vw; max-height: 100vh; flex: 1;
     }
-
     video {
-      display: block;
-      max-width: 100%;
-      max-height: 100vh;
-      width: auto;
-      height: auto;
-      background: #000;
+      display: block; max-width: 100%; max-height: 100vh;
+      width: auto; height: auto; background: #000;
     }
-
-    /* Vertical video on mobile: fill the screen naturally */
     @media (max-width: 600px) {
-      .video-wrap {
-        align-items: flex-start;
-        padding-top: env(safe-area-inset-top);
-      }
-
-      video {
-        width: 100vw;
-        max-height: 100svh;
-        object-fit: contain;
-      }
+      .video-wrap { align-items: flex-start; padding-top: env(safe-area-inset-top); }
+      video { width: 100vw; max-height: 100svh; object-fit: contain; }
     }
 
     /* Top bar */
     .top-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
-      z-index: 10;
-      opacity: 1;
-      transition: opacity 0.4s ease;
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 14px 18px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+      z-index: 10; opacity: 1; transition: opacity 0.4s ease;
     }
-
-    .top-bar.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
+    .top-bar.hidden { opacity: 0; pointer-events: none; }
     .top-bar-logo {
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: 1rem; font-weight: 700;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-decoration: none;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; text-decoration: none; flex-shrink: 0;
     }
-
+    .top-bar-title {
+      flex: 1; font-size: 0.9rem; font-weight: 600; color: #ddd;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+    }
     .share-btn {
-      background: rgba(255,255,255,0.15);
-      border: none;
-      border-radius: 20px;
-      color: #fff;
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-family: inherit;
-      transition: background 0.2s;
+      background: rgba(255,255,255,0.15); border: none; border-radius: 20px;
+      color: #fff; font-size: 0.82rem; font-weight: 600; padding: 7px 14px;
+      cursor: pointer; font-family: inherit; transition: background 0.2s; flex-shrink: 0;
+    }
+    .share-btn:hover { background: rgba(255,255,255,0.25); }
+
+    /* Expiry bar */
+    .expiry-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 10px 18px; text-align: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+      font-size: 0.78rem; color: rgba(255,255,255,0.45);
+      z-index: 10; pointer-events: none;
     }
 
-    .share-btn:hover {
-      background: rgba(255,255,255,0.25);
-    }
-
-    /* Loading / error states */
+    /* Loading/error */
     .state-overlay {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      text-align: center;
-      padding: 40px 24px;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px; text-align: center; padding: 40px 24px;
     }
-
     .spinner {
-      width: 44px;
-      height: 44px;
+      width: 44px; height: 44px;
       border: 3px solid rgba(255,255,255,0.15);
-      border-top-color: #fff;
-      border-radius: 50%;
+      border-top-color: #fff; border-radius: 50%;
       animation: spin 0.9s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-title { font-size: 1.05rem; font-weight: 600; }
+    .state-sub { font-size: 0.88rem; color: #666; max-width: 280px; }
+    .upload-link { color: #007AFF; text-decoration: none; font-size: 0.9rem; margin-top: 6px; }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    /* Password prompt */
+    .pw-card {
+      background: #1c1c1e; border-radius: 20px; padding: 32px 24px;
+      width: 100%; max-width: 360px; text-align: center;
     }
-
-    .state-title {
-      font-size: 1.1rem;
-      font-weight: 600;
+    .pw-icon { font-size: 2.5rem; margin-bottom: 14px; }
+    .pw-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .pw-sub { font-size: 0.88rem; color: #888; margin-bottom: 22px; }
+    .pw-input {
+      width: 100%; padding: 14px; background: #2c2c2e; border: 1px solid #38383A;
+      border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit;
+      outline: none; margin-bottom: 14px; text-align: center; letter-spacing: 0.1em;
     }
-
-    .state-sub {
-      font-size: 0.9rem;
-      color: #888;
-      max-width: 280px;
+    .pw-input:focus { border-color: #007AFF; }
+    .pw-btn {
+      width: 100%; padding: 14px; background: #007AFF; color: #fff;
+      border: none; border-radius: 12px; font-size: 1rem; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: background 0.2s;
     }
+    .pw-btn:hover { background: #0056CC; }
+    .pw-error { font-size: 0.85rem; color: #ff6b6b; margin-top: 10px; display: none; }
+    .pw-error.visible { display: block; }
 
-    .upload-link {
-      margin-top: 8px;
-      color: #007AFF;
-      text-decoration: none;
-      font-size: 0.95rem;
-    }
-
-    /* Copy toast */
+    /* Toast */
     .toast {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
+      position: fixed; bottom: 40px; left: 50%;
       transform: translateX(-50%) translateY(20px);
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 999px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      opacity: 0;
-      transition: all 0.3s ease;
-      pointer-events: none;
-      white-space: nowrap;
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px); color: #fff;
+      padding: 12px 24px; border-radius: 999px; font-size: 0.88rem;
+      font-weight: 600; opacity: 0; transition: all 0.3s ease;
+      pointer-events: none; white-space: nowrap; z-index: 99;
     }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
-
   <div class="top-bar" id="topBar">
     <a href="/" class="top-bar-logo">VidShare</a>
+    <div class="top-bar-title" id="topBarTitle"></div>
     <button class="share-btn" id="shareBtn">Share</button>
   </div>
 
   <div id="root"></div>
-
+  <div class="expiry-bar" id="expiryBar"></div>
   <div class="toast" id="toast"></div>
 
   <script>
-    const root = document.getElementById('root');
-    const topBar = document.getElementById('topBar');
-    const shareBtn = document.getElementById('shareBtn');
-    const toast = document.getElementById('toast');
+    const root       = document.getElementById('root');
+    const topBar     = document.getElementById('topBar');
+    const topBarTitle = document.getElementById('topBarTitle');
+    const shareBtn   = document.getElementById('shareBtn');
+    const expiryBar  = document.getElementById('expiryBar');
+    const toast      = document.getElementById('toast');
 
     let hideBarTimer = null;
+    let videoPassword = null; // stored after successful unlock
 
-    function showLoading() {
-      root.innerHTML = `
-        <div class="state-overlay">
-          <div class="spinner"></div>
-          <div class="state-title">Loading video…</div>
-        </div>
-      `;
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function showToast(msg) {
+      toast.textContent = msg; toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
-    function showError(msg) {
+    function formatExpiry(expiresAt) {
+      if (!expiresAt) return null;
+      const diff = new Date(expiresAt) - Date.now();
+      if (diff <= 0) return 'Expired';
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      if (days > 1) return `Expires in ${days} days`;
+      if (days === 1) return 'Expires tomorrow';
+      if (hours > 1) return `Expires in ${hours} hours`;
+      return 'Expires soon';
+    }
+
+    function formatViews(n) {
+      if (n === 1) return '1 view';
+      if (n < 1000) return n + ' views';
+      return (n / 1000).toFixed(1) + 'k views';
+    }
+
+    function showLoading() {
+      root.innerHTML = `<div class="state-overlay"><div class="spinner"></div><div class="state-title">Loading…</div></div>`;
+    }
+
+    function showError(msg, showUploadLink) {
       root.innerHTML = `
         <div class="state-overlay">
           <div style="font-size:2.5rem">⚠️</div>
-          <div class="state-title">Video not found</div>
-          <div class="state-sub">${msg || 'This link may be expired or invalid.'}</div>
-          <a href="/upload" class="upload-link">Upload a video</a>
-        </div>
-      `;
+          <div class="state-title">Can't play this video</div>
+          <div class="state-sub">${msg}</div>
+          ${showUploadLink ? '<a href="/upload" class="upload-link">Upload a video</a>' : ''}
+        </div>`;
     }
 
-    function showVideo(videoUrl) {
+    function showVideo(videoUrl, meta) {
       root.innerHTML = `
         <div class="video-wrap">
-          <video
-            id="videoEl"
-            src="${videoUrl}"
-            controls
-            autoplay
-            playsinline
-            preload="auto"
-          ></video>
-        </div>
-      `;
+          <video id="videoEl" src="${videoUrl}" controls autoplay playsinline preload="auto"></video>
+        </div>`;
 
       const videoEl = document.getElementById('videoEl');
 
-      // Hide top bar while playing after a moment of inactivity
       function resetBarTimer() {
         topBar.classList.remove('hidden');
         clearTimeout(hideBarTimer);
@@ -232,75 +191,141 @@
       }
 
       videoEl.addEventListener('play', resetBarTimer);
-      videoEl.addEventListener('pause', () => {
-        clearTimeout(hideBarTimer);
-        topBar.classList.remove('hidden');
-      });
+      videoEl.addEventListener('pause', () => { clearTimeout(hideBarTimer); topBar.classList.remove('hidden'); });
       document.addEventListener('touchstart', resetBarTimer, { passive: true });
       document.addEventListener('mousemove', resetBarTimer);
     }
 
-    function showToast(msg) {
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2500);
+    function showPasswordPrompt(videoId) {
+      root.innerHTML = `
+        <div class="pw-card">
+          <div class="pw-icon">🔒</div>
+          <div class="pw-title">Password required</div>
+          <div class="pw-sub">This video is password protected.</div>
+          <input class="pw-input" id="pwInput" type="password" placeholder="Enter password" autocomplete="off">
+          <button class="pw-btn" id="pwSubmit">Watch Video</button>
+          <div class="pw-error" id="pwError">Incorrect password. Try again.</div>
+        </div>`;
+
+      const pwInput  = document.getElementById('pwInput');
+      const pwSubmit = document.getElementById('pwSubmit');
+      const pwError  = document.getElementById('pwError');
+
+      async function submit() {
+        const pw = pwInput.value;
+        if (!pw) return;
+        pwSubmit.disabled = true; pwSubmit.textContent = 'Checking…';
+        try {
+          const res = await fetch('/api/verify-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId, password: pw })
+          });
+          const data = await res.json();
+          if (data.valid) {
+            videoPassword = pw;
+            loadVideo(videoId, pw);
+          } else {
+            pwError.classList.add('visible');
+            pwSubmit.disabled = false; pwSubmit.textContent = 'Watch Video';
+            pwInput.value = ''; pwInput.focus();
+          }
+        } catch {
+          pwSubmit.disabled = false; pwSubmit.textContent = 'Watch Video';
+        }
+      }
+
+      pwSubmit.addEventListener('click', submit);
+      pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+      setTimeout(() => pwInput.focus(), 100);
     }
 
-    async function copyLink() {
+    // ── Share / copy ───────────────────────────────────────────────────────────
+    async function doShare() {
       const url = window.location.href;
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
+      if (navigator.share) {
+        try { await navigator.share({ title: topBarTitle.textContent || 'Watch this video', url }); return; }
+        catch {}
+      }
+      try { await navigator.clipboard.writeText(url); }
+      catch {
         const ta = document.createElement('textarea');
-        ta.value = url;
-        ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta);
-        ta.focus(); ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+        ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
       }
       showToast('Link copied!');
     }
+    shareBtn.addEventListener('click', doShare);
 
-    async function shareLink() {
-      const url = window.location.href;
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'Watch this video', url });
-          return;
-        } catch {}
-      }
-      copyLink();
+    // ── Load video ─────────────────────────────────────────────────────────────
+    function buildVideoUrl(videoId, password) {
+      let url = `/api/video/${encodeURIComponent(videoId)}`;
+      if (password) url += '?pt=' + encodeURIComponent(password);
+      return url;
     }
 
-    shareBtn.addEventListener('click', shareLink);
+    async function loadVideo(videoId, password) {
+      const videoUrl = buildVideoUrl(videoId, password);
+      try {
+        const probe = await fetch(videoUrl, { method: 'HEAD' });
+        if (probe.status === 403) { showPasswordPrompt(videoId); return; }
+        if (probe.status === 410) { showError('This video has expired and is no longer available.', true); return; }
+        if (!probe.ok) { showError('This video could not be found.', true); return; }
+      } catch {}
+      showVideo(videoUrl);
+    }
 
-    // Load the video
     async function init() {
       const params = new URLSearchParams(window.location.search);
       const videoId = params.get('id');
-
-      if (!videoId) {
-        showError('No video ID provided.');
-        return;
-      }
+      if (!videoId) { showError('No video ID provided.', true); return; }
 
       showLoading();
 
-      const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
-
-      // Probe the URL to see if the video exists
+      // Fetch metadata
       try {
-        const probe = await fetch(videoUrl, { method: 'HEAD' });
-        if (!probe.ok) {
-          showError('This video could not be found.');
+        const metaRes = await fetch(`/api/video-meta/${encodeURIComponent(videoId)}`);
+
+        if (metaRes.status === 410) {
+          showError('This video has expired and is no longer available.', true);
           return;
         }
-      } catch {
-        // If HEAD fails just try to play anyway
-      }
+        if (metaRes.status === 404) {
+          showError('This video could not be found. It may have been deleted.', true);
+          return;
+        }
 
-      showVideo(videoUrl);
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+
+          // Update title
+          if (meta.title) {
+            topBarTitle.textContent = meta.title;
+            document.title = meta.title + ' – VidShare';
+          }
+
+          // Expiry bar
+          const expText = formatExpiry(meta.expiresAt);
+          if (expText) expiryBar.textContent = expText;
+
+          // Views
+          if (meta.viewCount > 0) {
+            const vb = document.createElement('span');
+            vb.textContent = ' · ' + formatViews(meta.viewCount);
+            vb.style.opacity = '0.5';
+            expiryBar.appendChild(vb);
+          }
+
+          // Password check
+          if (meta.hasPassword) {
+            showPasswordPrompt(videoId);
+            return;
+          }
+        }
+      } catch {}
+
+      await loadVideo(videoId, null);
     }
 
     init();
