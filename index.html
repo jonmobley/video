@@ -233,50 +233,6 @@
             line-height: 1.5;
         }
 
-        /* How it works */
-        .how {
-            margin-top: 100px;
-            max-width: 900px;
-            width: 100%;
-        }
-        .section-title {
-            text-align: center;
-            font-size: 1.6rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        .section-sub {
-            text-align: center;
-            color: #888;
-            font-size: 0.95rem;
-            margin-bottom: 36px;
-        }
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 18px;
-        }
-        .step {
-            position: relative;
-            background: #1c1c1e;
-            border: 1px solid #232325;
-            border-radius: 18px;
-            padding: 24px 22px;
-        }
-        .step-num {
-            position: absolute;
-            top: -14px; left: 22px;
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            color: #0a0a0a;
-            font-weight: 800;
-            font-size: 0.85rem;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .step-title { font-weight: 600; margin: 4px 0 6px; font-size: 1rem; }
-        .step-desc { font-size: 0.88rem; color: #888; line-height: 1.5; }
-
         /* Bottom CTA */
         .bottom-cta {
             margin-top: 100px;
@@ -313,7 +269,7 @@
             .nav { padding: 18px 20px; }
             .hero { margin-top: 24px; }
             .phone-preview { width: 200px; height: 400px; margin-top: 40px; }
-            .features, .how, .bottom-cta { margin-top: 70px; }
+            .features, .bottom-cta { margin-top: 70px; }
             .bottom-cta { padding: 36px 22px; }
         }
     </style>
@@ -324,7 +280,6 @@
         <div style="display:flex; align-items:center; gap:8px;">
             <a href="/login" class="nav-link" id="navAuth" style="display:none;">Sign in</a>
             <a href="/account" class="nav-link" id="navAccount" style="display:none;">My videos</a>
-            <a href="/upload" class="nav-link">Upload →</a>
         </div>
     </nav>
     <script>
@@ -343,7 +298,6 @@
             </p>
             <div class="cta-row">
                 <a href="/upload" class="btn btn-primary">Upload a Video</a>
-                <a href="#how" class="btn btn-secondary">How it works</a>
             </div>
             <div class="trust-row">
                 <span>No signup required</span>
@@ -380,28 +334,6 @@
                 <div class="feature-icon">📲</div>
                 <div class="feature-title">QR code & auto-copy</div>
                 <div class="feature-desc">Get a QR code for instant sharing. The link copies to your clipboard automatically.</div>
-            </div>
-        </section>
-
-        <section class="how" id="how">
-            <h2 class="section-title">How it works</h2>
-            <p class="section-sub">Three quick steps from your camera roll to a shareable link.</p>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-num">1</div>
-                    <div class="step-title">Pick your video</div>
-                    <div class="step-desc">Tap the upload button, pick a clip from your phone or computer (up to 1 GB).</div>
-                </div>
-                <div class="step">
-                    <div class="step-num">2</div>
-                    <div class="step-title">Set your options</div>
-                    <div class="step-desc">Add a title, set expiry, lock with a password — or leave blank to share publicly.</div>
-                </div>
-                <div class="step">
-                    <div class="step-num">3</div>
-                    <div class="step-title">Send the link</div>
-                    <div class="step-desc">Your link is auto-copied. Send it via text, email, or scan the QR code.</div>
-                </div>
             </div>
         </section>
 
