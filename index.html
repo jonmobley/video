@@ -7,6 +7,7 @@
     <title>VidShare — Share videos in seconds</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6b6b'/%3E%3Cstop offset='1' stop-color='%234ecdc4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Cpath d='M22 18 L46 32 L22 46 Z' fill='url(%23g)'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles/common.css">
+    <link rel="stylesheet" href="/styles/upload.css">
     <style>
         body {
             min-height: 100vh;
@@ -177,7 +178,7 @@
                 No signup required, no app to install — just drop a file and send the link.
             </p>
             <div class="cta-row">
-                <a href="/upload" class="btn btn-primary">Upload a Video</a>
+                <a href="/upload" class="btn btn-primary" id="openUploadBtn">Upload a Video</a>
             </div>
             <div class="trust-row">
                 <span>No signup required</span>
@@ -189,7 +190,88 @@
     </main>
 
     <footer>
-        <p>Powered by VidShare · <a href="/upload">Upload</a></p>
+        <p>Powered by VidShare · <a href="/upload" id="footerUploadLink">Upload</a></p>
     </footer>
+
+    <div class="upload-modal" id="uploadModal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle" aria-hidden="true">
+        <div class="upload-modal-backdrop" data-modal-close></div>
+        <div class="upload-modal-dialog">
+            <button type="button" class="upload-modal-close" id="uploadModalClose" aria-label="Close upload dialog" data-modal-close>✕</button>
+            <h2 id="uploadModalTitle" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Upload a video</h2>
+            <div id="uploadRoot"></div>
+            <a class="upload-modal-link" href="/upload">Open the full upload page →</a>
+        </div>
+    </div>
+
+    <script src="/js/upload-widget.js"></script>
+    <script>
+      (function () {
+        const modal = document.getElementById('uploadModal');
+        const root = document.getElementById('uploadRoot');
+        const openBtn = document.getElementById('openUploadBtn');
+        const footerLink = document.getElementById('footerUploadLink');
+        let widget = null;
+        let lastFocused = null;
+
+        function focusables() {
+          return modal.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+        }
+
+        function openModal() {
+          if (!widget) widget = initUploadWidget(root);
+          lastFocused = document.activeElement;
+          modal.classList.add('open');
+          modal.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('modal-open');
+          setTimeout(() => {
+            const f = focusables();
+            if (f.length) f[0].focus();
+          }, 0);
+        }
+
+        function closeModal() {
+          modal.classList.remove('open');
+          modal.setAttribute('aria-hidden', 'true');
+          document.body.classList.remove('modal-open');
+          if (lastFocused && typeof lastFocused.focus === 'function') {
+            lastFocused.focus();
+          }
+        }
+
+        function trigger(e) {
+          e.preventDefault();
+          openModal();
+        }
+
+        openBtn.addEventListener('click', trigger);
+        footerLink.addEventListener('click', trigger);
+
+        modal.addEventListener('click', e => {
+          if (e.target.hasAttribute('data-modal-close')) closeModal();
+        });
+
+        document.addEventListener('keydown', e => {
+          if (!modal.classList.contains('open')) return;
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            closeModal();
+            return;
+          }
+          if (e.key === 'Tab') {
+            const f = Array.from(focusables());
+            if (!f.length) return;
+            const first = f[0];
+            const last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault(); last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault(); first.focus();
+            }
+          }
+        });
+      })();
+    </script>
 </body>
 </html>
