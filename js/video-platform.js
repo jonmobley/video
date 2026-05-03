@@ -51,19 +51,73 @@ class VideoPlatformManager {
      * @param {HTMLElement} container - Container element for the video
      * @param {Function} onReady - Callback when video is ready
      */
-    loadVideo(video, container, onReady = null) {
+    loadVideo(video, container, onReady = null, onError = null) {
         this.currentPlatform = video.platform || 'wistia';
         this.currentVideoId = video.wistiaId || video.id;
 
         if (this.currentPlatform === 'dropbox') {
             this.loadDropboxVideo(video, container, onReady);
         } else if (this.currentPlatform === 'youtube') {
-            this.loadYouTubeVideo(video, container, onReady);
+            this.loadYouTubeVideo(video, container, onReady, onError);
         } else if (this.currentPlatform === 'vimeo') {
-            this.loadVimeoVideo(video, container, onReady);
+            this.loadVimeoVideo(video, container, onReady, onError);
         } else {
             this.loadWistiaVideo(video, container, onReady);
         }
+    }
+
+    /**
+     * Load an external script once and reuse the same in-flight Promise on
+     * subsequent calls. Used to lazy-load the YouTube IFrame API and Vimeo
+     * Player.js so we only pay the cost when an embed actually renders.
+     */
+    _loadScriptOnce(src) {
+        if (!this._scriptPromises) this._scriptPromises = {};
+        if (VideoPlatformManager._scriptPromises &&
+            VideoPlatformManager._scriptPromises[src]) {
+            return VideoPlatformManager._scriptPromises[src];
+        }
+        VideoPlatformManager._scriptPromises = VideoPlatformManager._scriptPromises || {};
+        VideoPlatformManager._scriptPromises[src] = new Promise((resolve, reject) => {
+            const existing = document.querySelector(`script[src="${src}"]`);
+            if (existing) {
+                if (existing.dataset.loaded === '1') { resolve(); return; }
+                existing.addEventListener('load', () => resolve());
+                existing.addEventListener('error', () => reject(new Error('Failed to load ' + src)));
+                return;
+            }
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = true;
+            s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+            s.onerror = () => reject(new Error('Failed to load ' + src));
+            document.head.appendChild(s);
+        });
+        return VideoPlatformManager._scriptPromises[src];
+    }
+
+    /**
+     * Resolve once the YouTube IFrame API global (YT.Player) is available.
+     * The API calls window.onYouTubeIframeAPIReady when ready; we chain any
+     * existing handler so we don't clobber other consumers.
+     */
+    _ensureYouTubeAPI() {
+        if (window.YT && window.YT.Player) return Promise.resolve();
+        if (VideoPlatformManager._ytReadyPromise) return VideoPlatformManager._ytReadyPromise;
+        VideoPlatformManager._ytReadyPromise = new Promise((resolve, reject) => {
+            const prev = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = function () {
+                if (typeof prev === 'function') { try { prev(); } catch (e) {} }
+                resolve();
+            };
+            this._loadScriptOnce('https://www.youtube.com/iframe_api').catch(reject);
+        });
+        return VideoPlatformManager._ytReadyPromise;
+    }
+
+    _ensureVimeoAPI() {
+        if (window.Vimeo && window.Vimeo.Player) return Promise.resolve();
+        return this._loadScriptOnce('https://player.vimeo.com/api/player.js');
     }
 
     /**
@@ -73,14 +127,14 @@ class VideoPlatformManager {
      * @param {HTMLElement} container
      * @param {Function} [onReady]
      */
-    loadYouTubeVideo(video, container, onReady) {
+    loadYouTubeVideo(video, container, onReady, onError) {
         const id = video.embedVideoId || video.wistiaId || video.id;
         container.innerHTML = '';
         container.setAttribute('data-platform', 'youtube');
 
-        // enablejsapi=1 lets the watch page attach a YT.Player to this iframe
-        // for onReady/onError detection (private/removed/embedding-disabled).
-        // The unique iframe id gives YT.Player a stable target.
+        // enablejsapi=1 lets us attach a YT.Player to this iframe for
+        // onError detection (private/removed/embedding-disabled). The unique
+        // iframe id gives YT.Player a stable target.
         const iframe = document.createElement('iframe');
         const frameId = `yt_${Math.random().toString(36).slice(2)}`;
         iframe.id = frameId;
@@ -97,6 +151,30 @@ class VideoPlatformManager {
 
         iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
         container.appendChild(iframe);
+
+        // Attach the IFrame API for onError detection. YT error codes:
+        //   2   — invalid video id
+        //   5   — HTML5 player error
+        //   100 — video not found / removed / private
+        //   101 / 150 — embedding disabled by owner
+        // Any of these means our friendly fallback should take over.
+        this._ensureYouTubeAPI().then(() => {
+            try {
+                new window.YT.Player(frameId, {
+                    events: {
+                        onError: (e) => {
+                            if (typeof onError === 'function') {
+                                onError({ code: e && e.data, source: 'youtube' });
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                // Player attach failed; leave the iframe in place. The watch
+                // page's safety-net timeout will still cover this case.
+            }
+        }).catch(() => { /* API failed to load — safety-net timeout covers us */ });
+
         return iframe;
     }
 
@@ -107,7 +185,7 @@ class VideoPlatformManager {
      * @param {HTMLElement} container
      * @param {Function} [onReady]
      */
-    loadVimeoVideo(video, container, onReady) {
+    loadVimeoVideo(video, container, onReady, onError) {
         const raw = video.embedVideoId || video.wistiaId || video.id || '';
         const parts = String(raw).split('/');
         const id = parts[0];
@@ -129,6 +207,29 @@ class VideoPlatformManager {
 
         iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
         container.appendChild(iframe);
+
+        // Attach Vimeo Player.js to detect privacy/embed errors. ready()
+        // rejects when the video is private, removed, or has embedding
+        // disallowed for this domain; the 'error' event fires for runtime
+        // playback failures. Either should surface our friendly fallback.
+        this._ensureVimeoAPI().then(() => {
+            try {
+                const player = new window.Vimeo.Player(iframe);
+                player.ready().catch((err) => {
+                    if (typeof onError === 'function') {
+                        onError({ source: 'vimeo', error: err });
+                    }
+                });
+                player.on('error', (err) => {
+                    if (typeof onError === 'function') {
+                        onError({ source: 'vimeo', error: err });
+                    }
+                });
+            } catch (err) {
+                // Player.js attach failed; safety-net timeout still applies.
+            }
+        }).catch(() => { /* API failed to load — safety-net timeout covers us */ });
+
         return iframe;
     }
 
