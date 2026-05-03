@@ -460,9 +460,11 @@
       filePreview.classList.remove('visible');
       fieldsArea.style.display = 'none';
       progressArea.classList.add('visible');
+      if (modeTabs) modeTabs.style.display = 'none';
       hideError();
       setProgress(0, 'Preparing…');
       uploading = true;
+      root.dispatchEvent(new CustomEvent('upload:start'));
 
       try {
         for (let i = 0; i < totalChunks; i++) {
@@ -506,6 +508,8 @@
         uploadBtn.classList.add('visible');
         filePreview.classList.add('visible');
         fieldsArea.style.display = 'flex';
+        if (modeTabs) modeTabs.style.display = '';
+        root.dispatchEvent(new CustomEvent('upload:reset'));
         showError('Upload failed: ' + err.message);
       }
     }
@@ -526,8 +530,11 @@
       panelLink.style.display = 'none';
       fieldsArea.style.display = 'none';
       progressArea.classList.add('visible');
+      if (modeTabs) modeTabs.style.display = 'none';
       hideError();
       setProgress(50, 'Submitting link…');
+      uploading = true;
+      root.dispatchEvent(new CustomEvent('upload:start'));
 
       try {
         const res = await fetch('/api/create-link-video', {
@@ -541,12 +548,16 @@
         }
         const data = await res.json();
         setProgress(100, 'Done!');
+        uploading = false;
         finishSuccess(data.videoId, { title, expiryDays, password, isLink: true, platform: data.platform });
       } catch (err) {
+        uploading = false;
         progressArea.classList.remove('visible');
         uploadBtn.classList.add('visible');
         panelLink.style.display = '';
         fieldsArea.style.display = 'flex';
+        if (modeTabs) modeTabs.style.display = '';
+        root.dispatchEvent(new CustomEvent('upload:reset'));
         showError('Submission failed: ' + err.message);
       }
     }
@@ -584,6 +595,7 @@
       setMode('file');
       clearFile();
       updateUploadBtnState();
+      root.dispatchEvent(new CustomEvent('upload:reset'));
     }
 
     anotherBtn.addEventListener('click', reset);

@@ -75,6 +75,12 @@
     buildModal();
     if (!widget && typeof window.initUploadWidget === 'function') {
       widget = window.initUploadWidget(root);
+      const link = modal.querySelector('.upload-modal-link');
+      if (link && widget && widget.root) {
+        widget.root.addEventListener('upload:start', () => link.classList.add('hidden-during-upload'));
+        widget.root.addEventListener('upload:success', () => link.classList.add('hidden-during-upload'));
+        widget.root.addEventListener('upload:reset', () => link.classList.remove('hidden-during-upload'));
+      }
     }
     lastFocused = document.activeElement;
     modal.classList.add('open');

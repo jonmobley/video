@@ -292,6 +292,7 @@
   color: #888; font-size: 0.82rem; text-decoration: none;
 }
 .upload-modal .upload-modal-link:hover { color: #4ecdc4; }
+.upload-modal .upload-modal-link.hidden-during-upload { display: none; }
 
 body.modal-open { overflow: hidden; }
 
