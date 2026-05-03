@@ -723,5 +723,13 @@
     return { reset, root, isUploading: () => uploading };
   }
 
-  window.initUploadWidget = initUploadWidget;
+  if (typeof window !== 'undefined') {
+    window.initUploadWidget = initUploadWidget;
+  }
+
+  // Node-only export hook so the retry/parse helpers can be unit-tested
+  // without spinning up a DOM. Browsers ignore this branch.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { retryChunk, parseErrJson };
+  }
 })();

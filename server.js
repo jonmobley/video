@@ -1067,15 +1067,22 @@ app.get('/oz',      (req, res) => res.sendFile(path.join(__dirname, 'oz.html')))
 app.get('/disc',    (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-ensureSchema()
-  .then(async () => {
-    await loadOrCreateSessionSecret();
-    await cleanupExpired();
-    setInterval(cleanupExpired, 60 * 60 * 1000);
-    setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
-    app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
-  })
-  .catch(err => {
-    console.error('Startup error:', err);
-    process.exit(1);
-  });
+// When run directly (`node server.js`) start the HTTP listener and the
+// background timers. When required from tests we just want the configured
+// Express app and the pool, without any side effects.
+if (require.main === module) {
+  ensureSchema()
+    .then(async () => {
+      await loadOrCreateSessionSecret();
+      await cleanupExpired();
+      setInterval(cleanupExpired, 60 * 60 * 1000);
+      setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
+      app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
+    })
+    .catch(err => {
+      console.error('Startup error:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = { app, pool };
