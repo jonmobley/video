@@ -610,6 +610,32 @@ app.get('/api/my-videos', requireUser, async (req, res) => {
   }
 });
 
+// Claim previously-anonymous uploads from this browser. Only updates rows
+// that currently have no owner — never steals from another user. Idempotent.
+app.post('/api/my-videos/claim', requireUser, async (req, res) => {
+  try {
+    const { videoIds } = req.body || {};
+    if (!Array.isArray(videoIds) || videoIds.length === 0) {
+      return res.json({ claimed: 0 });
+    }
+    // Defensive: cap batch size and keep only string ids.
+    const ids = videoIds.filter(v => typeof v === 'string').slice(0, 50);
+    if (ids.length === 0) return res.json({ claimed: 0 });
+
+    const result = await pool.query(
+      `UPDATE vs_uploads
+          SET user_id = $1
+        WHERE id = ANY($2::text[])
+          AND user_id IS NULL`,
+      [req.userId, ids]
+    );
+    res.json({ claimed: result.rowCount });
+  } catch (err) {
+    console.error('my-videos claim error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/my-videos/:id', requireUser, async (req, res) => {
   try {
     const { id } = req.params;

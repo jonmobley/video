@@ -151,6 +151,27 @@
           submitBtn.disabled = false; submitBtn.textContent = original;
           return;
         }
+
+        // Claim any anonymous uploads stashed in this browser within the last 24h.
+        try {
+          const KEY = 'vs_pending_claims';
+          const raw = localStorage.getItem(KEY);
+          const list = raw ? JSON.parse(raw) : [];
+          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+          const fresh = Array.isArray(list)
+            ? list.filter(e => e && typeof e.id === 'string' && typeof e.ts === 'number' && e.ts >= cutoff)
+            : [];
+          const videoIds = fresh.map(e => e.id);
+          if (videoIds.length) {
+            await fetch('/api/my-videos/claim', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoIds })
+            }).catch(() => {});
+          }
+          localStorage.removeItem(KEY);
+        } catch {}
+
         // Honor ?next=... if provided, otherwise go to account.
         const params = new URLSearchParams(window.location.search);
         window.location.href = params.get('next') || '/account';

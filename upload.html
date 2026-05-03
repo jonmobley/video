@@ -498,6 +498,17 @@
 
         setProgress(100, 'Done!');
 
+        // Remember this anonymous upload so it can be claimed if the user signs up.
+        // Scoped to this browser (localStorage), pruned to last 24h on read.
+        try {
+          const KEY = 'vs_pending_claims';
+          const raw = localStorage.getItem(KEY);
+          const list = raw ? JSON.parse(raw) : [];
+          const cleaned = Array.isArray(list) ? list.filter(e => e && typeof e.id === 'string') : [];
+          cleaned.push({ id: videoId, ts: Date.now() });
+          localStorage.setItem(KEY, JSON.stringify(cleaned.slice(-50)));
+        } catch {}
+
         const watchUrl = window.location.origin + '/watch?id=' + encodeURIComponent(videoId);
 
         setTimeout(() => {
