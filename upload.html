@@ -40,7 +40,14 @@
   <script src="/js/link-parser.js"></script>
   <script src="/js/upload-widget.js"></script>
   <script>
-    initUploadWidget(document.getElementById('uploadRoot'));
+    const uploadWidget = initUploadWidget(document.getElementById('uploadRoot'));
+    window.addEventListener('beforeunload', e => {
+      if (uploadWidget && typeof uploadWidget.isUploading === 'function' && uploadWidget.isUploading()) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
   </script>
 </body>
 </html>

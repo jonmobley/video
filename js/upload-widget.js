@@ -211,6 +211,7 @@
     let selectedFile = null;
     let mode = 'file';            // 'file' | 'link'
     let parsedLink = null;        // { platform, videoId } | null
+    let uploading = false;
 
     const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(r => r.ok)
@@ -418,6 +419,7 @@
       progressArea.classList.add('visible');
       hideError();
       setProgress(0, 'Preparing…');
+      uploading = true;
 
       try {
         for (let i = 0; i < totalChunks; i++) {
@@ -452,9 +454,11 @@
         }
 
         setProgress(100, 'Done!');
+        uploading = false;
         finishSuccess(videoId, { title, expiryDays, password, isLink: false });
 
       } catch (err) {
+        uploading = false;
         progressArea.classList.remove('visible');
         uploadBtn.classList.add('visible');
         filePreview.classList.add('visible');
@@ -533,7 +537,7 @@
 
     anotherBtn.addEventListener('click', reset);
 
-    return { reset, root };
+    return { reset, root, isUploading: () => uploading };
   }
 
   window.initUploadWidget = initUploadWidget;

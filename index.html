@@ -233,6 +233,10 @@
         }
 
         function closeModal() {
+          if (widget && typeof widget.isUploading === 'function' && widget.isUploading()) {
+            const ok = window.confirm('An upload is in progress. Closing now will cancel it. Cancel the upload?');
+            if (!ok) return;
+          }
           modal.classList.remove('open');
           modal.setAttribute('aria-hidden', 'true');
           document.body.classList.remove('modal-open');
