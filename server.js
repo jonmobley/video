@@ -8,6 +8,10 @@ const crypto = require('crypto');
 types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 const app = express();
+// Replit's edge proxies the app over HTTPS and sets X-Forwarded-For. Trusting
+// exactly one hop lets Express derive `req.ip` from the real client IP without
+// honouring spoofed headers from arbitrary upstreams.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
@@ -52,6 +56,8 @@ function evictExpiredRateLimits() {
   const now = Date.now();
   for (const [k, v] of uploadCounts) if (now > v.resetAt) uploadCounts.delete(k);
   for (const [k, v] of verifyAttempts) if (now > v.resetAt) verifyAttempts.delete(k);
+  for (const [k, v] of codeRequestByEmail) if (now > v.resetAt) codeRequestByEmail.delete(k);
+  for (const [k, v] of codeRequestByIp)    if (now > v.resetAt) codeRequestByIp.delete(k);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,7 +66,9 @@ function hashPassword(pw) {
 }
 
 function getIp(req) {
-  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  // With `trust proxy` set, Express resolves req.ip from the trusted XFF hop;
+  // fall back to the raw socket if the proxy didn't set one (e.g. local dev).
+  return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
 function requireAdmin(req, res, next) {
@@ -71,22 +79,24 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// ── User accounts: password hashing (scrypt) ────────────────────────────────
-// Format: `scrypt$<saltHex>$<hashHex>`. Each signup gets its own salt so
-// identical passwords across users hash differently.
-function hashUserPassword(pw) {
-  const salt = crypto.randomBytes(16);
-  const derived = crypto.scryptSync(pw, salt, 64);
-  return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`;
+// ── Magic-code email auth ────────────────────────────────────────────────────
+// Codes are 6 digits, sha256-hashed at rest, expire in 10 min, max 5 attempts.
+const { getResendClient } = require('./lib/resend-client');
+const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_MAX_ATTEMPTS = 5;
+// Throttle code requests: max 4 per email per 15min, 10 per IP per 15min.
+const codeRequestByEmail = new Map();
+const codeRequestByIp = new Map();
+const CODE_REQ_WINDOW_MS = 15 * 60 * 1000;
+const CODE_REQ_MAX_PER_EMAIL = 4;
+const CODE_REQ_MAX_PER_IP = 10;
+
+function generate6DigitCode() {
+  // Use rejection sampling on randomInt to avoid modulo bias.
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
-function verifyUserPassword(pw, stored) {
-  const parts = (stored || '').split('$');
-  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
-  const salt = Buffer.from(parts[1], 'hex');
-  const expected = Buffer.from(parts[2], 'hex');
-  if (expected.length === 0) return false;
-  const provided = crypto.scryptSync(pw, salt, expected.length);
-  return crypto.timingSafeEqual(expected, provided);
+function hashCode(code) {
+  return crypto.createHash('sha256').update('vs_code_v1$' + code).digest('hex');
 }
 
 // ── Sessions: signed cookies, no DB row per session ──────────────────────────
@@ -196,11 +206,10 @@ async function ensureSchema() {
     ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
 
-    -- User accounts (added later — uses uuid via crypto, not pgcrypto, so no extension required)
+    -- User accounts. Auth is magic-code via email (no passwords).
     CREATE TABLE IF NOT EXISTS vs_users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS vs_meta (
@@ -212,7 +221,34 @@ async function ensureSchema() {
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS user_id TEXT
       REFERENCES vs_users(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_user_id ON vs_uploads(user_id) WHERE user_id IS NOT NULL;
+
+    -- Magic-code login table. One active code per (email, code_hash). Old/expired
+    -- codes are pruned by cleanupExpired(). attempts caps brute force.
+    CREATE TABLE IF NOT EXISTS vs_auth_codes (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_email ON vs_auth_codes(email);
+    CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_expires ON vs_auth_codes(expires_at);
   `);
+
+  // One-time migration off password auth: drop legacy password_hash column and
+  // wipe any pre-existing accounts (per product decision — no migration path).
+  // Idempotent: after first run the column is gone and the DELETE is a no-op.
+  const colCheck = await pool.query(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'vs_users' AND column_name = 'password_hash'
+  `);
+  if (colCheck.rows.length) {
+    console.log('Migrating vs_users to magic-code auth: wiping accounts and dropping password_hash');
+    await pool.query('DELETE FROM vs_users');
+    await pool.query('ALTER TABLE vs_users DROP COLUMN password_hash');
+  }
 
   // NOTE: We deliberately do NOT add an FK from vs_upload_chunks → vs_uploads.
   // Upload protocol is "stream chunks, THEN finalize creates the parent row",
@@ -242,6 +278,14 @@ async function cleanupExpired() {
         AND video_id NOT IN (SELECT id FROM vs_uploads)
     `);
     if (orphan.rowCount) console.log(`Pruned ${orphan.rowCount} orphan chunk(s)`);
+
+    // Prune used or expired auth codes older than a day — keeps the table tiny.
+    const codes = await pool.query(`
+      DELETE FROM vs_auth_codes
+       WHERE (used_at IS NOT NULL AND used_at < NOW() - INTERVAL '1 day')
+          OR (expires_at < NOW() - INTERVAL '1 day')
+    `);
+    if (codes.rowCount) console.log(`Pruned ${codes.rowCount} expired auth code(s)`);
   } catch (err) {
     console.error('Cleanup error:', err.message);
   }
@@ -534,49 +578,145 @@ app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// ── Auth: signup / login / logout / me ───────────────────────────────────────
-app.post('/api/auth/signup', async (req, res) => {
+// ── Auth: request-code / verify-code / logout / me ───────────────────────────
+// Magic-code flow:
+//   1. POST /api/auth/request-code { email } → emails a 6-digit code
+//   2. POST /api/auth/verify-code  { email, code } → sets session cookie
+//      Creates user on first successful verify (signup + login unified).
+
+app.post('/api/auth/request-code', async (req, res) => {
   try {
     const email = (req.body.email || '').trim().toLowerCase();
-    const password = req.body.password || '';
     if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email.' });
-    if (password.length < 8)   return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-    if (password.length > 200) return res.status(400).json({ error: 'Password is too long.' });
+    if (email.length > 254)    return res.status(400).json({ error: 'Email is too long.' });
 
-    const exists = await pool.query('SELECT 1 FROM vs_users WHERE email = $1', [email]);
-    if (exists.rows.length) return res.status(409).json({ error: 'An account with that email already exists.' });
+    const ip = getIp(req);
+    if (checkAndIncrement(codeRequestByEmail, email, CODE_REQ_MAX_PER_EMAIL, CODE_REQ_WINDOW_MS) ||
+        checkAndIncrement(codeRequestByIp,    ip,    CODE_REQ_MAX_PER_IP,    CODE_REQ_WINDOW_MS)) {
+      return res.status(429).json({ error: 'Too many code requests. Please wait a few minutes and try again.' });
+    }
 
-    const id = crypto.randomBytes(12).toString('hex');
+    const code = generate6DigitCode();
+    const codeHash = hashCode(code);
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+
+    // Invalidate any previous unused codes for this email so only the latest works.
     await pool.query(
-      'INSERT INTO vs_users (id, email, password_hash) VALUES ($1, $2, $3)',
-      [id, email, hashUserPassword(password)]
+      `UPDATE vs_auth_codes SET used_at = NOW()
+        WHERE email = $1 AND used_at IS NULL`,
+      [email]
     );
-    setSessionCookie(res, id);
-    res.json({ email });
+    await pool.query(
+      `INSERT INTO vs_auth_codes (email, code_hash, expires_at) VALUES ($1, $2, $3)`,
+      [email, codeHash, expiresAt]
+    );
+
+    // Send the email. If Resend fails, surface a generic error and roll back
+    // the code so the user can retry without sitting on a dead code.
+    try {
+      const { client, fromEmail } = await getResendClient();
+      const subject = `${code} is your VidShare sign-in code`;
+      const text =
+        `Your VidShare sign-in code is: ${code}\n\n` +
+        `It expires in 10 minutes. If you didn't request this, you can ignore this email.`;
+      const html =
+        `<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0a0a0a;">` +
+          `<h2 style="margin:0 0 8px;font-size:20px;">Your VidShare sign-in code</h2>` +
+          `<p style="margin:0 0 24px;color:#555;font-size:14px;">Enter this code in the browser to finish signing in. It expires in 10 minutes.</p>` +
+          `<div style="font-size:32px;font-weight:700;letter-spacing:8px;background:#f5f5f7;padding:16px 24px;border-radius:12px;text-align:center;">${code}</div>` +
+          `<p style="margin:24px 0 0;color:#888;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>` +
+        `</div>`;
+      const sendRes = await client.emails.send({ from: fromEmail, to: email, subject, text, html });
+      if (sendRes && sendRes.error) throw new Error(sendRes.error.message || 'send failed');
+    } catch (mailErr) {
+      console.error('request-code email error:', mailErr);
+      await pool.query(
+        `UPDATE vs_auth_codes SET used_at = NOW()
+          WHERE email = $1 AND code_hash = $2 AND used_at IS NULL`,
+        [email, codeHash]
+      );
+      return res.status(502).json({ error: 'Could not send the code email. Please try again in a moment.' });
+    }
+
+    res.json({ ok: true });
   } catch (err) {
-    console.error('signup error:', err);
-    res.status(500).json({ error: 'Could not create account.' });
+    console.error('request-code error:', err);
+    res.status(500).json({ error: 'Could not send code.' });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/verify-code', async (req, res) => {
   try {
     const email = (req.body.email || '').trim().toLowerCase();
-    const password = req.body.password || '';
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
+    const code = (req.body.code || '').replace(/\s+/g, '');
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email.' });
+    if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Please enter the 6-digit code from your email.' });
 
-    const result = await pool.query('SELECT id, password_hash FROM vs_users WHERE email = $1', [email]);
-    // Generic error message either way — don't leak which emails are registered.
-    const fail = () => res.status(401).json({ error: 'Incorrect email or password.' });
-    if (!result.rows.length) return fail();
-    const ok = verifyUserPassword(password, result.rows[0].password_hash);
-    if (!ok) return fail();
+    // Per-IP brute-force shield, separate from the upload-password throttle.
+    if (isVerifyThrottled('login:' + getIp(req))) {
+      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
 
-    setSessionCookie(res, result.rows[0].id);
+    const codeHash = hashCode(code);
+    const lookup = await pool.query(
+      `SELECT id, attempts, expires_at, used_at
+         FROM vs_auth_codes
+        WHERE email = $1
+          AND used_at IS NULL
+        ORDER BY id DESC
+        LIMIT 1`,
+      [email]
+    );
+    if (!lookup.rows.length) {
+      return res.status(400).json({ error: 'No active code for that email. Please request a new one.' });
+    }
+    const row = lookup.rows[0];
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'That code has expired. Please request a new one.' });
+    }
+    if (row.attempts >= CODE_MAX_ATTEMPTS) {
+      // Burn the code to force a fresh one.
+      await pool.query(`UPDATE vs_auth_codes SET used_at = NOW() WHERE id = $1`, [row.id]);
+      return res.status(400).json({ error: 'Too many wrong attempts. Please request a new code.' });
+    }
+
+    // Atomic compare: only succeeds if the hash matches AND the row is still
+    // unused. Increments attempts unconditionally to guard against guessing.
+    const claim = await pool.query(
+      `UPDATE vs_auth_codes
+          SET used_at = NOW(), attempts = attempts + 1
+        WHERE id = $1
+          AND code_hash = $2
+          AND used_at IS NULL
+        RETURNING id`,
+      [row.id, codeHash]
+    );
+    if (!claim.rows.length) {
+      await pool.query(`UPDATE vs_auth_codes SET attempts = attempts + 1 WHERE id = $1`, [row.id]);
+      return res.status(400).json({ error: 'Incorrect code. Please try again.' });
+    }
+
+    // Find or create the user. Race-safe via ON CONFLICT.
+    let userId;
+    const existing = await pool.query('SELECT id FROM vs_users WHERE email = $1', [email]);
+    if (existing.rows.length) {
+      userId = existing.rows[0].id;
+    } else {
+      userId = crypto.randomBytes(12).toString('hex');
+      const ins = await pool.query(
+        `INSERT INTO vs_users (id, email) VALUES ($1, $2)
+           ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+         RETURNING id`,
+        [userId, email]
+      );
+      userId = ins.rows[0].id;
+    }
+
+    setSessionCookie(res, userId);
     res.json({ email });
   } catch (err) {
-    console.error('login error:', err);
-    res.status(500).json({ error: 'Could not sign in.' });
+    console.error('verify-code error:', err);
+    res.status(500).json({ error: 'Could not verify code.' });
   }
 });
 

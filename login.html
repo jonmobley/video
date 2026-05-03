@@ -25,15 +25,9 @@
       width: 100%; max-width: 400px; background: #111;
       border: 1px solid #1c1c1e; border-radius: 20px; padding: 32px 28px;
     }
-    .tabs { display: flex; gap: 4px; background: #0a0a0a; padding: 4px; border-radius: 12px; margin-bottom: 22px; }
-    .tab {
-      flex: 1; padding: 10px; text-align: center; font-size: 0.9rem; font-weight: 600;
-      background: transparent; border: none; color: #888; border-radius: 9px;
-      cursor: pointer; font-family: inherit; transition: all 0.2s;
-    }
-    .tab.active { background: #1c1c1e; color: #fff; }
     h1 { font-size: 1.3rem; margin-bottom: 6px; }
-    .sub { font-size: 0.9rem; color: #888; margin-bottom: 22px; }
+    .sub { font-size: 0.9rem; color: #888; margin-bottom: 22px; line-height: 1.4; }
+    .sub strong { color: #ddd; font-weight: 600; }
     label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 6px; }
     input {
       width: 100%; padding: 13px 14px; margin-bottom: 14px;
@@ -41,6 +35,10 @@
       color: #fff; font-size: 0.95rem; font-family: inherit; outline: none;
     }
     input:focus { border-color: #4ecdc4; }
+    input.code-input {
+      font-size: 1.5rem; letter-spacing: 0.4em; text-align: center;
+      font-variant-numeric: tabular-nums; padding-left: 0.4em;
+    }
     .submit-btn {
       width: 100%; padding: 14px; border: none; border-radius: 12px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
@@ -49,38 +47,65 @@
     }
     .submit-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
     .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .link-btn {
+      background: none; border: none; color: #4ecdc4; font-size: 0.85rem;
+      cursor: pointer; font-family: inherit; padding: 8px 4px; margin-top: 12px;
+    }
+    .link-btn:hover { text-decoration: underline; }
+    .link-btn:disabled { opacity: 0.5; cursor: not-allowed; text-decoration: none; }
     .error {
       margin-top: 12px; padding: 10px 14px; border-radius: 10px;
       background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);
       color: #ff8e8e; font-size: 0.85rem; display: none;
     }
     .error.visible { display: block; }
+    .info {
+      margin-top: 12px; padding: 10px 14px; border-radius: 10px;
+      background: rgba(78,205,196,0.08); border: 1px solid rgba(78,205,196,0.25);
+      color: #7adfd7; font-size: 0.85rem; display: none;
+    }
+    .info.visible { display: block; }
     .footer { margin-top: 22px; text-align: center; font-size: 0.85rem; color: #666; }
     .footer a { color: #4ecdc4; text-decoration: none; }
+    .step { display: none; }
+    .step.active { display: block; }
   </style>
 </head>
 <body>
   <a href="/" class="brand">VidShare</a>
 
   <div class="card">
-    <div class="tabs">
-      <button class="tab active" data-mode="login">Sign in</button>
-      <button class="tab" data-mode="signup">Create account</button>
+    <!-- Step 1: enter email -->
+    <div class="step active" id="stepEmail">
+      <h1>Sign in</h1>
+      <p class="sub">Enter your email and we'll send you a 6-digit code. No password needed — new accounts are created automatically.</p>
+
+      <form id="emailForm" autocomplete="on">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required>
+        <button type="submit" class="submit-btn" id="emailSubmit">Send code</button>
+        <div class="error" id="emailError"></div>
+      </form>
     </div>
 
-    <h1 id="formTitle">Welcome back</h1>
-    <p class="sub" id="formSub">Sign in to manage your videos.</p>
+    <!-- Step 2: enter code -->
+    <div class="step" id="stepCode">
+      <h1>Check your email</h1>
+      <p class="sub">We sent a 6-digit code to <strong id="emailEcho"></strong>. It expires in 10 minutes.</p>
 
-    <form id="authForm" autocomplete="on">
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="email" required>
-
-      <label for="password">Password</label>
-      <input id="password" type="password" autocomplete="current-password" required minlength="8">
-
-      <button type="submit" class="submit-btn" id="submitBtn">Sign in</button>
-      <div class="error" id="errorBox"></div>
-    </form>
+      <form id="codeForm" autocomplete="off">
+        <label for="code">Sign-in code</label>
+        <input id="code" class="code-input" type="text" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="6" required pattern="\d{6}">
+        <button type="submit" class="submit-btn" id="codeSubmit">Verify &amp; sign in</button>
+        <div class="error" id="codeError"></div>
+        <div class="info" id="codeInfo"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 8px;">
+          <button type="button" class="link-btn" id="changeEmailBtn">← Use a different email</button>
+          <button type="button" class="link-btn" id="resendBtn">Resend code</button>
+        </div>
+      </form>
+    </div>
 
     <div class="footer">
       <a href="/">← Back to home</a>
@@ -88,67 +113,90 @@
   </div>
 
   <script>
-    const tabs       = document.querySelectorAll('.tab');
-    const formTitle  = document.getElementById('formTitle');
-    const formSub    = document.getElementById('formSub');
-    const submitBtn  = document.getElementById('submitBtn');
-    const passwordEl = document.getElementById('password');
-    const emailEl    = document.getElementById('email');
-    const errorBox   = document.getElementById('errorBox');
-    const form       = document.getElementById('authForm');
+    const stepEmail = document.getElementById('stepEmail');
+    const stepCode  = document.getElementById('stepCode');
+    const emailForm = document.getElementById('emailForm');
+    const codeForm  = document.getElementById('codeForm');
+    const emailEl   = document.getElementById('email');
+    const codeEl    = document.getElementById('code');
+    const emailEcho = document.getElementById('emailEcho');
+    const emailErr  = document.getElementById('emailError');
+    const codeErr   = document.getElementById('codeError');
+    const codeInfo  = document.getElementById('codeInfo');
+    const emailBtn  = document.getElementById('emailSubmit');
+    const codeBtn   = document.getElementById('codeSubmit');
+    const resendBtn = document.getElementById('resendBtn');
+    const changeBtn = document.getElementById('changeEmailBtn');
 
-    // Default to whichever tab the URL requested (e.g. /login?tab=signup),
-    // otherwise sign-in. Anything other than "signup" is treated as login.
-    const urlParams = new URLSearchParams(window.location.search);
-    let mode = urlParams.get('tab') === 'signup' ? 'signup' : 'login';
+    let currentEmail = '';
 
-    function setMode(next) {
-      mode = next;
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-      if (mode === 'signup') {
-        formTitle.textContent = 'Create your account';
-        formSub.textContent   = 'Free — keep your shareable links organized.';
-        submitBtn.textContent = 'Create account';
-        passwordEl.autocomplete = 'new-password';
-      } else {
-        formTitle.textContent = 'Welcome back';
-        formSub.textContent   = 'Sign in to manage your videos.';
-        submitBtn.textContent = 'Sign in';
-        passwordEl.autocomplete = 'current-password';
-      }
-      hideError();
+    function show(el, msg) { el.textContent = msg; el.classList.add('visible'); }
+    function hide(el)      { el.classList.remove('visible'); }
+
+    function goToStep(which) {
+      stepEmail.classList.toggle('active', which === 'email');
+      stepCode.classList.toggle('active', which === 'code');
+      hide(emailErr); hide(codeErr); hide(codeInfo);
+      if (which === 'code') setTimeout(() => codeEl.focus(), 50);
+      else setTimeout(() => emailEl.focus(), 50);
     }
-    tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
 
-    // Apply the URL-derived initial tab (no-op if it's the default 'login').
-    if (mode === 'signup') setMode('signup');
+    async function requestCode(email) {
+      const res = await fetch('/api/auth/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, data };
+    }
 
-    function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('visible'); }
-    function hideError()    { errorBox.classList.remove('visible'); }
-
-    form.addEventListener('submit', async (e) => {
+    emailForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      hideError();
-      const email = emailEl.value.trim();
-      const password = passwordEl.value;
-      if (!email || !password) return;
-      if (mode === 'signup' && password.length < 8) {
-        showError('Password must be at least 8 characters.');
+      hide(emailErr);
+      const email = emailEl.value.trim().toLowerCase();
+      if (!email) return;
+      emailBtn.disabled = true;
+      const original = emailBtn.textContent;
+      emailBtn.textContent = 'Sending…';
+      const { ok, data } = await requestCode(email).catch(() => ({ ok: false, data: {} }));
+      emailBtn.disabled = false; emailBtn.textContent = original;
+      if (!ok) {
+        show(emailErr, data.error || 'Could not send code. Please try again.');
         return;
       }
-      submitBtn.disabled = true;
-      const original = submitBtn.textContent;
-      submitBtn.textContent = mode === 'signup' ? 'Creating…' : 'Signing in…';
+      currentEmail = email;
+      emailEcho.textContent = email;
+      codeEl.value = '';
+      goToStep('code');
+    });
+
+    // Strip non-digits as the user types so paste works cleanly.
+    codeEl.addEventListener('input', () => {
+      codeEl.value = codeEl.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    codeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hide(codeErr); hide(codeInfo);
+      const code = codeEl.value.trim();
+      if (!/^\d{6}$/.test(code)) {
+        show(codeErr, 'Please enter the 6-digit code from your email.');
+        return;
+      }
+      codeBtn.disabled = true;
+      const original = codeBtn.textContent;
+      codeBtn.textContent = 'Verifying…';
       try {
-        const res = await fetch(`/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
+        const res = await fetch('/api/auth/verify-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: currentEmail, code })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          showError(data.error || 'Something went wrong. Try again.');
-          submitBtn.disabled = false; submitBtn.textContent = original;
+          show(codeErr, data.error || 'Could not verify code. Please try again.');
+          codeBtn.disabled = false; codeBtn.textContent = original;
           return;
         }
 
@@ -172,13 +220,36 @@
           localStorage.removeItem(KEY);
         } catch {}
 
-        // Honor ?next=... if provided, otherwise go to account.
         const params = new URLSearchParams(window.location.search);
         window.location.href = params.get('next') || '/account';
       } catch {
-        showError('Network error. Please try again.');
-        submitBtn.disabled = false; submitBtn.textContent = original;
+        show(codeErr, 'Network error. Please try again.');
+        codeBtn.disabled = false; codeBtn.textContent = original;
       }
+    });
+
+    resendBtn.addEventListener('click', async () => {
+      if (!currentEmail) return;
+      hide(codeErr); hide(codeInfo);
+      resendBtn.disabled = true;
+      const original = resendBtn.textContent;
+      resendBtn.textContent = 'Sending…';
+      const { ok, data } = await requestCode(currentEmail).catch(() => ({ ok: false, data: {} }));
+      resendBtn.textContent = original;
+      if (!ok) {
+        show(codeErr, data.error || 'Could not resend code.');
+        // Re-enable after a short delay so they can try again.
+        setTimeout(() => { resendBtn.disabled = false; }, 2000);
+        return;
+      }
+      show(codeInfo, 'A new code is on its way.');
+      // Soft-cooldown: prevent rapid re-clicks.
+      setTimeout(() => { resendBtn.disabled = false; }, 15000);
+    });
+
+    changeBtn.addEventListener('click', () => {
+      currentEmail = '';
+      goToStep('email');
     });
 
     // If already signed in, jump to account.
