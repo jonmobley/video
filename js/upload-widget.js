@@ -8,32 +8,61 @@
   const MAX_SIZE = 1024 * 1024 * 1024;
 
   const TEMPLATE = `
-    <div class="drop-zone" data-el="dropZone">
-      <input type="file" data-el="fileInput" accept="video/*">
-      <span class="drop-icon-wrap">
-        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <defs><linearGradient id="vsGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
-          <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
-          <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-        </svg>
-      </span>
-      <div class="drop-label">Tap to choose a video</div>
-      <div class="drop-sub">Any format · Vertical or horizontal</div>
-      <div class="size-limit">Max 1 GB</div>
+    <div class="mode-tabs" role="tablist">
+      <button type="button" class="mode-tab active" data-el="tabFile" role="tab" aria-selected="true">Upload a file</button>
+      <button type="button" class="mode-tab" data-el="tabLink" role="tab" aria-selected="false">Paste a link</button>
     </div>
 
-    <div class="file-preview" data-el="filePreview">
-      <span class="file-icon-wrap">
-        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="6" width="14" height="12" rx="2"/>
-          <path d="M22 8l-6 4 6 4V8z"/>
-        </svg>
-      </span>
-      <div class="file-info">
-        <div class="file-name" data-el="fileName"></div>
-        <div class="file-size-txt" data-el="fileSizeTxt"></div>
+    <div class="mode-panel active" data-el="panelFile">
+      <div class="drop-zone" data-el="dropZone">
+        <input type="file" data-el="fileInput" accept="video/*">
+        <span class="drop-icon-wrap">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <defs><linearGradient id="vsGrad" x1="0" x2="1" y1="0" x2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
+            <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
+            <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+        </span>
+        <div class="drop-label">Tap to choose a video</div>
+        <div class="drop-sub">Any format · Vertical or horizontal</div>
+        <div class="size-limit">Max 1 GB</div>
       </div>
-      <button type="button" class="file-remove" data-el="fileRemove" aria-label="Remove file">✕</button>
+
+      <div class="file-preview" data-el="filePreview">
+        <span class="file-icon-wrap">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="14" height="12" rx="2"/>
+            <path d="M22 8l-6 4 6 4V8z"/>
+          </svg>
+        </span>
+        <div class="file-info">
+          <div class="file-name" data-el="fileName"></div>
+          <div class="file-size-txt" data-el="fileSizeTxt"></div>
+        </div>
+        <button type="button" class="file-remove" data-el="fileRemove" aria-label="Remove file">✕</button>
+      </div>
+    </div>
+
+    <div class="mode-panel" data-el="panelLink">
+      <div class="link-zone">
+        <span class="drop-icon-wrap">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <defs><linearGradient id="vsGrad2" x1="0" x2="1" y1="0" x2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
+            <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/>
+            <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>
+          </svg>
+        </span>
+        <div class="link-zone-label">Paste a YouTube or Vimeo link</div>
+        <div class="link-zone-sub">We'll embed it on a shareable watch page.</div>
+        <input type="url" class="link-input" data-el="linkInput"
+               placeholder="https://youtu.be/… or https://vimeo.com/…"
+               autocomplete="off" spellcheck="false">
+        <div class="link-detected" data-el="linkDetected"></div>
+      </div>
+      <div class="link-note">
+        Heads up: password and expiration only protect this watch page.
+        Anyone with the original YouTube or Vimeo URL can still view the video there.
+      </div>
     </div>
 
     <div class="fields" data-el="fieldsArea" style="display:none;">
@@ -172,7 +201,16 @@
     const successSub = $('successSub');
     const accountNudge = $('accountNudge');
 
+    const tabFile = $('tabFile');
+    const tabLink = $('tabLink');
+    const panelFile = $('panelFile');
+    const panelLink = $('panelLink');
+    const linkInput = $('linkInput');
+    const linkDetected = $('linkDetected');
+
     let selectedFile = null;
+    let mode = 'file';            // 'file' | 'link'
+    let parsedLink = null;        // { platform, videoId } | null
 
     const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(r => r.ok)
@@ -186,10 +224,62 @@
       progressText.textContent = label || 'Uploading…';
     }
 
+    function setMode(next) {
+      mode = next;
+      tabFile.classList.toggle('active', mode === 'file');
+      tabLink.classList.toggle('active', mode === 'link');
+      tabFile.setAttribute('aria-selected', mode === 'file');
+      tabLink.setAttribute('aria-selected', mode === 'link');
+      panelFile.classList.toggle('active', mode === 'file');
+      panelLink.classList.toggle('active', mode === 'link');
+
+      const showFields = mode === 'link' ? true : !!selectedFile;
+      fieldsArea.style.display = showFields ? 'flex' : 'none';
+      uploadBtn.classList.toggle('visible', showFields);
+      uploadBtn.textContent = mode === 'link' ? 'Create Watch Link' : 'Upload & Get Link';
+
+      hideError();
+      updateUploadBtnState();
+    }
+
+    tabFile.addEventListener('click', () => setMode('file'));
+    tabLink.addEventListener('click', () => setMode('link'));
+
+    linkInput.addEventListener('input', () => {
+      const val = linkInput.value.trim();
+      parsedLink = null;
+      linkDetected.textContent = '';
+      linkDetected.classList.remove('error');
+
+      if (!val) {
+        updateUploadBtnState();
+        return;
+      }
+
+      const res = window.LinkParser ? window.LinkParser.parse(val) : null;
+      if (res) {
+        parsedLink = res;
+        linkDetected.textContent = `Detected: ${res.platform === 'youtube' ? 'YouTube' : 'Vimeo'} video`;
+        if (!titleInput.value.trim()) {
+          titleInput.value = res.platform === 'youtube' ? 'YouTube Video' : 'Vimeo Video';
+        }
+      } else {
+        linkDetected.textContent = 'Not a recognized YouTube or Vimeo URL';
+        linkDetected.classList.add('error');
+      }
+      updateUploadBtnState();
+    });
+
     function updateUploadBtnState() {
-      const hasFile = !!selectedFile;
-      const hasTitle = titleInput.value.trim().length > 0;
-      uploadBtn.disabled = !(hasFile && hasTitle);
+      if (mode === 'file') {
+        const hasFile = !!selectedFile;
+        const hasTitle = titleInput.value.trim().length > 0;
+        uploadBtn.disabled = !(hasFile && hasTitle);
+      } else {
+        const hasLink = !!parsedLink;
+        const hasTitle = titleInput.value.trim().length > 0;
+        uploadBtn.disabled = !(hasLink && hasTitle);
+      }
     }
 
     function setFile(file) {
@@ -234,9 +324,80 @@
       else showError('Please drop a video file.');
     });
 
+    function finishSuccess(videoId, opts) {
+      const { title, expiryDays, password, isLink, platform } = opts || {};
+
+      try {
+        const KEY = 'vs_pending_claims';
+        const raw = localStorage.getItem(KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        const cleaned = Array.isArray(list) ? list.filter(e => e && typeof e.id === 'string') : [];
+        cleaned.push({ id: videoId, ts: Date.now() });
+        localStorage.setItem(KEY, JSON.stringify(cleaned.slice(-50)));
+      } catch {}
+
+      const watchUrl = window.location.origin + '/watch?id=' + encodeURIComponent(videoId);
+
+      setTimeout(() => {
+        progressArea.classList.remove('visible');
+        successArea.classList.add('visible');
+        shareLink.textContent = watchUrl;
+        watchLinkBtn.href = watchUrl;
+
+        metaRow.innerHTML = '';
+        if (title) {
+          const b = document.createElement('span');
+          b.className = 'meta-badge'; b.textContent = title;
+          metaRow.appendChild(b);
+        }
+        if (isLink && platform) {
+          const pb = document.createElement('span');
+          pb.className = 'meta-badge';
+          pb.textContent = platform === 'youtube' ? 'YouTube embed' : 'Vimeo embed';
+          metaRow.appendChild(pb);
+        }
+        const expBadge = document.createElement('span');
+        expBadge.className = 'meta-badge';
+        expBadge.textContent = expiryDays === 'never' ? 'No expiry' : `Expires in ${expiryDays} day${expiryDays === '1' ? '' : 's'}`;
+        metaRow.appendChild(expBadge);
+        if (password) {
+          const pb = document.createElement('span');
+          pb.className = 'meta-badge'; pb.textContent = 'Password protected';
+          metaRow.appendChild(pb);
+        }
+
+        if (isLink) {
+          successSub.textContent = password
+            ? 'Share the watch link — recipients will need the password. (Anyone who already has the original video URL can still view it there.)'
+            : 'Share the watch link with anyone. (Anyone who already has the original video URL can still view it there.)';
+        } else {
+          successSub.textContent = password
+            ? 'Share the link — recipients will need the password to watch.'
+            : 'Copy the link and send it to anyone.';
+        }
+
+        authReady.then(signedIn => {
+          accountNudge.classList.toggle('visible', !signedIn);
+        });
+
+        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=1c1c1e&data=' + encodeURIComponent(watchUrl);
+
+        navigator.clipboard.writeText(watchUrl).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 3000);
+        }).catch(() => {});
+
+        root.dispatchEvent(new CustomEvent('upload:success', { detail: { videoId, watchUrl } }));
+      }, 400);
+    }
+
     uploadBtn.addEventListener('click', startUpload);
 
     async function startUpload() {
+      if (mode === 'link') {
+        return startLinkUpload();
+      }
       if (!selectedFile) return;
       const title = titleInput.value.trim();
       if (!title) {
@@ -291,58 +452,7 @@
         }
 
         setProgress(100, 'Done!');
-
-        try {
-          const KEY = 'vs_pending_claims';
-          const raw = localStorage.getItem(KEY);
-          const list = raw ? JSON.parse(raw) : [];
-          const cleaned = Array.isArray(list) ? list.filter(e => e && typeof e.id === 'string') : [];
-          cleaned.push({ id: videoId, ts: Date.now() });
-          localStorage.setItem(KEY, JSON.stringify(cleaned.slice(-50)));
-        } catch {}
-
-        const watchUrl = window.location.origin + '/watch?id=' + encodeURIComponent(videoId);
-
-        setTimeout(() => {
-          progressArea.classList.remove('visible');
-          successArea.classList.add('visible');
-          shareLink.textContent = watchUrl;
-          watchLinkBtn.href = watchUrl;
-
-          metaRow.innerHTML = '';
-          if (title) {
-            const b = document.createElement('span');
-            b.className = 'meta-badge'; b.textContent = title;
-            metaRow.appendChild(b);
-          }
-          const expBadge = document.createElement('span');
-          expBadge.className = 'meta-badge';
-          expBadge.textContent = expiryDays === 'never' ? 'No expiry' : `Expires in ${expiryDays} day${expiryDays === '1' ? '' : 's'}`;
-          metaRow.appendChild(expBadge);
-          if (password) {
-            const pb = document.createElement('span');
-            pb.className = 'meta-badge'; pb.textContent = 'Password protected';
-            metaRow.appendChild(pb);
-          }
-
-          successSub.textContent = password
-            ? 'Share the link — recipients will need the password to watch.'
-            : 'Copy the link and send it to anyone.';
-
-          authReady.then(signedIn => {
-            accountNudge.classList.toggle('visible', !signedIn);
-          });
-
-          qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=1c1c1e&data=' + encodeURIComponent(watchUrl);
-
-          navigator.clipboard.writeText(watchUrl).then(() => {
-            copyBtn.textContent = 'Copied!';
-            copyBtn.classList.add('copied');
-            setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 3000);
-          }).catch(() => {});
-
-          root.dispatchEvent(new CustomEvent('upload:success', { detail: { videoId, watchUrl } }));
-        }, 400);
+        finishSuccess(videoId, { title, expiryDays, password, isLink: false });
 
       } catch (err) {
         progressArea.classList.remove('visible');
@@ -350,6 +460,47 @@
         filePreview.classList.add('visible');
         fieldsArea.style.display = 'flex';
         showError('Upload failed: ' + err.message);
+      }
+    }
+
+    async function startLinkUpload() {
+      if (!parsedLink) return;
+      const title = titleInput.value.trim();
+      if (!title) {
+        showError('Please add a title for your video.');
+        titleInput.focus();
+        return;
+      }
+      const url = linkInput.value.trim();
+      const expiryDays = expirySelect.value;
+      const password = passwordInput.value;
+
+      uploadBtn.classList.remove('visible');
+      panelLink.style.display = 'none';
+      fieldsArea.style.display = 'none';
+      progressArea.classList.add('visible');
+      hideError();
+      setProgress(50, 'Submitting link…');
+
+      try {
+        const res = await fetch('/api/create-link-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, title, expiryDays, password })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to create link video');
+        }
+        const data = await res.json();
+        setProgress(100, 'Done!');
+        finishSuccess(data.videoId, { title, expiryDays, password, isLink: true, platform: data.platform });
+      } catch (err) {
+        progressArea.classList.remove('visible');
+        uploadBtn.classList.add('visible');
+        panelLink.style.display = '';
+        fieldsArea.style.display = 'flex';
+        showError('Submission failed: ' + err.message);
       }
     }
 
@@ -372,6 +523,10 @@
       accountNudge.classList.remove('visible');
       titleInput.value = '';
       passwordInput.value = '';
+      linkInput.value = '';
+      parsedLink = null;
+      linkDetected.textContent = '';
+      setMode('file');
       clearFile();
       updateUploadBtnState();
     }

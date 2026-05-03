@@ -206,6 +206,13 @@ async function ensureSchema() {
     ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
 
+    -- Embed-link videos (YouTube/Vimeo). platform = 'upload' for legacy/native
+    -- uploads, 'youtube' or 'vimeo' for pasted links. embed_video_id holds the
+    -- platform-specific ID (e.g. YouTube 11-char code, Vimeo numeric ID, or
+    -- "NUMERIC/HASH" for unlisted Vimeo videos).
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'upload';
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS embed_video_id TEXT;
+
     -- User accounts. Auth is magic-code via email (no passwords).
     CREATE TABLE IF NOT EXISTS vs_users (
       id TEXT PRIMARY KEY,
@@ -416,11 +423,63 @@ app.post('/api/finalize-video', async (req, res) => {
 });
 
 // ── Video metadata ────────────────────────────────────────────────────────────
+
+// In-memory cache of oEmbed availability checks. Keyed by `${platform}:${id}`.
+// Both YouTube and Vimeo expose a public oEmbed endpoint that returns 200 for
+// publicly-embeddable videos and 401/403/404 when the video is private,
+// removed, or has embedding disabled by the owner. Checking this server-side
+// (rather than trying to attach to the iframe client-side) is the only
+// reliable way to detect those states — the iframe itself just renders the
+// platform's "video unavailable" UI on success of the page load.
+const embedAvailabilityCache = new Map();
+const EMBED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function checkEmbedAvailability(platform, embedVideoId) {
+  if (!embedVideoId) return true;
+  const key = `${platform}:${embedVideoId}`;
+  const cached = embedAvailabilityCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.available;
+
+  // Use the most reliable per-platform endpoint:
+  //   YouTube: oEmbed returns 200 for public videos, 401 for private,
+  //            404 for removed/unknown, and works server-side without auth.
+  //   Vimeo:   oEmbed is rate-limited / blocked from many IPs; instead we
+  //            hit the player config endpoint that the embed iframe itself
+  //            calls — 200 = embeddable, 403 = embedding disabled, 404 = gone.
+  let checkUrl;
+  if (platform === 'youtube') {
+    checkUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + embedVideoId)}&format=json`;
+  } else if (platform === 'vimeo') {
+    // Unlisted videos use the "ID/HASH" form; player.vimeo.com accepts that
+    // path directly without any extra query parameter.
+    checkUrl = `https://player.vimeo.com/video/${embedVideoId}/config`;
+  } else {
+    return true;
+  }
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(checkUrl, { signal: ctrl.signal, redirect: 'follow' });
+    clearTimeout(t);
+    const available = r.ok; // 200 = embeddable, 401/403/404 = not embeddable
+    embedAvailabilityCache.set(key, { available, expires: Date.now() + EMBED_CACHE_TTL_MS });
+    return available;
+  } catch {
+    // Network failure or timeout: assume available so we don't false-negative
+    // a working embed because of a transient outage. The client still has its
+    // own safety-net timeout for the truly unreachable case.
+    return true;
+  }
+}
+
 app.get('/api/video-meta/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'SELECT id, title, expires_at, password_hash, view_count, file_size, uploaded_at, content_type FROM vs_uploads WHERE id = $1',
+      `SELECT id, title, expires_at, password_hash, view_count, file_size, uploaded_at,
+              content_type, platform, embed_video_id
+         FROM vs_uploads WHERE id = $1`,
       [id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Video not found' });
@@ -428,6 +487,12 @@ app.get('/api/video-meta/:id', async (req, res) => {
     const v = result.rows[0];
     if (v.expires_at && new Date(v.expires_at) < new Date()) {
       return res.status(410).json({ error: 'This video has expired.' });
+    }
+
+    const platform = v.platform || 'upload';
+    let embedAvailable = true;
+    if ((platform === 'youtube' || platform === 'vimeo') && v.embed_video_id) {
+      embedAvailable = await checkEmbedAvailability(platform, v.embed_video_id);
     }
 
     res.json({
@@ -438,10 +503,72 @@ app.get('/api/video-meta/:id', async (req, res) => {
       viewCount: v.view_count,
       fileSize: v.file_size,
       uploadedAt: v.uploaded_at,
-      contentType: v.content_type
+      contentType: v.content_type,
+      platform,
+      embedVideoId: v.embed_video_id || null,
+      embedAvailable
     });
   } catch (err) {
     console.error('video-meta error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Create link-based video (YouTube / Vimeo) ────────────────────────────────
+// Stores a watch-page record that points at a YouTube or Vimeo embed instead
+// of an uploaded blob. Reuses title / expiry / password fields so gating works
+// with no behavioural divergence on the watch page.
+const linkParser = require('./js/link-parser.js');
+
+app.post('/api/create-link-video', async (req, res) => {
+  try {
+    const { url, title, expiryDays, password } = req.body || {};
+
+    const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+    if (!trimmedTitle) return res.status(400).json({ error: 'A title is required.' });
+    if (trimmedTitle.length > 120) return res.status(400).json({ error: 'Title must be 120 characters or fewer.' });
+
+    if (typeof url !== 'string' || !url.trim()) {
+      return res.status(400).json({ error: 'Please paste a YouTube or Vimeo link.' });
+    }
+    const parsed = linkParser.parse(url);
+    if (!parsed) {
+      return res.status(400).json({ error: "That doesn't look like a YouTube or Vimeo link we can embed." });
+    }
+
+    // Same per-IP shield as native uploads — these are cheap to create but we
+    // still want to cap abuse from a single source.
+    const ip = getIp(req);
+    if (isRateLimited(ip)) {
+      return res.status(429).json({ error: 'Too many uploads. Please try again in an hour.' });
+    }
+
+    const expiresAt = expiryDays && expiryDays !== 'never'
+      ? new Date(Date.now() + parseInt(expiryDays, 10) * 24 * 60 * 60 * 1000)
+      : null;
+    const passwordHash = password ? hashPassword(password) : null;
+
+    // Random opaque ID — no extension, distinct shape from upload IDs to keep
+    // the watch URL pattern identical (?id=...) without leaking the platform.
+    const videoId = crypto.randomBytes(12).toString('hex');
+    const contentType = parsed.platform === 'youtube' ? 'link/youtube' : 'link/vimeo';
+
+    await pool.query(
+      `INSERT INTO vs_uploads
+         (id, content_type, title, expires_at, password_hash, file_size, user_id, platform, embed_video_id)
+       VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8)`,
+      [videoId, contentType, trimmedTitle, expiresAt, passwordHash, req.userId || null, parsed.platform, parsed.videoId]
+    );
+
+    res.json({
+      success: true,
+      videoId,
+      platform: parsed.platform,
+      embedVideoId: parsed.videoId,
+      watchUrl: `/watch?id=${encodeURIComponent(videoId)}`
+    });
+  } catch (err) {
+    console.error('create-link-video error:', err);
     res.status(500).json({ error: err.message });
   }
 });

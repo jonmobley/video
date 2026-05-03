@@ -57,9 +57,79 @@ class VideoPlatformManager {
 
         if (this.currentPlatform === 'dropbox') {
             this.loadDropboxVideo(video, container, onReady);
+        } else if (this.currentPlatform === 'youtube') {
+            this.loadYouTubeVideo(video, container, onReady);
+        } else if (this.currentPlatform === 'vimeo') {
+            this.loadVimeoVideo(video, container, onReady);
         } else {
             this.loadWistiaVideo(video, container, onReady);
         }
+    }
+
+    /**
+     * Load a YouTube video as an iframe embed.
+     * @param {Object} video - Video object. Expects video.embedVideoId (the
+     *                        YouTube 11-char ID) or falls back to video.wistiaId.
+     * @param {HTMLElement} container
+     * @param {Function} [onReady]
+     */
+    loadYouTubeVideo(video, container, onReady) {
+        const id = video.embedVideoId || video.wistiaId || video.id;
+        container.innerHTML = '';
+        container.setAttribute('data-platform', 'youtube');
+
+        // enablejsapi=1 lets the watch page attach a YT.Player to this iframe
+        // for onReady/onError detection (private/removed/embedding-disabled).
+        // The unique iframe id gives YT.Player a stable target.
+        const iframe = document.createElement('iframe');
+        const frameId = `yt_${Math.random().toString(36).slice(2)}`;
+        iframe.id = frameId;
+        const origin = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
+        const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
+        iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&enablejsapi=1${originParam}`;
+        iframe.title = video.title || 'YouTube video';
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        iframe.allowFullscreen = true;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = '0';
+
+        iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
+        container.appendChild(iframe);
+        return iframe;
+    }
+
+    /**
+     * Load a Vimeo video as an iframe embed. For unlisted videos the embed
+     * ID may carry an `ID/HASH` shape; we split that out into the player URL.
+     * @param {Object} video - Expects video.embedVideoId.
+     * @param {HTMLElement} container
+     * @param {Function} [onReady]
+     */
+    loadVimeoVideo(video, container, onReady) {
+        const raw = video.embedVideoId || video.wistiaId || video.id || '';
+        const parts = String(raw).split('/');
+        const id = parts[0];
+        const hash = parts[1];
+        const qs = hash ? `?h=${encodeURIComponent(hash)}` : '';
+
+        container.innerHTML = '';
+        container.setAttribute('data-platform', 'vimeo');
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://player.vimeo.com/video/${encodeURIComponent(id)}${qs}`;
+        iframe.title = video.title || 'Vimeo video';
+        iframe.allow = 'autoplay; fullscreen; picture-in-picture; clipboard-write';
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        iframe.allowFullscreen = true;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = '0';
+
+        iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
+        container.appendChild(iframe);
+        return iframe;
     }
 
     /**
