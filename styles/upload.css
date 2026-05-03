@@ -183,9 +183,30 @@
   color: #aaa; text-align: left; border: 1px solid #3A3A3C;
 }
 
-.upload-card .qr-wrap { margin: 18px 0 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.upload-card .qr-disclosure { margin: 14px 0 6px; }
+.upload-card .qr-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 10px 14px;
+  background: transparent; border: 1px dashed #3A3A3C; border-radius: 12px;
+  color: #aaa; font-size: 0.85rem; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.upload-card .qr-toggle:hover { border-color: #4ecdc4; color: #fff; background: rgba(78,205,196,0.06); }
+.upload-card .qr-toggle-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.upload-card .qr-toggle-chevron { width: 14px; height: 14px; transition: transform 0.2s ease; }
+.upload-card .qr-disclosure.open .qr-toggle-chevron { transform: rotate(180deg); }
+.upload-card .qr-panel { margin-top: 12px; }
+.upload-card .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .upload-card .qr-wrap img { border-radius: 12px; border: 3px solid #2c2c2e; }
 .upload-card .qr-label { font-size: 0.78rem; color: #555; }
+.upload-card .qr-download-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; background: #2c2c2e; border: 1px solid #3A3A3C;
+  border-radius: 10px; color: #ddd; font-size: 0.82rem; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.upload-card .qr-download-btn:hover { background: #3A3A3C; color: #fff; }
+.upload-card .qr-download-btn svg { width: 14px; height: 14px; }
 
 .upload-card .meta-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 16px; flex-wrap: wrap; }
 .upload-card .meta-badge {
@@ -193,10 +214,16 @@
   padding: 5px 10px; border-radius: 20px;
 }
 
-.upload-card .watch-link-btn {
-  display: block; margin-top: 10px; text-align: center;
-  color: #007AFF; font-size: 0.9rem; text-decoration: none; padding: 10px;
+.upload-card button.btn.watch-link-btn,
+.upload-card button.btn.watch-link-btn:hover {
+  margin-top: 12px; width: 100%; padding: 13px; font-size: 0.95rem;
+  border-radius: 14px; background: #2c2c2e; color: #fff;
+  border: 1px solid #3A3A3C; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
+.upload-card button.btn.watch-link-btn:hover { background: #3A3A3C; border-color: #4ecdc4; }
+.upload-card button.btn.watch-link-btn:active { transform: translateY(1px); }
 .upload-card .another-btn {
   margin-top: 8px; width: 100%; padding: 13px; font-size: 0.9rem;
   border-radius: 14px; background: #2c2c2e; color: #fff;
