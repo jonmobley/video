@@ -59,7 +59,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } })
     };
   }
 
@@ -70,7 +70,23 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const body = JSON.parse(event.body);
+    if (event.body && event.body.length > 8 * 1024 * 1024) {
+      return {
+        statusCode: 413,
+        headers,
+        body: JSON.stringify({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload too large.' } })
+      };
+    }
+    let body;
+    try {
+      body = JSON.parse(event.body || '{}');
+    } catch {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_JSON', message: 'Request body is not valid JSON.' } })
+      };
+    }
     const { page, image, contentType } = body;
 
     // Validate input
@@ -78,32 +94,42 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Missing required fields: page, image, contentType' })
+        body: JSON.stringify({ error: { code: 'MISSING_FIELDS', message: 'Missing required fields: page, image, contentType.' } })
+      };
+    }
+    if (typeof page !== 'string' || page.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(page)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_PAGE', message: 'Invalid page ID.' } })
       };
     }
 
     // Validate content type
     if (!ALLOWED_TYPES.includes(contentType)) {
       return {
-        statusCode: 400,
+        statusCode: 415,
         headers,
-        body: JSON.stringify({ 
-          error: `Invalid image type. Allowed types: ${ALLOWED_TYPES.join(', ')}` 
-        })
+        body: JSON.stringify({ error: { code: 'UNSUPPORTED_TYPE', message: `Invalid image type. Allowed: ${ALLOWED_TYPES.join(', ')}.` } })
       };
     }
 
     // Decode base64 image
     const imageBuffer = Buffer.from(image, 'base64');
+    if (imageBuffer.length === 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'EMPTY_FILE', message: 'Image data is empty.' } })
+      };
+    }
 
     // Validate file size
     if (imageBuffer.length > MAX_FILE_SIZE) {
       return {
-        statusCode: 400,
+        statusCode: 413,
         headers,
-        body: JSON.stringify({ 
-          error: `Image too large. Maximum size: ${MAX_FILE_SIZE / 1024 / 1024}MB` 
-        })
+        body: JSON.stringify({ error: { code: 'FILE_TOO_LARGE', message: `Image too large. Max ${MAX_FILE_SIZE / 1024 / 1024} MB.` } })
       };
     }
 
@@ -166,7 +192,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message || 'Internal server error' })
+      body: JSON.stringify({ error: { code: 'INTERNAL', message: 'Internal server error' } })
     };
   }
 };

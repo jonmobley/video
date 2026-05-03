@@ -42,8 +42,8 @@ function requireAuth(event) {
       response: {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          error: 'Server configuration error: ADMIN_TOKEN not set. Please configure ADMIN_TOKEN in environment variables.' 
+        body: JSON.stringify({
+          error: { code: 'ADMIN_NOT_CONFIGURED', message: 'Server configuration error: ADMIN_TOKEN not set. Please configure ADMIN_TOKEN in environment variables.' }
         })
       }
     };
@@ -58,8 +58,8 @@ function requireAuth(event) {
       response: {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ 
-          error: 'Unauthorized: Missing Authorization header. Please provide admin token.' 
+        body: JSON.stringify({
+          error: { code: 'AUTH_REQUIRED', message: 'Unauthorized: Missing Authorization header. Please provide admin token.' }
         })
       }
     };
@@ -76,8 +76,8 @@ function requireAuth(event) {
       response: {
         statusCode: 403,
         headers,
-        body: JSON.stringify({ 
-          error: 'Forbidden: Invalid admin token' 
+        body: JSON.stringify({
+          error: { code: 'FORBIDDEN', message: 'Forbidden: Invalid admin token.' }
         })
       }
     };

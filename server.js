@@ -73,9 +73,15 @@ function getIp(req) {
 
 function requireAdmin(req, res, next) {
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-  if (!ADMIN_TOKEN) return res.status(500).json({ error: 'ADMIN_TOKEN not configured' });
+  if (!ADMIN_TOKEN) return apiError(res, 500, 'ADMIN_NOT_CONFIGURED', 'ADMIN_TOKEN not configured on the server.');
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/, '');
-  if (token !== ADMIN_TOKEN) return res.status(403).json({ error: 'Forbidden' });
+  if (!token) return apiError(res, 401, 'AUTH_REQUIRED', 'Admin token required.');
+  // Constant-time compare prevents timing-based token discovery.
+  const a = Buffer.from(token);
+  const b = Buffer.from(ADMIN_TOKEN);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return apiError(res, 403, 'FORBIDDEN', 'Invalid admin token.');
+  }
   next();
 }
 
@@ -157,7 +163,7 @@ function attachUser(req, res, next) {
   next();
 }
 function requireUser(req, res, next) {
-  if (!req.userId) return res.status(401).json({ error: 'Sign in required' });
+  if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
   next();
 }
 
@@ -182,6 +188,33 @@ function clearSessionCookie(res) {
 // just enough to catch obvious typos. Real validation = a confirmation email,
 // which is out of scope here.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ── Consistent API error shape ───────────────────────────────────────────────
+// All non-2xx JSON responses follow `{ error: { code, message } }` so the
+// frontend can render a friendly message rather than `[object Object]` or a
+// raw stack trace. The `code` is a short machine-readable string the client
+// can branch on (e.g. show a retry button for `RATE_LIMITED`).
+function apiError(res, status, code, message) {
+  return res.status(status).json({ error: { code, message } });
+}
+
+// Allowed video content types for native uploads. We're lenient to match what
+// browsers actually emit (Safari sends video/quicktime, Chrome sometimes sends
+// application/octet-stream for .mkv, etc.) but we still draw a hard line at
+// obviously wrong types like text/html.
+const ALLOWED_VIDEO_PREFIXES = ['video/', 'application/octet-stream'];
+function isAllowedVideoType(ct) {
+  if (typeof ct !== 'string' || !ct) return false;
+  return ALLOWED_VIDEO_PREFIXES.some(p => ct.toLowerCase().startsWith(p));
+}
+
+// Conservative video-id sanity: hex blob optionally followed by a short
+// extension. Rejects path traversal attempts (`../`), nulls, and obviously
+// malformed ids before they hit any DB query.
+const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
+function isValidVideoId(id) {
+  return typeof id === 'string' && id.length <= 80 && VIDEO_ID_RE.test(id);
+}
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function ensureSchema() {
@@ -300,6 +333,22 @@ async function cleanupExpired() {
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '8mb' }));
+// Catch malformed JSON / oversized payloads from express.json BEFORE they hit
+// any route handler — otherwise express's default error renderer dumps an HTML
+// stack trace which the frontend can't parse.
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    return apiError(res, 400, 'BAD_JSON', 'Request body is not valid JSON.');
+  }
+  if (err && err.type === 'entity.too.large') {
+    return apiError(res, 413, 'PAYLOAD_TOO_LARGE', 'Request body is too large.');
+  }
+  if (err) {
+    console.error('Unhandled middleware error:', err);
+    return apiError(res, 500, 'INTERNAL', 'Something went wrong. Please try again.');
+  }
+  next();
+});
 app.use(attachUser);
 app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
 
@@ -309,20 +358,38 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // ── Upload chunk ─────────────────────────────────────────────────────────────
 app.post('/api/upload-chunk', async (req, res) => {
   try {
-    const { videoId, chunkIndex, totalChunks, data, contentType } = req.body;
+    const { videoId, chunkIndex, totalChunks, data, contentType } = req.body || {};
     if (!videoId || chunkIndex === undefined || !totalChunks || !data || !contentType) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
+    }
+    if (!isValidVideoId(videoId)) {
+      return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    }
+    if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > 100000) {
+      return apiError(res, 400, 'BAD_CHUNK_INDEX', 'Invalid chunk index.');
+    }
+    if (!Number.isInteger(totalChunks) || totalChunks <= 0 || totalChunks > 100000) {
+      return apiError(res, 400, 'BAD_TOTAL_CHUNKS', 'Invalid total chunks.');
+    }
+    if (!isAllowedVideoType(contentType)) {
+      return apiError(res, 415, 'UNSUPPORTED_TYPE', 'Unsupported file type. Please upload a video.');
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      return apiError(res, 400, 'EMPTY_CHUNK', 'Empty chunk data.');
     }
 
     // Rate limit on first chunk only
     if (chunkIndex === 0) {
       const ip = getIp(req);
       if (isRateLimited(ip)) {
-        return res.status(429).json({ error: 'Too many uploads. Please try again in an hour.' });
+        return apiError(res, 429, 'RATE_LIMITED', 'Too many uploads. Please try again in an hour.');
       }
     }
 
     const buffer = Buffer.from(data, 'base64');
+    if (buffer.length === 0) {
+      return apiError(res, 400, 'EMPTY_CHUNK', 'Decoded chunk is empty.');
+    }
     await pool.query(
       `INSERT INTO vs_upload_chunks (video_id, chunk_index, data)
        VALUES ($1, $2, $3)
@@ -333,22 +400,41 @@ app.post('/api/upload-chunk', async (req, res) => {
     res.json({ success: true, chunkIndex, totalChunks });
   } catch (err) {
     console.error('upload-chunk error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Failed to save chunk. Please retry.');
   }
 });
 
 // ── Finalize video ───────────────────────────────────────────────────────────
 app.post('/api/finalize-video', async (req, res) => {
-  const { videoId, totalChunks, contentType, title, expiryDays, password } = req.body;
+  const { videoId, totalChunks, contentType, title, expiryDays, password } = req.body || {};
   if (!videoId || !totalChunks || !contentType) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
+  }
+  if (!isValidVideoId(videoId)) {
+    return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+  }
+  if (!Number.isInteger(totalChunks) || totalChunks <= 0 || totalChunks > 100000) {
+    return apiError(res, 400, 'BAD_TOTAL_CHUNKS', 'Invalid total chunks.');
+  }
+  if (!isAllowedVideoType(contentType)) {
+    return apiError(res, 415, 'UNSUPPORTED_TYPE', 'Unsupported file type. Please upload a video.');
   }
   const trimmedTitle = typeof title === 'string' ? title.trim() : '';
   if (!trimmedTitle) {
-    return res.status(400).json({ error: 'A title is required.' });
+    return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
   }
   if (trimmedTitle.length > 120) {
-    return res.status(400).json({ error: 'Title must be 120 characters or fewer.' });
+    return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
+  }
+  if (password != null && typeof password !== 'string') {
+    return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password format.');
+  }
+  if (typeof password === 'string' && password.length > 200) {
+    return apiError(res, 400, 'PASSWORD_TOO_LONG', 'Password must be 200 characters or fewer.');
+  }
+  if (expiryDays != null && expiryDays !== 'never' &&
+      !(Number.isInteger(parseInt(expiryDays, 10)) && parseInt(expiryDays, 10) > 0 && parseInt(expiryDays, 10) <= 3650)) {
+    return apiError(res, 400, 'BAD_EXPIRY', 'Invalid expiry value.');
   }
 
   const client = await pool.connect();
@@ -364,9 +450,10 @@ app.post('/api/finalize-video', async (req, res) => {
     );
     const { cnt, min_idx, max_idx } = continuity.rows[0];
     if (cnt !== totalChunks || min_idx !== 0 || max_idx !== totalChunks - 1) {
-      return res.status(400).json({
-        error: `Chunk integrity failure: expected ${totalChunks} contiguous chunks (0..${totalChunks - 1}), got ${cnt} with range ${min_idx}..${max_idx}.`
-      });
+      return apiError(
+        res, 400, 'CHUNK_INTEGRITY',
+        `Upload incomplete — some chunks did not arrive. Please retry the upload.`
+      );
     }
 
     const dataResult = await client.query(
@@ -375,9 +462,16 @@ app.post('/api/finalize-video', async (req, res) => {
     );
     const assembled = Buffer.concat(dataResult.rows.map(r => r.data));
 
+    if (assembled.length === 0) {
+      await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
+      return apiError(res, 400, 'EMPTY_FILE', 'The uploaded file is empty (0 bytes).');
+    }
     if (assembled.length > MAX_FILE_SIZE) {
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
-      return res.status(400).json({ error: `File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(0)} GB.` });
+      return apiError(
+        res, 413, 'FILE_TOO_LARGE',
+        `File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(0)} GB.`
+      );
     }
 
     const expiresAt = expiryDays && expiryDays !== 'never'
@@ -416,7 +510,7 @@ app.post('/api/finalize-video', async (req, res) => {
     res.json({ success: true, videoUrl: `/api/video/${encodeURIComponent(videoId)}` });
   } catch (err) {
     console.error('finalize-video error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not finalize the upload. Please try again.');
   } finally {
     client.release();
   }
@@ -476,17 +570,18 @@ async function checkEmbedAvailability(platform, embedVideoId) {
 app.get('/api/video-meta/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
     const result = await pool.query(
       `SELECT id, title, expires_at, password_hash, view_count, file_size, uploaded_at,
               content_type, platform, embed_video_id
          FROM vs_uploads WHERE id = $1`,
       [id]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Video not found' });
+    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
 
     const v = result.rows[0];
     if (v.expires_at && new Date(v.expires_at) < new Date()) {
-      return res.status(410).json({ error: 'This video has expired.' });
+      return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
 
     const platform = v.platform || 'upload';
@@ -510,7 +605,7 @@ app.get('/api/video-meta/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('video-meta error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not load video info.');
   }
 });
 
@@ -525,22 +620,43 @@ app.post('/api/create-link-video', async (req, res) => {
     const { url, title, expiryDays, password } = req.body || {};
 
     const trimmedTitle = typeof title === 'string' ? title.trim() : '';
-    if (!trimmedTitle) return res.status(400).json({ error: 'A title is required.' });
-    if (trimmedTitle.length > 120) return res.status(400).json({ error: 'Title must be 120 characters or fewer.' });
+    if (!trimmedTitle) return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
+    if (trimmedTitle.length > 120) return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
 
     if (typeof url !== 'string' || !url.trim()) {
-      return res.status(400).json({ error: 'Please paste a YouTube or Vimeo link.' });
+      return apiError(res, 400, 'URL_REQUIRED', 'Please paste a YouTube or Vimeo link.');
+    }
+    if (url.length > 2048) {
+      return apiError(res, 400, 'URL_TOO_LONG', 'That URL is too long.');
+    }
+    // Reject obvious non-embeddable hosts up front with a clear message so the
+    // user isn't left wondering why a "link" got rejected as un-parseable.
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('dropbox.com') || lowerUrl.includes('drive.google.com') ||
+        lowerUrl.includes('onedrive.live.com') || lowerUrl.includes('icloud.com')) {
+      return apiError(res, 400, 'UNSUPPORTED_HOST',
+        'Only YouTube and Vimeo links are supported here. For Dropbox/Drive files, upload the file directly.');
     }
     const parsed = linkParser.parse(url);
     if (!parsed) {
-      return res.status(400).json({ error: "That doesn't look like a YouTube or Vimeo link we can embed." });
+      return apiError(res, 400, 'BAD_LINK', "That doesn't look like a YouTube or Vimeo link we can embed.");
+    }
+    if (password != null && typeof password !== 'string') {
+      return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password format.');
+    }
+    if (typeof password === 'string' && password.length > 200) {
+      return apiError(res, 400, 'PASSWORD_TOO_LONG', 'Password must be 200 characters or fewer.');
+    }
+    if (expiryDays != null && expiryDays !== 'never' &&
+        !(Number.isInteger(parseInt(expiryDays, 10)) && parseInt(expiryDays, 10) > 0 && parseInt(expiryDays, 10) <= 3650)) {
+      return apiError(res, 400, 'BAD_EXPIRY', 'Invalid expiry value.');
     }
 
     // Same per-IP shield as native uploads — these are cheap to create but we
     // still want to cap abuse from a single source.
     const ip = getIp(req);
     if (isRateLimited(ip)) {
-      return res.status(429).json({ error: 'Too many uploads. Please try again in an hour.' });
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many uploads. Please try again in an hour.');
     }
 
     const expiresAt = expiryDays && expiryDays !== 'never'
@@ -569,27 +685,33 @@ app.post('/api/create-link-video', async (req, res) => {
     });
   } catch (err) {
     console.error('create-link-video error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not create the link. Please try again.');
   }
 });
 
 // ── Verify password ───────────────────────────────────────────────────────────
 app.post('/api/verify-password', async (req, res) => {
   try {
-    const { videoId, password } = req.body;
-    if (!videoId || !password) return res.status(400).json({ error: 'Missing fields' });
+    const { videoId, password } = req.body || {};
+    if (!videoId || !password) return apiError(res, 400, 'MISSING_FIELDS', 'Missing fields.');
+    if (typeof videoId !== 'string' || !isValidVideoId(videoId)) {
+      return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    }
+    if (typeof password !== 'string' || password.length > 200) {
+      return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password.');
+    }
 
     // Throttle by ip+videoId to slow brute-force on protected videos
     const throttleKey = getIp(req) + '|' + videoId;
     if (isVerifyThrottled(throttleKey)) {
-      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes.' });
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many attempts. Please wait a few minutes.');
     }
 
     const result = await pool.query(
       'SELECT password_hash FROM vs_uploads WHERE id = $1',
       [videoId]
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Video not found' });
+    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
 
     // Constant-time comparison prevents timing-based hash discovery
     const expected = result.rows[0].password_hash || '';
@@ -598,7 +720,8 @@ app.post('/api/verify-password', async (req, res) => {
       crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
     res.json({ valid });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('verify-password error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not verify password.');
   }
 });
 
@@ -606,24 +729,25 @@ app.post('/api/verify-password', async (req, res) => {
 app.get('/api/video/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
     const metaResult = await pool.query(
       'SELECT content_type, expires_at, password_hash FROM vs_uploads WHERE id = $1',
       [id]
     );
-    if (!metaResult.rows.length) return res.status(404).json({ error: 'Video not found' });
+    if (!metaResult.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
 
     const { content_type, expires_at, password_hash } = metaResult.rows[0];
 
     if (expires_at && new Date(expires_at) < new Date()) {
-      return res.status(410).send('Video expired');
+      return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
 
     // Password check via session token in query string
     if (password_hash) {
       const provided = req.query.pt;
       if (!provided || hashPassword(provided) !== password_hash) {
-        return res.status(403).json({ error: 'Password required' });
+        return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
       }
     }
 
@@ -632,7 +756,7 @@ app.get('/api/video/:id', async (req, res) => {
       'SELECT LENGTH(data) as size FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
       [id]
     );
-    if (!sizeResult.rows.length) return res.status(404).json({ error: 'Video data not found' });
+    if (!sizeResult.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
 
     const fileSize = parseInt(sizeResult.rows[0].size);
     const range = req.headers.range;
@@ -675,7 +799,7 @@ app.get('/api/video/:id', async (req, res) => {
     }
   } catch (err) {
     console.error('get-video error:', err);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not stream the video.');
   }
 });
 
@@ -689,7 +813,8 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     );
     res.json({ videos: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('admin list error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not load videos.');
   }
 });
 
@@ -697,11 +822,13 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
 app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
     await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
     await pool.query('DELETE FROM vs_uploads WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('admin delete error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not delete the video.');
   }
 });
 
@@ -713,14 +840,16 @@ app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
 
 app.post('/api/auth/request-code', async (req, res) => {
   try {
-    const email = (req.body.email || '').trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email.' });
-    if (email.length > 254)    return res.status(400).json({ error: 'Email is too long.' });
+    const rawEmail = (req.body && req.body.email);
+    if (typeof rawEmail !== 'string') return apiError(res, 400, 'BAD_EMAIL', 'Please enter a valid email.');
+    const email = rawEmail.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) return apiError(res, 400, 'BAD_EMAIL', 'Please enter a valid email.');
+    if (email.length > 254)    return apiError(res, 400, 'EMAIL_TOO_LONG', 'Email is too long.');
 
     const ip = getIp(req);
     if (checkAndIncrement(codeRequestByEmail, email, CODE_REQ_MAX_PER_EMAIL, CODE_REQ_WINDOW_MS) ||
         checkAndIncrement(codeRequestByIp,    ip,    CODE_REQ_MAX_PER_IP,    CODE_REQ_WINDOW_MS)) {
-      return res.status(429).json({ error: 'Too many code requests. Please wait a few minutes and try again.' });
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many code requests. Please wait a few minutes and try again.');
     }
 
     const code = generate6DigitCode();
@@ -762,26 +891,28 @@ app.post('/api/auth/request-code', async (req, res) => {
           WHERE email = $1 AND code_hash = $2 AND used_at IS NULL`,
         [email, codeHash]
       );
-      return res.status(502).json({ error: 'Could not send the code email. Please try again in a moment.' });
+      return apiError(res, 502, 'EMAIL_SEND_FAILED', 'Could not send the code email. Please try again in a moment.');
     }
 
     res.json({ ok: true });
   } catch (err) {
     console.error('request-code error:', err);
-    res.status(500).json({ error: 'Could not send code.' });
+    apiError(res, 500, 'INTERNAL', 'Could not send code.');
   }
 });
 
 app.post('/api/auth/verify-code', async (req, res) => {
   try {
-    const email = (req.body.email || '').trim().toLowerCase();
-    const code = (req.body.code || '').replace(/\s+/g, '');
-    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email.' });
-    if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Please enter the 6-digit code from your email.' });
+    const rawEmail = req.body && req.body.email;
+    const rawCode = req.body && req.body.code;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    const code = typeof rawCode === 'string' ? rawCode.replace(/\s+/g, '') : '';
+    if (!EMAIL_RE.test(email)) return apiError(res, 400, 'BAD_EMAIL', 'Please enter a valid email.');
+    if (!/^\d{6}$/.test(code)) return apiError(res, 400, 'BAD_CODE', 'Please enter the 6-digit code from your email.');
 
     // Per-IP brute-force shield, separate from the upload-password throttle.
     if (isVerifyThrottled('login:' + getIp(req))) {
-      return res.status(429).json({ error: 'Too many attempts. Please wait a few minutes and try again.' });
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many attempts. Please wait a few minutes and try again.');
     }
 
     const codeHash = hashCode(code);
@@ -795,16 +926,16 @@ app.post('/api/auth/verify-code', async (req, res) => {
       [email]
     );
     if (!lookup.rows.length) {
-      return res.status(400).json({ error: 'No active code for that email. Please request a new one.' });
+      return apiError(res, 400, 'NO_CODE', 'No active code for that email. Please request a new one.');
     }
     const row = lookup.rows[0];
     if (new Date(row.expires_at).getTime() < Date.now()) {
-      return res.status(400).json({ error: 'That code has expired. Please request a new one.' });
+      return apiError(res, 400, 'CODE_EXPIRED', 'That code has expired. Please request a new one.');
     }
     if (row.attempts >= CODE_MAX_ATTEMPTS) {
       // Burn the code to force a fresh one.
       await pool.query(`UPDATE vs_auth_codes SET used_at = NOW() WHERE id = $1`, [row.id]);
-      return res.status(400).json({ error: 'Too many wrong attempts. Please request a new code.' });
+      return apiError(res, 400, 'CODE_LOCKED', 'Too many wrong attempts. Please request a new code.');
     }
 
     // Atomic compare: only succeeds if the hash matches AND the row is still
@@ -820,7 +951,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
     );
     if (!claim.rows.length) {
       await pool.query(`UPDATE vs_auth_codes SET attempts = attempts + 1 WHERE id = $1`, [row.id]);
-      return res.status(400).json({ error: 'Incorrect code. Please try again.' });
+      return apiError(res, 400, 'BAD_CODE', 'Incorrect code. Please try again.');
     }
 
     // Find or create the user. Race-safe via ON CONFLICT.
@@ -843,7 +974,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
     res.json({ email });
   } catch (err) {
     console.error('verify-code error:', err);
-    res.status(500).json({ error: 'Could not verify code.' });
+    apiError(res, 500, 'INTERNAL', 'Could not verify code.');
   }
 });
 
@@ -853,9 +984,9 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/auth/me', async (req, res) => {
-  if (!req.userId) return res.status(401).json({ error: 'Not signed in' });
+  if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.');
   const result = await pool.query('SELECT email FROM vs_users WHERE id = $1', [req.userId]);
-  if (!result.rows.length) { clearSessionCookie(res); return res.status(401).json({ error: 'Not signed in' }); }
+  if (!result.rows.length) { clearSessionCookie(res); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
   res.json({ email: result.rows[0].email });
 });
 
@@ -874,7 +1005,7 @@ app.get('/api/my-videos', requireUser, async (req, res) => {
     res.json({ videos: result.rows });
   } catch (err) {
     console.error('my-videos list error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not load your videos.');
   }
 });
 
@@ -886,8 +1017,11 @@ app.post('/api/my-videos/claim', requireUser, async (req, res) => {
     if (!Array.isArray(videoIds) || videoIds.length === 0) {
       return res.json({ claimed: 0 });
     }
-    // Defensive: cap batch size and keep only string ids.
-    const ids = videoIds.filter(v => typeof v === 'string').slice(0, 50);
+    // Defensive: cap batch size, drop non-strings, and reject malformed ids
+    // before they reach the database (cheap belt-and-braces).
+    const ids = videoIds
+      .filter(v => typeof v === 'string' && isValidVideoId(v))
+      .slice(0, 50);
     if (ids.length === 0) return res.json({ claimed: 0 });
 
     const result = await pool.query(
@@ -900,25 +1034,26 @@ app.post('/api/my-videos/claim', requireUser, async (req, res) => {
     res.json({ claimed: result.rowCount });
   } catch (err) {
     console.error('my-videos claim error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not claim videos.');
   }
 });
 
 app.delete('/api/my-videos/:id', requireUser, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
     // Ownership check baked into the WHERE — won't touch other users' rows.
     const owned = await pool.query(
       'SELECT 1 FROM vs_uploads WHERE id = $1 AND user_id = $2',
       [id, req.userId]
     );
-    if (!owned.rows.length) return res.status(404).json({ error: 'Video not found' });
+    if (!owned.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
     await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
     await pool.query('DELETE FROM vs_uploads WHERE id = $1 AND user_id = $2', [id, req.userId]);
     res.json({ success: true });
   } catch (err) {
     console.error('my-videos delete error:', err);
-    res.status(500).json({ error: err.message });
+    apiError(res, 500, 'INTERNAL', 'Could not delete the video.');
   }
 });
 

@@ -1,6 +1,12 @@
 const { getStore } = require('@netlify/blobs');
 
-const MAX_CHUNK_SIZE = 4 * 1024 * 1024; // 4MB base64 string max
+const MAX_CHUNK_SIZE = 4 * 1024 * 1024; // 4MB raw chunk max
+const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
+const ALLOWED_VIDEO_TYPES = /^(video\/|application\/octet-stream$)/i;
+
+function apiError(statusCode, headers, code, message) {
+  return { statusCode, headers, body: JSON.stringify({ error: { code, message } }) };
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -15,30 +21,49 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return apiError(405, headers, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
   }
 
   try {
-    const body = JSON.parse(event.body);
+    if (event.body && event.body.length > 8 * 1024 * 1024) {
+      return apiError(413, headers, 'PAYLOAD_TOO_LARGE', 'Payload too large.');
+    }
+    let body;
+    try { body = JSON.parse(event.body || '{}'); }
+    catch { return apiError(400, headers, 'BAD_JSON', 'Request body is not valid JSON.'); }
+
     const { videoId, chunkIndex, totalChunks, data, contentType } = body;
 
-    if (!videoId || chunkIndex === undefined || !totalChunks || !data || !contentType) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Missing required fields' })
-      };
+    if (typeof videoId !== 'string' || !VIDEO_ID_RE.test(videoId)) {
+      return apiError(400, headers, 'BAD_VIDEO_ID', 'Invalid video id.');
     }
-
+    if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > 100000) {
+      return apiError(400, headers, 'BAD_CHUNK_INDEX', 'Invalid chunkIndex.');
+    }
+    if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 100000) {
+      return apiError(400, headers, 'BAD_TOTAL_CHUNKS', 'Invalid totalChunks.');
+    }
+    if (chunkIndex >= totalChunks) {
+      return apiError(400, headers, 'BAD_CHUNK_INDEX', 'chunkIndex must be < totalChunks.');
+    }
+    if (typeof contentType !== 'string' || !ALLOWED_VIDEO_TYPES.test(contentType)) {
+      return apiError(415, headers, 'UNSUPPORTED_TYPE', 'Unsupported content type.');
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      return apiError(400, headers, 'EMPTY_CHUNK', 'Chunk data is empty.');
+    }
     if (data.length > MAX_CHUNK_SIZE * 1.4) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Chunk too large' })
-      };
+      return apiError(413, headers, 'PAYLOAD_TOO_LARGE', 'Chunk too large.');
     }
 
     const chunkBuffer = Buffer.from(data, 'base64');
+    if (chunkBuffer.length === 0) {
+      return apiError(400, headers, 'EMPTY_CHUNK', 'Chunk data decoded to 0 bytes.');
+    }
+    if (chunkBuffer.length > MAX_CHUNK_SIZE) {
+      return apiError(413, headers, 'PAYLOAD_TOO_LARGE', 'Chunk too large.');
+    }
+
     const store = getStore('video-uploads');
     const chunkKey = `chunks/${videoId}/${String(chunkIndex).padStart(6, '0')}`;
 
@@ -53,10 +78,6 @@ exports.handler = async (event) => {
     };
   } catch (err) {
     console.error('upload-chunk error:', err);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: err.message || 'Upload failed' })
-    };
+    return apiError(500, headers, 'INTERNAL', 'Upload failed.');
   }
 };

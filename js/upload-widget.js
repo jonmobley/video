@@ -170,6 +170,43 @@
     return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
 
+  // Parse server error responses tolerantly. New shape is
+  // { error: { code, message } }; legacy shape was { error: 'string' }.
+  // Returns { code, message } so callers can branch on either.
+  async function parseErrJson(res) {
+    try {
+      const j = await res.json();
+      if (j && j.error && typeof j.error === 'object') {
+        return { code: j.error.code || 'ERROR', message: j.error.message || '' };
+      }
+      if (j && typeof j.error === 'string') {
+        return { code: 'ERROR', message: j.error };
+      }
+    } catch {}
+    return { code: 'ERROR', message: '' };
+  }
+
+  // Retry a chunk upload up to MAX_TRIES times on transient failures
+  // (network errors, 5xx, 408, 429). 4xx validation failures bail immediately.
+  async function retryChunk(fn, chunkIndex) {
+    const MAX_TRIES = 4;
+    let lastErr;
+    for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        const status = err && err.status;
+        const transient = !status || status >= 500 || status === 408 || status === 429;
+        if (!transient || attempt === MAX_TRIES) throw err;
+        // Exponential backoff with jitter, capped at ~6s.
+        const delay = Math.min(6000, 500 * Math.pow(2, attempt - 1)) + Math.random() * 250;
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+    throw lastErr;
+  }
+
   function genId() {
     const arr = new Uint8Array(12);
     crypto.getRandomValues(arr);
@@ -298,6 +335,9 @@
         if (!titleInput.value.trim()) {
           titleInput.value = res.platform === 'youtube' ? 'YouTube Video' : 'Vimeo Video';
         }
+      } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
+        linkDetected.textContent = 'Only YouTube and Vimeo links work here. For Dropbox/Drive files, upload the file instead.';
+        linkDetected.classList.add('error');
       } else {
         linkDetected.textContent = 'Not a recognized YouTube or Vimeo URL';
         linkDetected.classList.add('error');
@@ -439,6 +479,9 @@
     uploadBtn.addEventListener('click', startUpload);
 
     async function startUpload() {
+      // Debounce double-clicks: while an upload is in flight, ignore further
+      // button presses so we don't kick off two parallel uploads.
+      if (uploading) return;
       if (mode === 'link') {
         return startLinkUpload();
       }
@@ -467,6 +510,9 @@
       root.dispatchEvent(new CustomEvent('upload:start'));
 
       try {
+        if (file.size === 0) {
+          throw new Error('That file is empty (0 bytes). Please pick another video.');
+        }
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK_SIZE;
           const slice = file.slice(start, Math.min(start + CHUNK_SIZE, file.size));
@@ -475,15 +521,22 @@
 
           setProgress(Math.round((i / totalChunks) * 85), 'Uploading…');
 
-          const res = await fetch('/api/upload-chunk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId, chunkIndex: i, totalChunks, data: base64, contentType: file.type || 'video/mp4' })
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Chunk ${i} failed`);
-          }
+          // Retry transient failures (network blips, 5xx) with capped exponential
+          // backoff. The server's UPSERT makes chunk PUTs idempotent so re-trying
+          // is safe. We give up on 4xx (validation, rate-limit, auth).
+          await retryChunk(async () => {
+            const res = await fetch('/api/upload-chunk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoId, chunkIndex: i, totalChunks, data: base64, contentType: file.type || 'video/mp4' })
+            });
+            if (!res.ok) {
+              const err = await parseErrJson(res);
+              const e = new Error(err.message || `Chunk ${i} failed`);
+              e.status = res.status;
+              throw e;
+            }
+          }, i);
         }
 
         setProgress(92, 'Finalizing…');
@@ -494,8 +547,8 @@
           body: JSON.stringify({ videoId, totalChunks, contentType: file.type || 'video/mp4', title, expiryDays, password })
         });
         if (!finalRes.ok) {
-          const err = await finalRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Finalize failed');
+          const err = await parseErrJson(finalRes);
+          throw new Error(err.message || 'Finalize failed');
         }
 
         setProgress(100, 'Done!');
@@ -543,8 +596,8 @@
           body: JSON.stringify({ url, title, expiryDays, password })
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to create link video');
+          const err = await parseErrJson(res);
+          throw new Error(err.message || 'Failed to create link video');
         }
         const data = await res.json();
         setProgress(100, 'Done!');

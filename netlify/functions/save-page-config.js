@@ -61,18 +61,34 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } })
     };
   }
 
-  // TODO: RE-ENABLE BEFORE DEPLOYMENT - Authentication temporarily disabled for development
-  // const authResult = requireAuth(event);
-  // if (!authResult.authorized) {
-  //   return authResult.response;
-  // }
+  // Admin-only endpoint. Re-enabled per task #14.
+  const authResult = requireAuth(event);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
 
   try {
-    const body = JSON.parse(event.body);
+    if (event.body && event.body.length > 256 * 1024) {
+      return {
+        statusCode: 413,
+        headers,
+        body: JSON.stringify({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload too large (max 256 KB).' } })
+      };
+    }
+    let body;
+    try {
+      body = JSON.parse(event.body || '{}');
+    } catch {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_JSON', message: 'Request body is not valid JSON.' } })
+      };
+    }
     const { 
       page, 
       name, 
@@ -89,11 +105,18 @@ exports.handler = async (event, context) => {
     } = body;
 
     // Validate input
-    if (!page) {
+    if (!page || typeof page !== 'string') {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Page ID is required' })
+        body: JSON.stringify({ error: { code: 'PAGE_REQUIRED', message: 'Page ID is required.' } })
+      };
+    }
+    if (page.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(page)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_PAGE', message: 'Invalid page ID.' } })
       };
     }
 
@@ -102,7 +125,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Invalid accent color format. Must be hex color (e.g., #008f67)' })
+        body: JSON.stringify({ error: { code: 'BAD_COLOR', message: 'Invalid accent color format. Must be hex color (e.g., #008f67).' } })
       };
     }
 
@@ -144,7 +167,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: result.error.message })
+        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Database error.' } })
       };
     }
 
@@ -158,7 +181,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ error: { code: 'INTERNAL', message: 'Internal server error' } })
     };
   }
 };

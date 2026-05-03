@@ -203,8 +203,17 @@
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
 
-        if (res.status === 403) {
+        // 401 = missing token (stale session), 403 = wrong token. Both should
+        // bounce back to the login form so the user can paste a fresh token.
+        if (res.status === 401 || res.status === 403) {
           logout();
+          return;
+        }
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load videos';
+          videoList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load videos'}</div></div>`;
           return;
         }
 
@@ -249,6 +258,7 @@
             </div>
           `;
           row.querySelector('.del-btn').addEventListener('click', async function() {
+            if (this.disabled) return; // debounce double-click
             if (!confirm('Delete this video? This cannot be undone.')) return;
             this.disabled = true; this.textContent = '…';
             try {
@@ -256,8 +266,14 @@
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + adminToken }
               });
+              if (dr.status === 401 || dr.status === 403) { logout(); return; }
               if (dr.ok) row.remove();
-              else { this.disabled = false; this.textContent = 'Delete'; alert('Delete failed.'); }
+              else {
+                this.disabled = false; this.textContent = 'Delete';
+                const data = await dr.json().catch(() => ({}));
+                const msg = (data && data.error && (data.error.message || data.error)) || 'Delete failed.';
+                alert(typeof msg === 'string' ? msg : 'Delete failed.');
+              }
             } catch { this.disabled = false; this.textContent = 'Delete'; }
           });
           videoList.appendChild(row);
@@ -268,6 +284,8 @@
     }
 
     async function tryLogin() {
+      // Debounce: ignore extra clicks while a check is in flight.
+      if (loginBtn.disabled) return;
       const token = tokenInput.value.trim();
       if (!token) return;
       loginBtn.disabled = true; loginBtn.textContent = 'Checking…';
@@ -275,7 +293,7 @@
         const res = await fetch('/api/admin/videos', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (res.ok || res.status === 200) {
+        if (res.ok) {
           adminToken = token;
           sessionStorage.setItem('vs_admin_token', token);
           showDashboard();
@@ -284,6 +302,8 @@
           loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
         }
       } catch {
+        loginError.classList.add('visible');
+        loginError.textContent = 'Network error. Please try again.';
         loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
       }
     }

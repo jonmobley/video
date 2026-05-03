@@ -26,10 +26,23 @@
   const YT_ID = /^[A-Za-z0-9_-]{6,}$/;        // 11 in practice, but be lenient
   const VIMEO_ID = /^\d+(\/[A-Za-z0-9]+)?$/;  // numeric, optional unlisted hash
 
+  // Hosts we explicitly call out so the UI can show a helpful message
+  // ("upload the file directly") instead of a generic "not recognised".
+  const UNSUPPORTED_HOSTS = ['dropbox.com', 'drive.google.com', 'onedrive.live.com', 'icloud.com'];
+
+  function isUnsupportedHost(input) {
+    if (typeof input !== 'string') return false;
+    const lower = input.toLowerCase();
+    return UNSUPPORTED_HOSTS.some(h => lower.includes(h));
+  }
+
   function parse(input) {
     if (typeof input !== 'string') return null;
     const trimmed = input.trim();
     if (!trimmed) return null;
+    // Reject obvious non-embeddable hosts up front. The server also enforces
+    // this; doing it client-side just gives a faster, clearer error.
+    if (isUnsupportedHost(trimmed)) return null;
 
     // Tolerate users pasting without a scheme.
     let urlStr = trimmed;
@@ -128,7 +141,7 @@
     return null;
   }
 
-  const api = { parse, buildEmbedUrl, buildOriginalUrl };
+  const api = { parse, buildEmbedUrl, buildOriginalUrl, isUnsupportedHost };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

@@ -141,6 +141,14 @@
       else setTimeout(() => emailEl.focus(), 50);
     }
 
+    // Tolerate both legacy { error: 'msg' } and new { error: { code, message } }.
+    function errMsg(data, fallback) {
+      if (!data) return fallback;
+      if (data.error && typeof data.error === 'object') return data.error.message || fallback;
+      if (typeof data.error === 'string') return data.error;
+      return fallback;
+    }
+
     async function requestCode(email) {
       const res = await fetch('/api/auth/request-code', {
         method: 'POST',
@@ -162,7 +170,7 @@
       const { ok, data } = await requestCode(email).catch(() => ({ ok: false, data: {} }));
       emailBtn.disabled = false; emailBtn.textContent = original;
       if (!ok) {
-        show(emailErr, data.error || 'Could not send code. Please try again.');
+        show(emailErr, errMsg(data, 'Could not send code. Please try again.'));
         return;
       }
       currentEmail = email;
@@ -195,7 +203,7 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          show(codeErr, data.error || 'Could not verify code. Please try again.');
+          show(codeErr, errMsg(data, 'Could not verify code. Please try again.'));
           codeBtn.disabled = false; codeBtn.textContent = original;
           return;
         }
@@ -237,7 +245,7 @@
       const { ok, data } = await requestCode(currentEmail).catch(() => ({ ok: false, data: {} }));
       resendBtn.textContent = original;
       if (!ok) {
-        show(codeErr, data.error || 'Could not resend code.');
+        show(codeErr, errMsg(data, 'Could not resend code.'));
         // Re-enable after a short delay so they can try again.
         setTimeout(() => { resendBtn.disabled = false; }, 2000);
         return;

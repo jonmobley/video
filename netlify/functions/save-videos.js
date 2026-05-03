@@ -93,15 +93,15 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } })
     };
   }
 
-  // TODO: RE-ENABLE BEFORE DEPLOYMENT - Authentication temporarily disabled for development
-  // const authResult = requireAuth(event);
-  // if (!authResult.authorized) {
-  //   return authResult.response;
-  // }
+  // Admin-only endpoint. Re-enabled per task #14.
+  const authResult = requireAuth(event);
+  if (!authResult.authorized) {
+    return authResult.response;
+  }
 
   try {
     // Log environment for debugging
@@ -111,7 +111,25 @@ exports.handler = async (event, context) => {
       hasSupabase: !!supabase
     });
 
-    const requestBody = JSON.parse(event.body);
+    // Cap payload first so we never spend CPU parsing oversized bodies.
+    if (event.body && event.body.length > 1024 * 1024) {
+      return {
+        statusCode: 413,
+        headers,
+        body: JSON.stringify({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload too large (max 1 MB).' } })
+      };
+    }
+    // Defensive JSON parse — body may be missing or malformed.
+    let requestBody;
+    try {
+      requestBody = JSON.parse(event.body || '{}');
+    } catch (e) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_JSON', message: 'Request body is not valid JSON.' } })
+      };
+    }
     
     // Support both array of videos and object with videos and page
     let videos, page;
@@ -225,7 +243,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message || 'Internal server error' })
+      body: JSON.stringify({ error: { code: 'INTERNAL', message: 'Internal server error' } })
     };
   }
 };
