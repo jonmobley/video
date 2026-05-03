@@ -332,9 +332,6 @@
       if (res) {
         parsedLink = res;
         linkDetected.textContent = `Detected: ${res.platform === 'youtube' ? 'YouTube' : 'Vimeo'} video`;
-        if (!titleInput.value.trim()) {
-          titleInput.value = res.platform === 'youtube' ? 'YouTube Video' : 'Vimeo Video';
-        }
       } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
         linkDetected.textContent = 'Only YouTube and Vimeo links work here. For Dropbox/Drive files, upload the file instead.';
         linkDetected.classList.add('error');
