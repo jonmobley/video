@@ -138,67 +138,6 @@
             font-weight: 700;
         }
 
-        /* Features */
-        .features {
-            margin-top: 100px;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 18px;
-            max-width: 720px;
-            width: 100%;
-        }
-        .feature {
-            background: #1c1c1e;
-            border: 1px solid #232325;
-            border-radius: 18px;
-            padding: 26px 22px;
-            transition: transform 0.2s, border-color 0.2s;
-        }
-        .feature:hover {
-            transform: translateY(-3px);
-            border-color: #2c2c2e;
-        }
-        .feature-icon {
-            width: 44px; height: 44px;
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.4rem;
-            margin-bottom: 14px;
-            background: linear-gradient(135deg, rgba(255,107,107,0.18), rgba(78,205,196,0.18));
-        }
-        .feature-title {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-        .feature-desc {
-            font-size: 0.88rem;
-            color: #888;
-            line-height: 1.5;
-        }
-
-        /* Bottom CTA */
-        .bottom-cta {
-            margin-top: 100px;
-            text-align: center;
-            background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(78,205,196,0.08));
-            border: 1px solid #232325;
-            border-radius: 24px;
-            padding: 48px 28px;
-            max-width: 720px;
-            width: 100%;
-        }
-        .bottom-cta h2 {
-            font-size: 1.7rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-        .bottom-cta p {
-            color: #888;
-            margin-bottom: 24px;
-            font-size: 1rem;
-        }
-
         /* Footer */
         footer {
             text-align: center;
@@ -212,9 +151,6 @@
         @media (max-width: 600px) {
             .nav { padding: 18px 20px; }
             .hero { margin-top: 24px; }
-            .features, .bottom-cta { margin-top: 70px; }
-            .features { grid-template-columns: 1fr; }
-            .bottom-cta { padding: 36px 22px; }
         }
     </style>
 </head>
@@ -249,35 +185,6 @@
                 <span>Up to 1&nbsp;GB</span>
             </div>
 
-        </section>
-
-        <section class="features">
-            <div class="feature">
-                <div class="feature-icon">📱</div>
-                <div class="feature-title">Vertical or horizontal</div>
-                <div class="feature-desc">Phone clips, drone shots, screen recordings — the player adapts to fit any video.</div>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🔒</div>
-                <div class="feature-title">Optional password</div>
-                <div class="feature-desc">Lock sensitive videos behind a password. Recipients enter it to watch.</div>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">⏳</div>
-                <div class="feature-title">Auto-expiry</div>
-                <div class="feature-desc">Choose 1 day, 7 days, 30 days, or keep forever. Old videos clean themselves up.</div>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">📲</div>
-                <div class="feature-title">QR code & auto-copy</div>
-                <div class="feature-desc">Get a QR code for instant sharing. The link copies to your clipboard automatically.</div>
-            </div>
-        </section>
-
-        <section class="bottom-cta">
-            <h2>Ready to share?</h2>
-            <p>It takes about 30&nbsp;seconds. Sign up to keep your links organized — or upload anonymously.</p>
-            <a href="/upload" class="btn btn-primary">Upload Your Video</a>
         </section>
     </main>
 
