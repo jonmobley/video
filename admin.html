@@ -59,6 +59,13 @@
     .login-btn:hover { background: #0056CC; }
     .login-error { font-size: 0.85rem; color: #ff6b6b; margin-top: 12px; display: none; }
     .login-error.visible { display: block; }
+    .login-notice {
+      font-size: 0.85rem; color: #ffd479; margin-bottom: 18px;
+      padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,159,10,0.10); border: 1px solid rgba(255,159,10,0.30);
+      display: none; text-align: left;
+    }
+    .login-notice.visible { display: block; }
 
     /* Dashboard */
     #dashboard { display: none; }
@@ -145,6 +152,7 @@
       <div class="login-icon">🔐</div>
       <div class="login-title">Admin</div>
       <div class="login-sub">Enter your admin token to manage uploaded videos.</div>
+      <div class="login-notice" id="loginNotice">Your session expired. Please sign in again.</div>
       <input class="token-input" id="tokenInput" type="password" placeholder="Admin token">
       <button class="login-btn" id="loginBtn">Sign In</button>
       <div class="login-error" id="loginError">Invalid token. Please try again.</div>
@@ -169,6 +177,7 @@
     const tokenInput  = document.getElementById('tokenInput');
     const loginBtn    = document.getElementById('loginBtn');
     const loginError  = document.getElementById('loginError');
+    const loginNotice = document.getElementById('loginNotice');
     const logoutBtn   = document.getElementById('logoutBtn');
     const statsRow    = document.getElementById('statsRow');
     const videoList   = document.getElementById('videoList');
@@ -206,7 +215,7 @@
         // 401 = missing token (stale session), 403 = wrong token. Both should
         // bounce back to the login form so the user can paste a fresh token.
         if (res.status === 401 || res.status === 403) {
-          logout();
+          logout({ expired: true });
           return;
         }
 
@@ -266,7 +275,7 @@
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + adminToken }
               });
-              if (dr.status === 401 || dr.status === 403) { logout(); return; }
+              if (dr.status === 401 || dr.status === 403) { logout({ expired: true }); return; }
               if (dr.ok) row.remove();
               else {
                 this.disabled = false; this.textContent = 'Delete';
@@ -315,7 +324,8 @@
       loadVideos();
     }
 
-    function logout() {
+    function logout(opts) {
+      const expired = opts && opts.expired;
       adminToken = '';
       sessionStorage.removeItem('vs_admin_token');
       loginScreen.style.display = 'flex';
@@ -323,6 +333,7 @@
       logoutBtn.style.display = 'none';
       tokenInput.value = '';
       loginError.classList.remove('visible');
+      loginNotice.classList.toggle('visible', !!expired);
       loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
     }
 

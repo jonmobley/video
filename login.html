@@ -65,6 +65,12 @@
       color: #7adfd7; font-size: 0.85rem; display: none;
     }
     .info.visible { display: block; }
+    .notice {
+      margin-bottom: 18px; padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,159,10,0.10); border: 1px solid rgba(255,159,10,0.30);
+      color: #ffd479; font-size: 0.85rem; display: none;
+    }
+    .notice.visible { display: block; }
     .footer { margin-top: 22px; text-align: center; font-size: 0.85rem; color: #666; }
     .footer a { color: #4ecdc4; text-decoration: none; }
     .step { display: none; }
@@ -79,6 +85,8 @@
     <div class="step active" id="stepEmail">
       <h1>Sign in</h1>
       <p class="sub">Enter your email and we'll send you a 6-digit code. No password needed — new accounts are created automatically.</p>
+
+      <div class="notice" id="sessionNotice">Your session expired — please sign in again.</div>
 
       <form id="emailForm" autocomplete="on">
         <label for="email">Email</label>
@@ -260,8 +268,20 @@
       goToStep('email');
     });
 
-    // If already signed in, jump to account.
-    fetch('/api/auth/me').then(r => { if (r.ok) window.location.replace('/account'); });
+    // Show a friendly notice when the user was bounced here by an expired session.
+    {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'expired') {
+        document.getElementById('sessionNotice').classList.add('visible');
+      }
+    }
+
+    // If already signed in, jump to account (or the original `next` target).
+    fetch('/api/auth/me').then(r => {
+      if (!r.ok) return;
+      const params = new URLSearchParams(window.location.search);
+      window.location.replace(params.get('next') || '/account');
+    });
   </script>
 </body>
 </html>

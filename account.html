@@ -201,8 +201,12 @@
       }[c]));
     }
 
-    function redirectToLogin() {
-      window.location.replace('/login?next=' + encodeURIComponent('/account'));
+    function redirectToLogin(opts) {
+      const expired = opts && opts.expired;
+      const params = new URLSearchParams();
+      params.set('next', '/account');
+      if (expired) params.set('reason', 'expired');
+      window.location.replace('/login?' + params.toString());
     }
 
     async function loadAccount() {
@@ -221,7 +225,7 @@
       const res = await fetch('/api/my-videos');
       // Session may have expired between the /me check and this call —
       // bounce the user to login so they can re-authenticate cleanly.
-      if (res.status === 401) return redirectToLogin();
+      if (res.status === 401) return redirectToLogin({ expired: true });
       if (!res.ok) {
         content.innerHTML = '<div class="empty"><div class="empty-title">Could not load videos</div><div class="empty-sub">Please refresh the page.</div></div>';
         headerSub.textContent = '';
@@ -336,7 +340,7 @@
           let res;
           try { res = await fetch(`/api/my-videos/${encodeURIComponent(id)}`, { method: 'DELETE' }); }
           catch { btn.disabled = false; btn.textContent = 'Delete'; showToast('Network error.'); return; }
-          if (res.status === 401) return redirectToLogin();
+          if (res.status === 401) return redirectToLogin({ expired: true });
           if (!res.ok) {
             btn.disabled = false; btn.textContent = 'Delete';
             const data = await res.json().catch(() => ({}));
