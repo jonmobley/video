@@ -630,6 +630,70 @@ app.post('/api/upload-thumbnail', async (req, res) => {
   }
 });
 
+// ── Replace thumbnail (owner-only) ───────────────────────────────────────────
+// Lets a signed-in user pick a different captured frame or upload a custom
+// image as the thumbnail for one of their own videos. Unlike the one-shot
+// /api/upload-thumbnail above, this endpoint deliberately overwrites an
+// existing thumbnail so users can fix awkward auto-captured frames from the
+// dashboard. Owner check is enforced by the WHERE clause.
+app.post('/api/my-videos/:id/thumbnail', requireUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidVideoId(id)) {
+      return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    }
+    const { data, contentType } = req.body || {};
+    if (!data || !contentType) {
+      return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
+    }
+    if (!ALLOWED_THUMB_TYPES.has(contentType)) {
+      return apiError(res, 415, 'UNSUPPORTED_TYPE', 'Unsupported thumbnail type. Use JPEG, PNG, or WebP.');
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      return apiError(res, 400, 'EMPTY_THUMB', 'Thumbnail data is empty.');
+    }
+    let buf;
+    try { buf = Buffer.from(data, 'base64'); }
+    catch { return apiError(res, 400, 'BAD_BASE64', 'Thumbnail data is not valid base64.'); }
+    if (buf.length === 0) {
+      return apiError(res, 400, 'EMPTY_THUMB', 'Thumbnail decoded to 0 bytes.');
+    }
+    if (buf.length > MAX_THUMB_SIZE) {
+      return apiError(res, 413, 'PAYLOAD_TOO_LARGE', 'Thumbnail too large. Max 500 KB.');
+    }
+
+    // Ownership check baked into the UPDATE — won't touch other users' rows.
+    const result = await pool.query(
+      `UPDATE vs_uploads
+          SET thumbnail_data = $2, thumbnail_content_type = $3
+        WHERE id = $1 AND user_id = $4
+        RETURNING id`,
+      [id, buf, contentType, req.userId]
+    );
+    if (!result.rows.length) {
+      return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+    }
+
+    // Best-effort: keep the public Supabase row's thumbnail_url in sync so
+    // any external listings refresh too. The path itself is stable; the
+    // browser cache-busts via the version param it appends.
+    const thumbnailUrl = `/api/video-thumbnail/${id}`;
+    const supa = getSupabase();
+    if (supa) {
+      try {
+        await supa.from('videos').update({ thumbnail_url: thumbnailUrl }).eq('id', id);
+      } catch (e) {
+        console.warn('Supabase thumbnail_url update failed:', e.message);
+      }
+    }
+
+    res.json({ success: true, thumbnailUrl, version: Date.now() });
+  } catch (err) {
+    console.error('replace-thumbnail error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not save thumbnail.');
+  }
+});
+
 // ── Link-thumbnail (external videos) ─────────────────────────────────────────
 // Stores captured frames for non-vs_uploads videos (e.g. Dropbox URL flow).
 // Keyed by the client-supplied id; served at a stable URL so it can be
@@ -963,8 +1027,14 @@ app.get('/api/video/:id', async (req, res) => {
     const fileSize = parseInt(sizeResult.rows[0].size);
     const range = req.headers.range;
 
-    // Increment view count (fire and forget)
-    pool.query('UPDATE vs_uploads SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
+    // Increment view count (fire and forget). Skip when the owner is the
+    // one fetching — e.g. the dashboard's thumbnail picker loads the video
+    // to extract candidate frames and shouldn't inflate their stats.
+    const ownerOnly = await pool.query('SELECT user_id FROM vs_uploads WHERE id = $1', [id]);
+    const isOwner = ownerOnly.rows.length && ownerOnly.rows[0].user_id && ownerOnly.rows[0].user_id === req.userId;
+    if (!isOwner) {
+      pool.query('UPDATE vs_uploads SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
+    }
 
     if (range) {
       const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
