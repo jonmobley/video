@@ -15,24 +15,6 @@
       color: #fff;
     }
 
-    /* ── Header (static, never overlaps video) ──────────────────────────── */
-    .top-bar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 20px;
-      border-bottom: 1px solid #1a1a1a;
-      flex-shrink: 0;
-    }
-    .top-bar-title {
-      flex: 1; font-size: 1rem; font-weight: 600; color: #f2f2f2;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .share-btn {
-      background: rgba(255,255,255,0.10); border: none; border-radius: 20px;
-      color: #fff; font-size: 0.85rem; font-weight: 600; padding: 8px 16px;
-      cursor: pointer; font-family: inherit; transition: background 0.2s; flex-shrink: 0;
-    }
-    .share-btn:hover { background: rgba(255,255,255,0.20); }
-
     /* ── Stage (video area) ──────────────────────────────────────────────── */
     .stage {
       flex: 1; display: flex; align-items: center; justify-content: center;
@@ -41,7 +23,15 @@
     }
     .video-wrap {
       width: 100%; max-width: 1100px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; flex-direction: column; align-items: stretch;
+    }
+    .video-title {
+      margin-top: 14px;
+      font-size: 1.05rem; font-weight: 600; color: #f2f2f2;
+      text-align: left; word-break: break-word;
+    }
+    @media (max-width: 600px) {
+      .video-title { margin-top: 10px; font-size: 0.98rem; }
     }
     video {
       display: block;
@@ -128,11 +118,6 @@
   </style>
 </head>
 <body>
-  <header class="top-bar">
-    <div class="top-bar-title" id="topBarTitle"></div>
-    <button class="share-btn" id="shareBtn">Share</button>
-  </header>
-
   <main class="stage" id="root"></main>
 
   <footer class="footer">
@@ -142,10 +127,9 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const root        = document.getElementById('root');
-    const topBarTitle = document.getElementById('topBarTitle');
-    const shareBtn    = document.getElementById('shareBtn');
-    const toast       = document.getElementById('toast');
+    const root  = document.getElementById('root');
+    const toast = document.getElementById('toast');
+    let videoTitle = '';
 
     function showToast(msg) {
       toast.textContent = msg; toast.classList.add('show');
@@ -166,10 +150,20 @@
         </div>`;
     }
 
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
     function showVideo(videoUrl) {
+      const titleHtml = videoTitle
+        ? `<div class="video-title">${escapeHtml(videoTitle)}</div>`
+        : '';
       root.innerHTML = `
         <div class="video-wrap">
           <video id="videoEl" src="${videoUrl}" controls autoplay playsinline preload="auto"></video>
+          ${titleHtml}
         </div>`;
     }
 
@@ -216,23 +210,6 @@
       setTimeout(() => pwInput.focus(), 100);
     }
 
-    async function doShare() {
-      const url = window.location.href;
-      if (navigator.share) {
-        try { await navigator.share({ title: topBarTitle.textContent || 'Watch this video', url }); return; }
-        catch {}
-      }
-      try { await navigator.clipboard.writeText(url); }
-      catch {
-        const ta = document.createElement('textarea');
-        ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-      }
-      showToast('Link copied!');
-    }
-    shareBtn.addEventListener('click', doShare);
-
     function buildVideoUrl(videoId, password) {
       let url = `/api/video/${encodeURIComponent(videoId)}`;
       if (password) url += '?pt=' + encodeURIComponent(password);
@@ -272,7 +249,7 @@
         if (metaRes.ok) {
           const meta = await metaRes.json();
           if (meta.title) {
-            topBarTitle.textContent = meta.title;
+            videoTitle = meta.title;
             document.title = meta.title + ' – VidShare';
           }
           if (meta.hasPassword) {
