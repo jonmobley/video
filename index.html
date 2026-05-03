@@ -138,62 +138,6 @@
             font-weight: 700;
         }
 
-        /* Phone mockup */
-        .phone-preview {
-            margin: 56px auto 0;
-            width: 240px;
-            height: 480px;
-            background: #1c1c1e;
-            border-radius: 36px;
-            border: 8px solid #0f0f0f;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.6),
-                        0 0 0 1px rgba(255,255,255,0.04) inset;
-            position: relative;
-            overflow: hidden;
-        }
-        .phone-preview::before {
-            content: '';
-            position: absolute;
-            top: 10px; left: 50%;
-            transform: translateX(-50%);
-            width: 70px; height: 18px;
-            background: #0f0f0f;
-            border-radius: 12px;
-            z-index: 2;
-        }
-        .phone-screen {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, #1c1c1e, #2c2c2e);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 24px 24px;
-            text-align: center;
-        }
-        .phone-icon {
-            font-size: 2.6rem;
-            margin-bottom: 14px;
-        }
-        .phone-text {
-            font-size: 0.78rem;
-            color: #aaa;
-            line-height: 1.5;
-        }
-        .phone-link {
-            margin-top: 16px;
-            background: #2c2c2e;
-            border: 1px solid #3A3A3C;
-            border-radius: 8px;
-            padding: 8px 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.65rem;
-            color: #4ecdc4;
-            word-break: break-all;
-            width: 100%;
-        }
-
         /* Features */
         .features {
             margin-top: 100px;
@@ -268,7 +212,6 @@
         @media (max-width: 600px) {
             .nav { padding: 18px 20px; }
             .hero { margin-top: 24px; }
-            .phone-preview { width: 200px; height: 400px; margin-top: 40px; }
             .features, .bottom-cta { margin-top: 70px; }
             .features { grid-template-columns: 1fr; }
             .bottom-cta { padding: 36px 22px; }
@@ -306,13 +249,6 @@
                 <span>Up to 1&nbsp;GB</span>
             </div>
 
-            <div class="phone-preview" aria-hidden="true">
-                <div class="phone-screen">
-                    <div class="phone-icon">🎬</div>
-                    <div class="phone-text">Your video is ready to share</div>
-                    <div class="phone-link">vidshare.app/watch?id=…</div>
-                </div>
-            </div>
         </section>
 
         <section class="features">
