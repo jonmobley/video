@@ -88,10 +88,24 @@
     }
 
     @media (max-width: 600px) {
-      .stage { padding: 12px; }
+      .stage { padding: 10px; }
+      .video-wrap { gap: 0; }
       video, .embed-frame { border-radius: 8px; }
-      video { max-height: calc(100vh - 140px); }
-      .embed-frame { max-height: calc(100vh - 180px); }
+      /* Reserve room for the title + QR toggle + footer below the video so
+         they stay visible without forcing the page to scroll. */
+      video { max-height: calc(100dvh - 220px); }
+      .embed-frame { max-height: calc(100dvh - 240px); }
+      .gating-note { font-size: 0.72rem; margin-top: 8px; }
+      .qr-panel img { width: 140px; height: 140px; }
+    }
+    /* Landscape phones: hide chrome below the video and use viewport units
+       so the player fills the wider available area. */
+    @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+      .stage { padding: 6px; }
+      video { max-height: calc(100dvh - 80px); }
+      .embed-frame { max-height: calc(100dvh - 80px); }
+      .video-title, .gating-note, .qr-section { display: none; }
+      .footer { padding: 6px 10px; font-size: 0.72rem; }
     }
 
     /* ── Footer ──────────────────────────────────────────────────────────── */

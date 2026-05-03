@@ -150,8 +150,19 @@
         footer a:hover { color: #aaa; }
 
         @media (max-width: 600px) {
-            .nav { padding: 18px 20px; }
-            .hero { margin-top: 24px; }
+            .nav { padding: 16px 16px; }
+            .nav .logo { font-size: 1.3rem; }
+            main { padding: 16px 16px 40px; }
+            .hero { margin-top: 18px; }
+            .hero h1 { margin-bottom: 16px; }
+            .hero .sub { margin-bottom: 24px; }
+            .cta-row { flex-direction: column; align-items: stretch; }
+            .btn.btn-primary,
+            .btn.btn-primary:hover {
+                width: 100%; padding: 16px 24px;
+            }
+            .trust-row { gap: 12px; font-size: 0.78rem; }
+            footer { padding: 30px 16px max(20px, env(safe-area-inset-bottom)); }
         }
     </style>
 </head>

@@ -93,12 +93,13 @@
     .vc-meta { font-size: 0.8rem; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
     .vc-meta .lock { color: #4ecdc4; }
     .vc-meta .exp { color: #ffb86b; }
-    .vc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .vc-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
     .vc-btn {
       padding: 8px 14px; border-radius: 9px; font-size: 0.82rem; font-weight: 600;
       border: 1px solid #2c2c2e; background: #1c1c1e; color: #fff;
       cursor: pointer; font-family: inherit; transition: all 0.15s;
-      text-decoration: none; display: inline-block;
+      text-decoration: none; display: inline-flex;
+      align-items: center; justify-content: center;
     }
     .vc-btn:hover { background: #2c2c2e; border-color: #3a3a3c; }
     .vc-btn.danger:hover { background: rgba(255,107,107,0.12); border-color: rgba(255,107,107,0.4); color: #ff8e8e; }
@@ -125,13 +126,21 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 600px) {
-      .nav { padding: 14px 16px; gap: 8px; }
-      .nav-left { gap: 10px; }
-      .nav-link, .logout-btn { padding: 7px 10px; font-size: 0.82rem; }
-      main { padding: 22px 16px 80px; }
-      .video-card { flex-direction: column; align-items: stretch; gap: 12px; }
-      .vc-thumb { width: 100%; }
-      .vc-actions { justify-content: flex-end; flex-wrap: wrap; }
+      .nav { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
+      .nav-left { gap: 8px; }
+      .nav-link { display: none; } /* logo + upload + sign out is enough on phones */
+      .upload-cta, .logout-btn { padding: 9px 12px; font-size: 0.82rem; }
+      main { padding: 20px 14px 80px; }
+      h1 { font-size: 1.35rem; }
+      .video-card { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
+      .vc-thumb { width: 100%; max-width: 240px; align-self: flex-start; }
+      .vc-actions { justify-content: stretch; flex-wrap: wrap; }
+      .vc-actions .vc-btn { flex: 1 1 30%; min-width: 0; padding: 10px 8px; }
+      .vc-title { white-space: normal; display: -webkit-box;
+        -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    }
+    @media (max-width: 380px) {
+      .vc-meta { gap: 8px; font-size: 0.75rem; }
     }
   </style>
 </head>

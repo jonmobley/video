@@ -27,6 +27,15 @@
       background-clip: text; text-decoration: none; display: inline-block;
     }
     .page-title { font-size: 1rem; color: #888; margin-top: 6px; }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 22px 14px max(40px, env(safe-area-inset-bottom));
+      }
+      .header { margin-bottom: 22px; }
+      .logo { font-size: 1.6rem; }
+      .page-title { font-size: 0.92rem; }
+    }
   </style>
 </head>
 <body>

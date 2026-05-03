@@ -138,6 +138,34 @@
       margin: 60px auto;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .top-bar { padding: 12px 14px; }
+      .container { padding: 22px 14px; }
+      .stats-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      }
+      .stat-card { padding: 14px 16px; min-width: 0; }
+      .stat-val { font-size: 1.4rem; }
+      .video-row {
+        flex-direction: column; align-items: stretch;
+        gap: 10px; padding: 14px;
+      }
+      .video-main { width: 100%; }
+      .video-title { font-size: 0.95rem; }
+      .video-meta { gap: 8px 10px; }
+      .video-actions { justify-content: stretch; gap: 8px; }
+      .video-actions .watch-lnk,
+      .video-actions .del-btn {
+        flex: 1; padding: 11px 10px; font-size: 0.85rem;
+        text-align: center;
+      }
+      #loginScreen { min-height: calc(100vh - 56px); padding: 24px 16px; }
+      .login-card { padding: 28px 22px; border-radius: 16px; }
+    }
+    @media (max-width: 380px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>

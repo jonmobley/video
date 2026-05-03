@@ -75,6 +75,15 @@
     .footer a { color: #4ecdc4; text-decoration: none; }
     .step { display: none; }
     .step.active { display: block; }
+
+    @media (max-width: 480px) {
+      body { padding: 22px 14px max(22px, env(safe-area-inset-bottom)); }
+      .card { padding: 26px 20px; border-radius: 16px; }
+      h1 { font-size: 1.2rem; }
+      .sub { font-size: 0.88rem; }
+      input.code-input { font-size: 1.3rem; letter-spacing: 0.3em; }
+      .submit-btn { padding: 15px; }
+    }
   </style>
 </head>
 <body>

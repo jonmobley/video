@@ -8,10 +8,28 @@
 }
 
 /* Base typography and colors */
+html {
+    -webkit-text-size-adjust: 100%;
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #0a0a0a;
     color: #ffffff;
+    overflow-x: hidden;
+    /* Respect notched-device safe areas everywhere */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+/* Universal mobile tap target floor — links and buttons should be at least
+   44px tall so they're comfortably tappable on touch devices. */
+@media (max-width: 768px) {
+    button, a.btn, a.nav-link, a.upload-cta, .vc-btn, .watch-lnk, .del-btn {
+        min-height: 44px;
+    }
+    input, select, textarea {
+        font-size: 16px; /* Prevent iOS auto-zoom on focus */
+    }
 }
 
 /* Common button styles */
