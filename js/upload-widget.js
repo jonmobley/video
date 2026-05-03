@@ -59,10 +59,6 @@
                autocomplete="off" spellcheck="false">
         <div class="link-detected" data-el="linkDetected"></div>
       </div>
-      <div class="link-note">
-        Heads up: password and expiration only protect this watch page.
-        Anyone with the original YouTube or Vimeo URL can still view the video there.
-      </div>
     </div>
 
     <div class="fields" data-el="fieldsArea" style="display:none;">
@@ -85,6 +81,11 @@
           <input type="password" data-el="passwordInput" placeholder="Leave blank = public" maxlength="64">
         </div>
       </div>
+    </div>
+
+    <div class="link-note password-note" data-el="passwordNote" hidden>
+      Heads up: password and expiration only protect this watch page.
+      Anyone with the original YouTube or Vimeo URL can still view the video there.
     </div>
 
     <button type="button" class="btn upload-btn" data-el="uploadBtn">Upload &amp; Get Link</button>
@@ -246,6 +247,7 @@
     const titleInput = $('titleInput');
     const expirySelect = $('expirySelect');
     const passwordInput = $('passwordInput');
+    const passwordNote = $('passwordNote');
     const uploadBtn = $('uploadBtn');
     const progressArea = $('progressArea');
     const progressText = $('progressText');
@@ -386,6 +388,11 @@
     fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
     fileRemove.addEventListener('click', clearFile);
     titleInput.addEventListener('input', updateUploadBtnState);
+
+    function updatePasswordNote() {
+      passwordNote.hidden = passwordInput.value.length === 0;
+    }
+    passwordInput.addEventListener('input', updatePasswordNote);
 
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
@@ -639,6 +646,7 @@
       currentWatchUrl = null;
       titleInput.value = '';
       passwordInput.value = '';
+      updatePasswordNote();
       linkInput.value = '';
       parsedLink = null;
       linkDetected.textContent = '';
