@@ -424,7 +424,7 @@
           accountNudge.classList.toggle('visible', !signedIn);
         });
 
-        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=ffffff&bgcolor=1c1c1e&data=' + encodeURIComponent(watchUrl);
+        qrImg.src = renderQrDataUrl(watchUrl);
 
         navigator.clipboard.writeText(watchUrl).then(() => {
           copyBtn.textContent = 'Copied!';
@@ -609,24 +609,53 @@
         .slice(0, 60);
     }
 
-    qrDownloadBtn.addEventListener('click', async () => {
+    function renderQrDataUrl(text, opts) {
+      const o = opts || {};
+      const size = o.size || 160;
+      const fg = o.fg || '#ffffff';
+      const bg = o.bg || '#1c1c1e';
+      const margin = o.margin != null ? o.margin : 2;
+      if (typeof window.qrcode !== 'function') {
+        console.warn('qrcode-generator library not loaded');
+        return '';
+      }
+      const qr = window.qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      const count = qr.getModuleCount();
+      const ratio = (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 1) ? window.devicePixelRatio : 1;
+      const pxSize = Math.floor(size * ratio);
+      const cell = pxSize / (count + margin * 2);
+      const canvas = document.createElement('canvas');
+      canvas.width = pxSize;
+      canvas.height = pxSize;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, pxSize, pxSize);
+      ctx.fillStyle = fg;
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (qr.isDark(r, c)) {
+            const x = Math.floor((c + margin) * cell);
+            const y = Math.floor((r + margin) * cell);
+            const w = Math.ceil(cell);
+            ctx.fillRect(x, y, w, w);
+          }
+        }
+      }
+      return canvas.toDataURL('image/png');
+    }
+
+    qrDownloadBtn.addEventListener('click', () => {
       if (!qrImg.src) return;
       const baseName = slugifyForFilename(currentTitle) || (currentVideoId ? currentVideoId.split('.')[0] : 'video');
       const filename = `vidshare-qr-${baseName}.png`;
-      try {
-        const res = await fetch(qrImg.src, { mode: 'cors' });
-        if (!res.ok) throw new Error('Fetch failed');
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch {
-        const a = document.createElement('a');
-        a.href = qrImg.src; a.download = filename; a.target = '_blank';
-        document.body.appendChild(a); a.click(); a.remove();
-      }
+      const a = document.createElement('a');
+      a.href = qrImg.src;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     });
 
     return { reset, root, isUploading: () => uploading };
