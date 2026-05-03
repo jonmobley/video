@@ -864,6 +864,7 @@ app.get('/api/my-videos', requireUser, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
+              platform, embed_video_id,
               (password_hash IS NOT NULL) AS has_password
        FROM vs_uploads
        WHERE user_id = $1
