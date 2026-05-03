@@ -280,7 +280,12 @@
       const info = platformInfo(v);
       const badge = `<span class="vc-badge ${info.key}">${info.label}</span>`;
       let inner;
-      if (info.key === 'youtube' && v.embed_video_id) {
+      if (v.has_thumbnail) {
+        // Native uploads (and any other video that captured a frame on
+        // upload) get a real thumbnail served straight from the app.
+        const src = `/api/video-thumbnail/${encodeURIComponent(v.id)}`;
+        inner = `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="window.__vcThumbFallback(this)">`;
+      } else if (info.key === 'youtube' && v.embed_video_id) {
         const src = `https://i.ytimg.com/vi/${encodeURIComponent(v.embed_video_id)}/hqdefault.jpg`;
         inner = `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="window.__vcThumbFallback(this)">`;
       } else {
@@ -384,6 +389,7 @@
   </script>
   <script src="/js/link-parser.js"></script>
   <script src="/lib/qrcode-generator.js"></script>
+  <script src="/js/thumbnail-capture.js"></script>
   <script src="/js/upload-widget.js"></script>
   <script src="/js/upload-modal.js"></script>
 </body>

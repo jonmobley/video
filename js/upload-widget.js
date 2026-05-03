@@ -224,6 +224,28 @@
     return 'mp4';
   }
 
+  // Capture a frame from the just-uploaded file and POST it to the server
+  // as a thumbnail. Wrapped in a try/catch and never awaited from the upload
+  // happy-path so any failure (capture, network, server 4xx/5xx) is silent.
+  async function captureAndUploadThumbnail(file, videoId) {
+    try {
+      if (typeof window.captureVideoThumbnail !== 'function') return;
+      const result = await window.captureVideoThumbnail(file);
+      if (!result || !result.base64) return;
+      await fetch('/api/upload-thumbnail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          data: result.base64,
+          contentType: result.contentType || 'image/jpeg'
+        })
+      });
+    } catch (err) {
+      console.warn('Thumbnail capture/upload failed (non-fatal):', err);
+    }
+  }
+
   function deriveTitleFromFilename(name) {
     const lastDot = name.lastIndexOf('.');
     const base = lastDot > 0 ? name.slice(0, lastDot) : name;
@@ -557,6 +579,10 @@
 
         setProgress(100, 'Done!');
         uploading = false;
+        // Fire-and-forget thumbnail capture: a frame-grab failure (corrupt
+        // file, unsupported codec, slow decoder) must NEVER fail the upload
+        // or block the success UI. Worst case, the card shows a placeholder.
+        captureAndUploadThumbnail(file, videoId);
         finishSuccess(videoId, { title, expiryDays, password, isLink: false });
 
       } catch (err) {

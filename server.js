@@ -3,6 +3,27 @@ const { Pool, types } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
 
+// Optional Supabase client — only initialised if env vars are present.
+// Used to best-effort propagate thumbnail URLs to the public `videos`
+// table so listings on oz/disc/vertical pick them up. Failures are
+// always swallowed: missing config or a failed update must never break
+// the primary upload path, which already stored the thumbnail bytes.
+let __supabaseClient = null;
+function getSupabase() {
+  if (__supabaseClient !== null) return __supabaseClient || null;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) { __supabaseClient = false; return null; }
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    __supabaseClient = createClient(url, key);
+  } catch (e) {
+    console.warn('Supabase client unavailable:', e.message);
+    __supabaseClient = false;
+  }
+  return __supabaseClient || null;
+}
+
 // Parse PostgreSQL BIGINT (OID 20) and NUMERIC LENGTH results as JS numbers
 // so file_size is returned as a number rather than a string in JSON responses.
 types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
@@ -245,6 +266,25 @@ async function ensureSchema() {
     -- "NUMERIC/HASH" for unlisted Vimeo videos).
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'upload';
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS embed_video_id TEXT;
+
+    -- Captured-frame thumbnails for native uploads (and other non-platform
+    -- videos that lack a free, hosted thumbnail like YouTube/Vimeo). Stored
+    -- inline in BYTEA — they're small (~30-80 KB JPEG) and live next to the
+    -- video bytes which already live in this DB.
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA;
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS thumbnail_content_type TEXT;
+
+    -- Captured-frame thumbnails for *external link* videos (e.g. Dropbox URLs)
+    -- that don't have a row in vs_uploads. Keyed by the client-supplied video
+    -- object id (e.g. "wistia_<timestamp>") and served as a stable URL so it
+    -- can be persisted into the public Supabase videos table without
+    -- bloating it with data: URLs.
+    CREATE TABLE IF NOT EXISTS vs_link_thumbnails (
+      id TEXT PRIMARY KEY,
+      thumbnail_data BYTEA NOT NULL,
+      thumbnail_content_type TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
 
     -- User accounts. Auth is magic-code via email (no passwords).
     CREATE TABLE IF NOT EXISTS vs_users (
@@ -513,6 +553,168 @@ app.post('/api/finalize-video', async (req, res) => {
     apiError(res, 500, 'INTERNAL', 'Could not finalize the upload. Please try again.');
   } finally {
     client.release();
+  }
+});
+
+// ── Upload thumbnail ─────────────────────────────────────────────────────────
+// Captured client-side from the video file at upload time and POSTed here so
+// the dashboard can show a real frame instead of a grey placeholder. Sent as
+// a separate request after finalize completes — a thumbnail failure must
+// never block the upload itself.
+const MAX_THUMB_SIZE = 500 * 1024; // 500 KB decoded
+const ALLOWED_THUMB_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+app.post('/api/upload-thumbnail', async (req, res) => {
+  try {
+    const { videoId, data, contentType } = req.body || {};
+    if (!videoId || !data || !contentType) {
+      return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
+    }
+    if (!isValidVideoId(videoId)) {
+      return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    }
+    if (!ALLOWED_THUMB_TYPES.has(contentType)) {
+      return apiError(res, 415, 'UNSUPPORTED_TYPE', 'Unsupported thumbnail type.');
+    }
+    if (typeof data !== 'string' || data.length === 0) {
+      return apiError(res, 400, 'EMPTY_THUMB', 'Thumbnail data is empty.');
+    }
+    const buf = Buffer.from(data, 'base64');
+    if (buf.length === 0) {
+      return apiError(res, 400, 'EMPTY_THUMB', 'Thumbnail decoded to 0 bytes.');
+    }
+    if (buf.length > MAX_THUMB_SIZE) {
+      return apiError(res, 413, 'PAYLOAD_TOO_LARGE', 'Thumbnail too large.');
+    }
+
+    const owner = await pool.query(
+      'SELECT user_id, thumbnail_data FROM vs_uploads WHERE id = $1',
+      [videoId]
+    );
+    if (!owner.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+    const { user_id, thumbnail_data } = owner.rows[0];
+    // Owned video can only get a thumbnail from its owner. Anonymous uploads
+    // can be thumbnailed by anyone (the videoId is a 96-bit random secret,
+    // so this is effectively a capability token).
+    if (user_id && user_id !== req.userId) {
+      return apiError(res, 403, 'FORBIDDEN', 'Cannot set thumbnail for this video.');
+    }
+    // Idempotent on first set; refuse later overwrites to keep this endpoint
+    // a one-shot post-upload hook rather than a general edit surface.
+    if (thumbnail_data) {
+      return apiError(res, 409, 'ALREADY_SET', 'Thumbnail already set.');
+    }
+
+    await pool.query(
+      'UPDATE vs_uploads SET thumbnail_data = $2, thumbnail_content_type = $3 WHERE id = $1',
+      [videoId, buf, contentType]
+    );
+
+    // Best-effort: surface the thumbnail URL on any matching public
+    // `videos` row so listings powered by get-videos pick it up. Errors
+    // here are non-fatal — the bytes are already stored above.
+    const thumbnailUrl = `/api/video-thumbnail/${videoId}`;
+    const supa = getSupabase();
+    if (supa) {
+      try {
+        await supa.from('videos').update({ thumbnail_url: thumbnailUrl }).eq('id', videoId);
+      } catch (e) {
+        console.warn('Supabase thumbnail_url update failed:', e.message);
+      }
+    }
+
+    res.json({ success: true, thumbnailUrl });
+  } catch (err) {
+    console.error('upload-thumbnail error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not save thumbnail.');
+  }
+});
+
+// ── Link-thumbnail (external videos) ─────────────────────────────────────────
+// Stores captured frames for non-vs_uploads videos (e.g. Dropbox URL flow).
+// Keyed by the client-supplied id; served at a stable URL so it can be
+// written into the Supabase `videos.thumbnail_url` column without embedding
+// a multi-hundred-KB data: URL inline.
+const LINK_THUMB_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+
+app.post('/api/upload-link-thumbnail', async (req, res) => {
+  try {
+    const { id, data, contentType } = req.body || {};
+    if (!id || !data || !contentType) {
+      return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
+    }
+    if (typeof id !== 'string' || !LINK_THUMB_ID_RE.test(id)) {
+      return apiError(res, 400, 'BAD_ID', 'Invalid thumbnail id.');
+    }
+    if (!ALLOWED_THUMB_TYPES.has(contentType)) {
+      return apiError(res, 415, 'UNSUPPORTED_TYPE', 'Unsupported thumbnail type.');
+    }
+    let buf;
+    try { buf = Buffer.from(data, 'base64'); }
+    catch { return apiError(res, 400, 'BAD_BASE64', 'Thumbnail data is not valid base64.'); }
+    if (buf.length === 0) {
+      return apiError(res, 400, 'EMPTY_THUMB', 'Thumbnail decoded to 0 bytes.');
+    }
+    if (buf.length > MAX_THUMB_SIZE) {
+      return apiError(res, 413, 'PAYLOAD_TOO_LARGE', 'Thumbnail too large.');
+    }
+
+    // Idempotent insert. ON CONFLICT DO NOTHING so a retry from the client
+    // doesn't clobber an earlier capture; clients only call this once per id.
+    await pool.query(
+      `INSERT INTO vs_link_thumbnails (id, thumbnail_data, thumbnail_content_type)
+       VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+      [id, buf, contentType]
+    );
+
+    res.json({ success: true, thumbnailUrl: `/api/link-thumbnail/${encodeURIComponent(id)}` });
+  } catch (err) {
+    console.error('upload-link-thumbnail error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not save thumbnail.');
+  }
+});
+
+app.get('/api/link-thumbnail/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!LINK_THUMB_ID_RE.test(id)) {
+      return apiError(res, 400, 'BAD_ID', 'Invalid thumbnail id.');
+    }
+    const row = await pool.query(
+      'SELECT thumbnail_data, thumbnail_content_type FROM vs_link_thumbnails WHERE id = $1',
+      [id]
+    );
+    if (!row.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Thumbnail not found.');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Content-Type', row.rows[0].thumbnail_content_type || 'image/jpeg');
+    res.send(row.rows[0].thumbnail_data);
+  } catch (err) {
+    console.error('link-thumbnail GET error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not load thumbnail.');
+  }
+});
+
+app.get('/api/video-thumbnail/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    const result = await pool.query(
+      'SELECT thumbnail_data, thumbnail_content_type FROM vs_uploads WHERE id = $1',
+      [id]
+    );
+    if (!result.rows.length || !result.rows[0].thumbnail_data) {
+      return apiError(res, 404, 'NOT_FOUND', 'Thumbnail not found.');
+    }
+    const { thumbnail_data, thumbnail_content_type } = result.rows[0];
+    res.writeHead(200, {
+      'Content-Type': thumbnail_content_type || 'image/jpeg',
+      'Content-Length': thumbnail_data.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
+    res.end(thumbnail_data);
+  } catch (err) {
+    console.error('video-thumbnail error:', err);
+    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not load thumbnail.');
   }
 });
 
@@ -996,7 +1198,8 @@ app.get('/api/my-videos', requireUser, async (req, res) => {
     const result = await pool.query(
       `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
               platform, embed_video_id,
-              (password_hash IS NOT NULL) AS has_password
+              (password_hash IS NOT NULL) AS has_password,
+              (thumbnail_data IS NOT NULL) AS has_thumbnail
        FROM vs_uploads
        WHERE user_id = $1
        ORDER BY uploaded_at DESC`,

@@ -28,6 +28,9 @@ ALTER TABLE videos ADD COLUMN IF NOT EXISTS "order" INTEGER DEFAULT 0;
 ALTER TABLE videos ADD COLUMN IF NOT EXISTS page TEXT DEFAULT 'main';
 ALTER TABLE videos ADD COLUMN IF NOT EXISTS video_url TEXT;
 ALTER TABLE videos ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'wistia';
+-- Optional thumbnail URL captured from a video frame (e.g. for Dropbox).
+-- Falls back to the platform default when null.
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
 
 -- Update existing videos to have platform set to 'wistia' if null
 UPDATE videos SET platform = 'wistia' WHERE platform IS NULL;

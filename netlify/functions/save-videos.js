@@ -184,7 +184,11 @@ exports.handler = async (event, context) => {
           order: video.order || 0,
           page: page,
           video_url: video.video_url,
-          platform: video.platform || 'wistia'
+          platform: video.platform || 'wistia',
+          // Persist any captured/uploaded frame URL so listings render the
+          // real thumbnail instead of a placeholder. Optional — videos
+          // without one keep falling back to the platform default.
+          thumbnail_url: video.thumbnailUrl || null
         }));
 
         // Delete existing videos for this page and insert new ones

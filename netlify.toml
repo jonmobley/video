@@ -31,6 +31,28 @@
   to = "/watch.html"
   status = 200
 
+# Thumbnail endpoints — match the Express server routes so the Netlify
+# deployment serves stored video frames at the same URLs.
+[[redirects]]
+  from = "/api/upload-thumbnail"
+  to = "/.netlify/functions/upload-thumbnail"
+  status = 200
+
+[[redirects]]
+  from = "/api/video-thumbnail/*"
+  to = "/.netlify/functions/get-video-thumbnail/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/upload-link-thumbnail"
+  to = "/.netlify/functions/upload-link-thumbnail"
+  status = 200
+
+[[redirects]]
+  from = "/api/link-thumbnail/*"
+  to = "/.netlify/functions/get-link-thumbnail/:splat"
+  status = 200
+
 # Security headers for all pages
 [[headers]]
   for = "/*"

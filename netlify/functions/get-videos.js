@@ -258,7 +258,9 @@ exports.handler = async (event, context) => {
           urlString: video.url_string,      // url_string -> urlString
           order: video.order,
           video_url: video.video_url,       // Keep snake_case for compatibility
-          platform: video.platform || 'wistia' // Default to wistia for backwards compatibility
+          platform: video.platform || 'wistia', // Default to wistia for backwards compatibility
+          // Stored frame thumbnail (Dropbox capture, etc.). Optional.
+          thumbnailUrl: video.thumbnail_url || null
         }));
 
         console.log(`Successfully fetched ${videos.length} videos from Supabase for page: ${page}`);

@@ -335,14 +335,22 @@ class VideoPlatformManager {
      * @returns {string} Thumbnail URL
      */
     getThumbnailUrl(video) {
-        if (video.platform === 'dropbox') {
-            // For Dropbox, we might not have a thumbnail
-            // Could potentially generate one using video element
-            return video.thumbnailUrl || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"%3E%3Crect width="640" height="360" fill="%232a2a2a"/%3E%3Ctext x="320" y="180" text-anchor="middle" dy=".3em" fill="%23666" font-family="system-ui" font-size="24"%3EDropbox Video%3C/text%3E%3C/svg%3E';
-        } else {
-            // Wistia thumbnail
-            return `https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg`;
+        // A captured/stored frame always wins over the platform default —
+        // it represents what the user actually sees in their video.
+        if (video && video.thumbnailUrl) {
+            return video.thumbnailUrl;
         }
+        // Native uploads expose thumbnails via /api/video-thumbnail/<id>;
+        // both the Express server and the Netlify function serve this path.
+        if (video && video.platform === 'upload' && (video.has_thumbnail || video.hasThumbnail)) {
+            return `/api/video-thumbnail/${encodeURIComponent(video.id)}`;
+        }
+        if (video && video.platform === 'dropbox') {
+            // No frame captured (legacy entry) — fall back to a clear placeholder.
+            return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"%3E%3Crect width="640" height="360" fill="%232a2a2a"/%3E%3Ctext x="320" y="180" text-anchor="middle" dy=".3em" fill="%23666" font-family="system-ui" font-size="24"%3EDropbox Video%3C/text%3E%3C/svg%3E';
+        }
+        // Wistia thumbnail
+        return `https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg`;
     }
 
     /**

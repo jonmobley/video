@@ -516,6 +516,7 @@
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     <script src="js/dropbox-url-handler.js"></script>
     <script src="js/video-platform.js"></script>
+    <script src="js/thumbnail-capture.js"></script>
     
     <script>
         // Global variables
@@ -736,17 +737,59 @@
             try {
                 // Process the Dropbox URL
                 const videoData = platformManager.processDropboxUrl(url);
-                
+
+                // Best-effort frame capture using the shared helper, which
+                // sets crossOrigin=anonymous on the hidden <video> so the
+                // canvas isn't tainted for cross-origin Dropbox URLs.
+                // Captured bytes are uploaded to /api/upload-link-thumbnail
+                // and we store the returned stable URL on the video object —
+                // never a multi-hundred-KB data: URL — so it persists cleanly
+                // through save-videos into Supabase. Any failure leaves
+                // thumbnailUrl unset and the card shows the placeholder.
+                showStatus('info', 'Capturing thumbnail…');
+                try {
+                    if (typeof window.captureVideoThumbnail !== 'function') {
+                        throw new Error('thumbnail-capture helper unavailable');
+                    }
+                    const captured = await window.captureVideoThumbnail(videoData.video_url);
+                    // Helper resolves to { blob, dataUrl, base64, contentType, ... }
+                    // on success, or null on any failure path. Reuse the base64 it
+                    // already produced rather than re-encoding.
+                    if (captured && captured.base64) {
+                        const resp = await fetch('/api/upload-link-thumbnail', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: videoData.id,
+                                data: captured.base64,
+                                contentType: captured.contentType || 'image/jpeg'
+                            })
+                        });
+                        if (resp.ok) {
+                            const out = await resp.json().catch(() => ({}));
+                            if (out && out.thumbnailUrl) {
+                                videoData.thumbnailUrl = out.thumbnailUrl;
+                            }
+                        } else {
+                            console.warn('upload-link-thumbnail returned', resp.status);
+                        }
+                    }
+                } catch (thumbErr) {
+                    console.warn('Dropbox thumbnail capture failed:', thumbErr);
+                }
+
                 // Add to videos array
                 videoData.order = videos.length;
                 videos.push(videoData);
-                
+
                 renderVideos();
-                
+
                 // Clear input
                 urlInput.value = '';
-                
-                showStatus('success', 'Dropbox video added!');
+
+                showStatus('success', videoData.thumbnailUrl
+                    ? 'Dropbox video added with thumbnail!'
+                    : 'Dropbox video added (thumbnail unavailable).');
             } catch (error) {
                 showStatus('error', 'Invalid Dropbox URL: ' + error.message);
             }
@@ -768,7 +811,7 @@
                 return `
                     <div class="video-item ${isActive ? 'active' : ''}" data-id="${video.id}" onclick="playVideo('${video.id}')">
                         <div class="thumbnail">
-                            ${video.platform === 'dropbox' ? 
+                            ${(video.platform === 'dropbox' && !video.thumbnailUrl) ?
                                 `<div class="thumbnail-placeholder">Dropbox Video</div>` :
                                 `<img src="${thumbnailUrl}" alt="${video.title}" onerror="this.style.display='none'">`
                             }
