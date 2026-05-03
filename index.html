@@ -198,9 +198,9 @@
         .features {
             margin-top: 100px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 18px;
-            max-width: 1000px;
+            max-width: 720px;
             width: 100%;
         }
         .feature {
@@ -270,6 +270,7 @@
             .hero { margin-top: 24px; }
             .phone-preview { width: 200px; height: 400px; margin-top: 40px; }
             .features, .bottom-cta { margin-top: 70px; }
+            .features { grid-template-columns: 1fr; }
             .bottom-cta { padding: 36px 22px; }
         }
     </style>
