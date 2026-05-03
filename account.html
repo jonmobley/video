@@ -242,6 +242,70 @@
       }
       const { videos } = await res.json();
       renderVideos(videos);
+      // Fire-and-forget: fill in real frames for older uploads that pre-date
+      // the on-upload thumbnail capture. Runs after the cards are on-screen
+      // so the dashboard never waits on it.
+      backfillThumbnails(videos);
+    }
+
+    // One-time, client-driven sweep that captures a real frame for any of
+    // the user's native uploads that still has no thumbnail. Reuses the
+    // same capture helper + endpoint as the upload widget; the server-side
+    // /api/upload-thumbnail enforces ownership and is idempotent (returns
+    // 409 ALREADY_SET on subsequent calls), so this is safe to re-run on
+    // every dashboard load.
+    async function backfillThumbnails(videos) {
+      if (typeof window.captureVideoThumbnail !== 'function') return;
+      // Only native uploads have a streamable file we can decode here.
+      // Password-protected videos would 403 from /api/video/:id without a
+      // session token, so skip them rather than failing noisily.
+      const targets = videos.filter(v =>
+        !v.has_thumbnail &&
+        !v.has_password &&
+        (!v.platform || v.platform === 'upload')
+      );
+      // Sequential — each capture pulls the video bytes, so concurrency
+      // would balloon bandwidth and memory for users with many uploads.
+      for (const v of targets) {
+        try {
+          const src = `/api/video/${encodeURIComponent(v.id)}`;
+          const result = await window.captureVideoThumbnail(src);
+          if (!result || !result.base64) continue;
+          const r = await fetch('/api/upload-thumbnail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: v.id,
+              data: result.base64,
+              contentType: result.contentType || 'image/jpeg'
+            })
+          });
+          // 200 = freshly stored, 409 = someone else already filled it in
+          // between page load and now. Both mean a real thumb is available.
+          if (r.ok || r.status === 409) {
+            swapInThumbnail(v.id);
+          }
+        } catch (_) { /* non-fatal — placeholder stays */ }
+      }
+    }
+
+    function swapInThumbnail(videoId) {
+      const cards = document.querySelectorAll('.video-card');
+      for (const card of cards) {
+        if (card.dataset.id !== videoId) continue;
+        const wrap = card.querySelector('.vc-thumb');
+        if (!wrap) return;
+        if (wrap.querySelector('img')) return; // already has one
+        const placeholder = wrap.querySelector('.vc-thumb-placeholder');
+        if (placeholder) placeholder.remove();
+        const img = document.createElement('img');
+        img.src = `/api/video-thumbnail/${encodeURIComponent(videoId)}`;
+        img.alt = '';
+        img.loading = 'lazy';
+        img.setAttribute('onerror', 'window.__vcThumbFallback(this)');
+        wrap.insertBefore(img, wrap.firstChild);
+        return;
+      }
     }
 
     function renderVideos(videos) {
