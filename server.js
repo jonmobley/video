@@ -1187,6 +1187,7 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const search = (req.query.search || '').trim();
     const status = (req.query.status || '').trim().toLowerCase();
+    const platform = (req.query.platform || '').trim().toLowerCase();
 
     const conditions = [];
     const params = [];
@@ -1204,6 +1205,11 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     } else if (status === 'active') {
       conditions.push(`(u.expires_at IS NULL OR u.expires_at >= NOW())`);
       conditions.push(`u.password_hash IS NULL`);
+    }
+    if (['upload', 'youtube', 'vimeo'].includes(platform)) {
+      conditions.push(`u.platform = $${paramIdx}`);
+      params.push(platform);
+      paramIdx++;
     }
 
     const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';

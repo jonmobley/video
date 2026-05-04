@@ -357,6 +357,12 @@
             <option value="expired">Expired</option>
             <option value="password">Password-protected</option>
           </select>
+          <select class="tier-filter" id="videoPlatformFilter" aria-label="Filter by source">
+            <option value="all">All sources</option>
+            <option value="upload">Upload</option>
+            <option value="youtube">YouTube</option>
+            <option value="vimeo">Vimeo</option>
+          </select>
         </div>
         <div class="user-count" id="videoCount" style="display:none"></div>
         <div class="video-list" id="videoList"></div>
@@ -403,6 +409,7 @@
     const userPagination  = document.getElementById('userPagination');
     const videoSearchInput = document.getElementById('videoSearchInput');
     const videoStatusFilter = document.getElementById('videoStatusFilter');
+    const videoPlatformFilter = document.getElementById('videoPlatformFilter');
     const videoFilterBar  = document.getElementById('videoFilterBar');
     const videoCountEl    = document.getElementById('videoCount');
     const tabBtns        = document.querySelectorAll('.tab-btn');
@@ -418,6 +425,7 @@
     let videoSearchDebounce = null;
     let videoSearchState = '';
     let videoStatusState = 'all';
+    let videoPlatformState = 'all';
     let videosAbortController = null;
     let usersAbortController = null;
 
@@ -433,6 +441,7 @@
         if (btn.dataset.tab === 'videos') {
           videoSearchInput.value = videoSearchState;
           videoStatusFilter.value = videoStatusState;
+          videoPlatformFilter.value = videoPlatformState;
         }
       });
     });
@@ -560,6 +569,7 @@
       videoSearchInput.disabled = true;
       videoStatusFilter.disabled = true;
       videoFilterBar.classList.add('loading');
+      videoPlatformFilter.disabled = true;
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoCountEl.style.display = 'none';
       statsRow.innerHTML = '';
@@ -569,8 +579,10 @@
         const params = new URLSearchParams({ limit: PAGE_SIZE, offset: videoOffset });
         const searchVal = videoSearchState.trim();
         const statusVal = videoStatusState;
+        const platformVal = videoPlatformState;
         if (searchVal) params.set('search', searchVal);
         if (statusVal && statusVal !== 'all') params.set('status', statusVal);
+        if (platformVal && platformVal !== 'all') params.set('platform', platformVal);
 
         const res = await fetch('/api/admin/videos?' + params, {
           headers: { 'Authorization': 'Bearer ' + adminToken },
@@ -610,12 +622,12 @@
         videoFilterBar.style.display = 'flex';
         videoFilterBar.classList.remove('loading');
 
-        if (searchVal || statusVal !== 'all') {
+        if (searchVal || statusVal !== 'all' || platformVal !== 'all') {
           videoCountEl.textContent = total + ' video' + (total === 1 ? '' : 's') + ' found';
           videoCountEl.style.display = 'block';
         }
 
-        if (!videos.length && total === 0 && !searchVal && statusVal === 'all') {
+        if (!videos.length && total === 0 && !searchVal && statusVal === 'all' && platformVal === 'all') {
           videoList.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div>No videos uploaded yet.</div></div>`;
           videoFilterBar.style.display = 'none';
           return;
@@ -683,6 +695,7 @@
           refreshBtn.textContent = '↻ Refresh';
           videoSearchInput.disabled = false;
           videoStatusFilter.disabled = false;
+          videoPlatformFilter.disabled = false;
         }
         videoFilterBar.classList.remove('loading');
       }
@@ -902,6 +915,7 @@
       userOffset = 0;
       videoSearchState = '';
       videoStatusState = 'all';
+      videoPlatformState = 'all';
       pendingDeletes.clear();
       resetTabs();
       loadVideos();
@@ -931,8 +945,10 @@
       userCountEl.style.display = 'none';
       videoSearchState = '';
       videoStatusState = 'all';
+      videoPlatformState = 'all';
       videoSearchInput.value = '';
       videoStatusFilter.value = 'all';
+      videoPlatformFilter.value = 'all';
       videoFilterBar.style.display = 'none';
       videoCountEl.style.display = 'none';
       resetTabs();
@@ -946,8 +962,10 @@
       videoOffset = 0;
       videoSearchState = '';
       videoStatusState = 'all';
+      videoPlatformState = 'all';
       videoSearchInput.value = '';
       videoStatusFilter.value = 'all';
+      videoPlatformFilter.value = 'all';
       loadVideos();
     });
     refreshUsersBtn.addEventListener('click', () => {
@@ -970,6 +988,11 @@
     });
     videoStatusFilter.addEventListener('change', () => {
       videoStatusState = videoStatusFilter.value;
+      videoOffset = 0;
+      loadVideos();
+    });
+    videoPlatformFilter.addEventListener('change', () => {
+      videoPlatformState = videoPlatformFilter.value;
       videoOffset = 0;
       loadVideos();
     });
