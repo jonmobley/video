@@ -20,6 +20,7 @@ The application's architecture separates frontend and backend concerns.
 - **Interactivity**: JavaScript files in the `/js/` directory handle client-side logic, including Wistia API integration for video playback. Shared utility modules imported by oz.html, vertical.html, and test.html include:
     - `js/shared-errors.js` — friendly error display for video grids
     - `js/shared-color-utils.js` — `darkenColor`, `hexToRgba`, `applyAccentColor` for dynamic accent theming
+    - `js/shared-page-config.js` — `loadPageConfig(pageName, options)` fetches page config from server, applies accent color & page title; supports `defaultAccentColor`, `onTitleLoaded`, `onTitleMissing`, `fetchFn`, and `debug` options
     - `js/shared-url-utils.js` — `updateBrowserUrl`, `clearBrowserUrl`, `buildVideoUrlMappings`, `checkForDirectVideoLink` for direct video linking via URL hash; also declares the global `videoUrlMappings` object
     - `js/shared-thumbnail-utils.js` — `setThumbnailFallback`, `loadWistiaThumbnail`, `loadVideoDuration`, `fixOrphanedWords` for video grid thumbnails and durations (used by vertical.html and test.html; oz.html keeps its own caching variants of `loadVideoDuration`/`loadWistiaThumbnail`)
     - `js/shared-video-detect.js` — `detectVideoPlatform`, `extractVideoId`, `getThumbnailUrl` for multi-platform video support (used by vertical.html and test.html only; oz.html is Wistia-only)

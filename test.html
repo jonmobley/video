@@ -2300,6 +2300,7 @@
     <!-- Shared utilities -->
     <script src="js/shared-errors.js"></script>
     <script src="js/shared-color-utils.js"></script>
+    <script src="js/shared-page-config.js"></script>
     <script src="js/shared-url-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
     <script src="js/shared-video-detect.js"></script>
@@ -3069,28 +3070,10 @@
             });
         }
 
-        /**
-         * Load page configuration including accent color and title
-         * Fetches configuration from the server and applies dynamic theming
-         * Updates CSS variables for accent colors and page title
-         */
-        /**
-         * Loads page configuration from the server
-         * Sets accent colors and other page-specific settings
-         */
-        async function loadPageConfig() {
-            try {
-                const config = await fetchWithCache('/.netlify/functions/get-page-config?page=disc');
-                if (config.accent_color) {
-                    applyAccentColor(config.accent_color);
-                }
-
-                if (config.page_title) {
-                    document.getElementById('pageTitle').textContent = config.page_title;
-                }
-            } catch (error) {
-                console.error('Failed to load page config:', error);
-            }
+        function loadPageConfigDisc() {
+            return loadPageConfig('disc', {
+                fetchFn: fetchWithCache
+            });
         }
         
         /**
@@ -3114,7 +3097,7 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             // Load page config first to set colors
-            await loadPageConfig();
+            await loadPageConfigDisc();
             loadVideosFromServer();
             attachTagListeners();
             

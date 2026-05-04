@@ -156,11 +156,20 @@ class IntegrationTester {
     const jsContent = await jsResponse.text();
     
     // Check for essential functions
-    const essentialFunctions = ['loadVideos', 'loadCategories', 'loadPageConfig'];
+    const essentialFunctions = ['loadVideos', 'loadCategories'];
     const missingFunctions = essentialFunctions.filter(func => !jsContent.includes(func));
     
     if (missingFunctions.length > 0) {
       throw new Error(`Missing functions: ${missingFunctions.join(', ')}`);
+    }
+
+    const pageConfigResponse = await fetch(`${this.siteUrl}/js/shared-page-config.js`);
+    if (pageConfigResponse.status !== 200) {
+      throw new Error(`shared-page-config.js failed to load: ${pageConfigResponse.status}`);
+    }
+    const pageConfigContent = await pageConfigResponse.text();
+    if (!pageConfigContent.includes('loadPageConfig')) {
+      throw new Error('shared-page-config.js missing loadPageConfig function');
     }
     
     return `JavaScript loaded with all essential functions`;

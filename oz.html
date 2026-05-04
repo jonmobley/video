@@ -2838,6 +2838,7 @@ Main page structure with:
     <!-- Shared utilities -->
     <script src="js/shared-errors.js"></script>
     <script src="js/shared-color-utils.js"></script>
+    <script src="js/shared-page-config.js"></script>
     <script src="js/shared-url-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
     <!-- oz.html uses setThumbnailFallback and fixOrphanedWords from shared-thumbnail-utils.js
@@ -3808,43 +3809,15 @@ Main page structure with:
             return false; // No saved title found
         }
 
-        /**
-         * Load page configuration including accent color and title
-         * Fetches configuration from the server and applies dynamic theming
-         * Updates CSS variables for accent colors and page title
-         */
-        async function loadPageConfig() {
-            try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=oz');
-                if (response.ok) {
-                    const config = await response.json();
-                    console.log('🎨 DEBUG: Loaded page config:', config);
-                    // Set accent color (use server config or default)
-                    const accentColor = config.accent_color || '#008f67';
-                    console.log('🎨 DEBUG: Setting accent color to:', accentColor);
-                    applyAccentColor(accentColor);
-                    
-                    if (config.page_title) {
-                        document.getElementById('pageTitle').textContent = config.page_title;
-                        // Also save to localStorage for future fallback
-                        localStorage.setItem('oz_page_title', config.page_title);
-                    } else {
-                        // If no server title, try localStorage
-                        loadPageTitle();
-                    }
-                } else {
-                    // If server request fails, use defaults
-                    console.log('🎨 DEBUG: Server request failed, using default accent color');
-                    applyAccentColor('#008f67');
-                    loadPageTitle();
-                }
-            } catch (error) {
-                console.error('Failed to load page config:', error);
-                // If server is unreachable, use defaults
-                console.log('🎨 DEBUG: Server unreachable, using default accent color');
-                applyAccentColor('#008f67');
-                loadPageTitle();
-            }
+        function loadPageConfigOz() {
+            return loadPageConfig('oz', {
+                defaultAccentColor: '#008f67',
+                debug: true,
+                onTitleLoaded: function(title) {
+                    localStorage.setItem('oz_page_title', title);
+                },
+                onTitleMissing: loadPageTitle
+            });
         }
 
         /**
@@ -4089,7 +4062,7 @@ Main page structure with:
                 const startTime = performance.now();
                 
                 const [pageConfigResult, categoriesResult, videosResult] = await Promise.all([
-                    loadPageConfig().catch(err => {
+                    loadPageConfigOz().catch(err => {
                         console.error('❌ Page config failed:', err);
                         return null;
                     }),
