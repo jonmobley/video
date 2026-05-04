@@ -22,14 +22,23 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
-// Initialize Supabase client with environment variables
+// Initialize Supabase client with the service role key (bypasses RLS).
+// The anon key must NOT be used here — page_config RLS is read-only for anon.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase = null;
 
-if (supabaseUrl && supabaseKey) {
+if (!supabaseServiceRoleKey && process.env.SUPABASE_URL) {
+  console.error(
+    'SUPABASE_SERVICE_ROLE_KEY is not set. ' +
+    'upload-page-image requires the service role key to bypass RLS. ' +
+    'Set it in Netlify environment variables.'
+  );
+}
+
+if (supabaseUrl && supabaseServiceRoleKey) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     console.log('Supabase client created successfully for metadata storage');
   } catch (error) {
     console.error('Error creating Supabase client:', error);
@@ -153,40 +162,40 @@ exports.handler = async (event, context) => {
     // The blob will be accessible via Netlify's blob storage URL
     const imageUrl = `/.netlify/blobs/page-images/${filename}`;
     
-    // Update page config with new image URL if Supabase is configured
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('page_config')
-        .update({ og_image_url: imageUrl })
-        .eq('page', page)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        // Continue anyway - image was uploaded successfully
-      }
-
+    if (!supabase) {
+      console.error('Supabase client not available — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({
-          imageUrl,
-          pageConfig: data,
-          message: 'Image uploaded successfully to Netlify Blobs'
-        })
-      };
-    } else {
-      // Supabase not configured, just return the image URL
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          imageUrl,
-          message: 'Image uploaded successfully to Netlify Blobs (Supabase not configured for metadata storage)'
-        })
+        body: JSON.stringify({ error: { code: 'DB_NOT_CONFIGURED', message: 'Database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' } })
       };
     }
+
+    const { data, error } = await supabase
+      .from('page_config')
+      .update({ og_image_url: imageUrl })
+      .eq('page', page)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error updating page config:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Failed to update page config with image URL.' } })
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        imageUrl,
+        pageConfig: data,
+        message: 'Image uploaded successfully'
+      })
+    };
   } catch (error) {
     console.error('Error:', error);
     return {

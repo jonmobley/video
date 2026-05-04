@@ -30,14 +30,23 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
-// Initialize Supabase client with environment variables
+// Initialize Supabase client with the service role key (bypasses RLS).
+// The anon key must NOT be used here — page_config RLS is read-only for anon.
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase = null;
 
-if (supabaseUrl && supabaseKey) {
+if (!supabaseServiceRoleKey && process.env.SUPABASE_URL) {
+  console.error(
+    'SUPABASE_SERVICE_ROLE_KEY is not set. ' +
+    'save-page-config requires the service role key to bypass RLS. ' +
+    'Set it in Netlify environment variables.'
+  );
+}
+
+if (supabaseUrl && supabaseServiceRoleKey) {
   try {
-    supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     console.log('Supabase client created successfully for page config');
   } catch (error) {
     console.error('Error creating Supabase client:', error);
@@ -129,17 +138,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Check if Supabase is available
     if (!supabase) {
-      console.log('Supabase not configured - page config changes not persisted');
+      console.error('Supabase client not available — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          success: true,
-          message: 'Page config validated but not persisted (Supabase not configured)',
-          temporary: true
-        })
+        body: JSON.stringify({ error: { code: 'DB_NOT_CONFIGURED', message: 'Database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' } })
       };
     }
 

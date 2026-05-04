@@ -1,15 +1,16 @@
--- Fix page_config RLS to allow public writes for admin functionality
--- This allows the save-page-config function to work without authentication
+-- Lock down page_config RLS: read-only for anonymous, full access for authenticated
+-- The save-page-config Netlify function uses the service role key (bypasses RLS)
+-- so writes go through without needing a permissive anon policy.
 
--- Drop existing restrictive policies
+-- Drop the old overly-permissive policy that granted write access to anon
+DROP POLICY IF EXISTS "Allow public access to page_config" ON page_config;
 DROP POLICY IF EXISTS "Allow public read access to page_config" ON page_config;
 DROP POLICY IF EXISTS "Allow authenticated users full access to page_config" ON page_config;
 
--- Create new policy that allows public read and write access
--- Note: This is acceptable since page_config is admin-controlled content
-CREATE POLICY "Allow public access to page_config" ON page_config
-    FOR ALL TO anon, authenticated USING (true);
+-- Anon users can only SELECT (needed for theming/accent colors on public pages)
+CREATE POLICY "Allow public read access to page_config" ON page_config
+    FOR SELECT TO anon USING (true);
 
--- Alternatively, if you prefer to keep RLS strict, ensure the service role key is set:
--- In Netlify dashboard > Site settings > Environment variables, add:
--- SUPABASE_SERVICE_ROLE_KEY = your_service_role_key_here
+-- Authenticated Supabase users get full access
+CREATE POLICY "Allow authenticated users full access to page_config" ON page_config
+    FOR ALL TO authenticated USING (true);
