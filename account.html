@@ -97,12 +97,7 @@
       background: rgba(0,0,0,0.75); color: #fff;
       margin-left: 6px; flex-shrink: 0;
     }
-    .vc-badge.youtube { background: #ff0000; }
-    .vc-badge.vimeo { background: #1ab7ea; }
-    .vc-badge.upload { background: rgba(78,205,196,0.9); }
-    .vc-badge.dailymotion { background: #0d0d6e; }
-    .vc-badge.loom { background: #625df5; }
-    .vc-badge.wistia { background: #54bbff; }
+    /* platform badge colors are injected dynamically from PLATFORM_CONFIG */
     .vc-main { flex: 1; min-width: 0; }
     .vc-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; display: flex; align-items: center; min-width: 0; }
     .vc-title-text { overflow: hidden; text-overflow: ellipsis; }
@@ -578,14 +573,28 @@
       attachCardHandlers();
     }
 
+    const PLATFORM_CONFIG = {
+      youtube:     { label: 'YouTube',      color: '#ff0000' },
+      vimeo:       { label: 'Vimeo',        color: '#1ab7ea' },
+      dailymotion: { label: 'Dailymotion',  color: '#0d0d6e' },
+      loom:        { label: 'Loom',         color: '#625df5' },
+      wistia:      { label: 'Wistia',       color: '#54bbff' },
+      upload:      { label: 'Upload',       color: 'rgba(78,205,196,0.9)' },
+    };
+
+    (function injectPlatformBadgeStyles() {
+      const css = Object.entries(PLATFORM_CONFIG)
+        .map(([key, { color }]) => `.vc-badge.${key} { background: ${color}; }`)
+        .join('\n');
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+    })();
+
     function platformInfo(v) {
       const p = (v.platform || 'upload').toLowerCase();
-      if (p === 'youtube')      return { key: 'youtube',      label: 'YouTube' };
-      if (p === 'vimeo')        return { key: 'vimeo',        label: 'Vimeo' };
-      if (p === 'dailymotion')  return { key: 'dailymotion',  label: 'Dailymotion' };
-      if (p === 'loom')         return { key: 'loom',         label: 'Loom' };
-      if (p === 'wistia')       return { key: 'wistia',       label: 'Wistia' };
-      return { key: 'upload', label: 'Upload' };
+      const cfg = PLATFORM_CONFIG[p] || PLATFORM_CONFIG.upload;
+      return { key: PLATFORM_CONFIG[p] ? p : 'upload', label: cfg.label };
     }
 
     const PLACEHOLDER_SVG = `
