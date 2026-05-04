@@ -117,6 +117,27 @@ body {
     }
 }
 
+.source-badge {
+    display: inline-block;
+    vertical-align: middle;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+.source-badge.youtube { background: #ff0000; }
+.source-badge.vimeo { background: #1ab7ea; }
+.source-badge.upload { background: rgba(78,205,196,0.9); }
+.source-badge.dailymotion { background: #0d0d6e; }
+.source-badge.loom { background: #625df5; }
+.source-badge.wistia { background: #54bbff; }
+
 :focus-visible {
     outline: 2px solid #4ecdc4;
     outline-offset: 2px;
