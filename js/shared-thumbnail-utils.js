@@ -9,7 +9,25 @@ function setThumbnailFallback(wistiaId) {
     }
 }
 
-function loadWistiaThumbnail(wistiaId) {
+function loadWistiaThumbnail(wistiaId, options) {
+    var opts = options || {};
+
+    if (opts.getCached) {
+        var cachedMetadata = opts.getCached(wistiaId);
+        if (cachedMetadata && cachedMetadata.thumbnail_url) {
+            var thumbElement = document.getElementById('thumb-' + wistiaId);
+            if (thumbElement) {
+                var img = thumbElement.querySelector('img');
+                if (img) {
+                    var url = cachedMetadata.thumbnail_url;
+                    img.src = opts.transformUrl ? opts.transformUrl(url) : url;
+                    img.style.display = 'block';
+                }
+            }
+            return;
+        }
+    }
+
     fetch('https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/' + wistiaId + '&format=json')
         .then(function(response) { return response.json(); })
         .then(function(data) {
@@ -18,9 +36,16 @@ function loadWistiaThumbnail(wistiaId) {
                 if (thumbElement) {
                     var img = thumbElement.querySelector('img');
                     if (img) {
-                        img.src = data.thumbnail_url;
+                        var url = data.thumbnail_url;
+                        img.src = opts.transformUrl ? opts.transformUrl(url) : url;
                         img.style.display = 'block';
                     }
+                }
+                if (opts.setCached) {
+                    opts.setCached(wistiaId, {
+                        thumbnail_url: data.thumbnail_url,
+                        duration: data.duration
+                    });
                 }
             } else {
                 setThumbnailFallback(wistiaId);
@@ -32,11 +57,23 @@ function loadWistiaThumbnail(wistiaId) {
         });
 }
 
-function loadVideoDuration(wistiaId) {
+function loadVideoDuration(wistiaId, options) {
+    var opts = options || {};
     var thumbnailDurationElement = document.getElementById('thumb-duration-' + wistiaId);
 
     if (!thumbnailDurationElement) {
         return;
+    }
+
+    if (opts.getCached) {
+        var cachedMetadata = opts.getCached(wistiaId);
+        if (cachedMetadata && cachedMetadata.duration) {
+            var minutes = Math.floor(cachedMetadata.duration / 60);
+            var seconds = Math.floor(cachedMetadata.duration % 60);
+            thumbnailDurationElement.textContent = minutes + ':' + seconds.toString().padStart(2, '0');
+            thumbnailDurationElement.classList.remove('placeholder');
+            return;
+        }
     }
 
     var apiUrls = [
@@ -60,6 +97,12 @@ function loadVideoDuration(wistiaId) {
                     thumbnailDurationElement.textContent = minutes + ':' + seconds.toString().padStart(2, '0');
                     thumbnailDurationElement.classList.remove('placeholder');
                     durationFound = true;
+                    if (opts.setCached) {
+                        opts.setCached(wistiaId, {
+                            duration: data.duration,
+                            thumbnail_url: data.thumbnail_url
+                        });
+                    }
                     break;
                 }
             } catch (e) {
