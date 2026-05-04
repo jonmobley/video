@@ -348,10 +348,10 @@
                         <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/>
                         <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>
                     </svg>
-                    <div class="hero-drop-label">Paste a YouTube or Vimeo link</div>
+                    <div class="hero-drop-label">Paste a video link</div>
                     <div class="hero-link-row">
                         <input type="url" class="hero-link-input" id="heroLinkInput"
-                               placeholder="https://youtu.be/… or https://vimeo.com/…"
+                               placeholder="YouTube, Vimeo, Dailymotion, Loom, or Wistia URL"
                                autocomplete="off" spellcheck="false" aria-label="Video URL">
                         <button type="button" class="hero-paste-btn" id="heroPasteBtn" aria-label="Paste link from clipboard">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -505,7 +505,7 @@
             }, 50);
             resetToUploadMode();
           } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
-            heroLinkDetected.textContent = 'Only YouTube and Vimeo links are supported';
+            heroLinkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported here';
             heroLinkDetected.classList.add('error');
           }
         });

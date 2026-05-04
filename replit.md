@@ -50,7 +50,8 @@ The application's architecture separates frontend and backend concerns.
 
 ## External Dependencies
 
-- **Wistia**: Primary video hosting and streaming service, integrated via its JavaScript API.
+- **Wistia**: Primary video hosting and streaming service, integrated via its JavaScript API. Also supported as a link-embed platform via the link parser.
+- **Supported Link-Embed Platforms**: The link parser (`js/link-parser.js`) supports YouTube, Vimeo, Dailymotion, Loom, and Wistia URL parsing for embeddable video links. Each platform has `parse`, `buildEmbedUrl`, and `buildOriginalUrl` support.
 - **Supabase**: Optional PostgreSQL database for dynamic content management. Used for `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 - **Netlify Functions**: Serverless platform for backend logic.
 - **Netlify Blobs**: Used for durable cloud storage of uploaded images.

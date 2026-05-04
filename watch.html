@@ -371,15 +371,15 @@
     }
 
     /**
-     * Render an embedded YouTube/Vimeo player. Uses VideoPlatformManager so
-     * upload, Dropbox, YouTube, and Vimeo all flow through one entry point.
+     * Render an embedded video player. Uses VideoPlatformManager so
+     * upload, Dropbox, YouTube, Vimeo, Dailymotion, Loom, and Wistia all flow through one entry point.
      *
      * Graceful fallback layers, from cheapest to most defensive:
      *  1. The server pre-checks the platform's oEmbed endpoint and sets
      *     `embedAvailable=false` for private / removed / embedding-disabled
      *     videos — render the fallback panel directly without an iframe.
-     *  2. If the iframe does mount, VideoPlatformManager attaches the
-     *     YouTube IFrame API (onError) and Vimeo Player.js (ready/error)
+     *  2. If the iframe does mount, VideoPlatformManager attaches platform-
+     *     specific error detection (YouTube IFrame API, Vimeo Player.js)
      *     to detect cases the server check missed (e.g. private to a
      *     specific viewer, or domain-restricted embedding) and triggers
      *     our onError callback below to surface the fallback immediately.
@@ -393,7 +393,8 @@
       const originalUrl = (window.LinkParser && window.LinkParser.buildOriginalUrl)
         ? window.LinkParser.buildOriginalUrl(platform, embedId)
         : '';
-      const platformLabel = platform === 'youtube' ? 'YouTube' : 'Vimeo';
+      const platformLabels = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
+      const platformLabel = platformLabels[platform] || platform;
       const noteText = `Note: this watch page's password and expiration only protect this page. Anyone who already has the original ${platformLabel} URL can still view it there.`;
 
       const titleHtml = videoTitle
@@ -449,7 +450,7 @@
         () => clearTimeout(loadTimer),
         // Platform reported the video can't be played (private / removed /
         // embedding disabled). Surface the friendly fallback immediately so
-        // the viewer sees our "Open on YouTube/Vimeo" link instead of the
+        // the viewer sees our "Open on [platform]" link instead of the
         // platform's in-frame error.
         () => { clearTimeout(loadTimer); showFallback(); }
       );
@@ -485,7 +486,7 @@
             // For embed videos we don't need to pass the password forward —
             // the iframe URL doesn't go through our server. For uploads we
             // pass it as the `pt` token so /api/video accepts the request.
-            if (videoMeta && (videoMeta.platform === 'youtube' || videoMeta.platform === 'vimeo')) {
+            if (videoMeta && ['youtube','vimeo','dailymotion','loom','wistia'].includes(videoMeta.platform)) {
               showEmbed(videoMeta);
             } else {
               loadVideo(videoId, pw);
@@ -553,7 +554,7 @@
           }
           // Embed-based videos render the iframe directly. Password-gated ones
           // wait for verification above before reaching this branch.
-          if (videoMeta.platform === 'youtube' || videoMeta.platform === 'vimeo') {
+          if (['youtube','vimeo','dailymotion','loom','wistia'].includes(videoMeta.platform)) {
             showEmbed(videoMeta);
             return;
           }

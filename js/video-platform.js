@@ -61,6 +61,10 @@ class VideoPlatformManager {
             this.loadYouTubeVideo(video, container, onReady, onError);
         } else if (this.currentPlatform === 'vimeo') {
             this.loadVimeoVideo(video, container, onReady, onError);
+        } else if (this.currentPlatform === 'dailymotion' ||
+                   this.currentPlatform === 'loom' ||
+                   this.currentPlatform === 'wistia') {
+            this.loadIframeEmbed(video, container, onReady);
         } else {
             this.loadWistiaVideo(video, container, onReady);
         }
@@ -230,6 +234,39 @@ class VideoPlatformManager {
             }
         }).catch(() => { /* API failed to load — safety-net timeout covers us */ });
 
+        return iframe;
+    }
+
+    loadIframeEmbed(video, container, onReady) {
+        const platform = video.platform || this.currentPlatform;
+        const id = video.embedVideoId || video.wistiaId || video.id;
+        container.innerHTML = '';
+        container.setAttribute('data-platform', platform);
+
+        const embedUrls = {
+            dailymotion: `https://www.dailymotion.com/embed/video/${encodeURIComponent(id)}`,
+            loom: `https://www.loom.com/embed/${encodeURIComponent(id)}`,
+            wistia: `https://fast.wistia.net/embed/iframe/${encodeURIComponent(id)}`
+        };
+
+        const platformTitles = {
+            dailymotion: 'Dailymotion video',
+            loom: 'Loom video',
+            wistia: 'Wistia video'
+        };
+
+        const iframe = document.createElement('iframe');
+        iframe.src = embedUrls[platform] || '';
+        iframe.title = video.title || platformTitles[platform] || 'Embedded video';
+        iframe.allow = 'autoplay; fullscreen; picture-in-picture; clipboard-write';
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        iframe.allowFullscreen = true;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = '0';
+
+        iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
+        container.appendChild(iframe);
         return iframe;
     }
 

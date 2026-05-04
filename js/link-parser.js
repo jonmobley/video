@@ -1,6 +1,6 @@
 /**
- * Video link parser — detects YouTube and Vimeo URLs and extracts the
- * platform-specific video ID across the common URL shapes.
+ * Video link parser — detects YouTube, Vimeo, Dailymotion, Loom, and Wistia
+ * URLs and extracts the platform-specific video ID across the common URL shapes.
  *
  * Supported shapes:
  *   YouTube:
@@ -17,14 +17,30 @@
  *     - https://player.vimeo.com/video/VIDEO_ID
  *     - https://vimeo.com/channels/NAME/VIDEO_ID
  *     - https://vimeo.com/groups/NAME/videos/VIDEO_ID
+ *   Dailymotion:
+ *     - https://www.dailymotion.com/video/VIDEO_ID
+ *     - https://dai.ly/VIDEO_ID
+ *     - https://www.dailymotion.com/embed/video/VIDEO_ID
+ *     - https://geo.dailymotion.com/player.html?video=VIDEO_ID
+ *   Loom:
+ *     - https://www.loom.com/share/VIDEO_ID
+ *     - https://www.loom.com/embed/VIDEO_ID
+ *   Wistia:
+ *     - https://ACCOUNT.wistia.com/medias/VIDEO_ID
+ *     - https://fast.wistia.com/medias/VIDEO_ID
+ *     - https://ACCOUNT.wistia.net/medias/VIDEO_ID
+ *     - https://fast.wistia.net/embed/iframe/VIDEO_ID
  *
- * Returns { platform: 'youtube' | 'vimeo', videoId: string } or null.
+ * Returns { platform: 'youtube' | 'vimeo' | 'dailymotion' | 'loom' | 'wistia', videoId: string } or null.
  *
  * Works in both browser and Node (no DOM dependencies).
  */
 (function (root) {
   const YT_ID = /^[A-Za-z0-9_-]{6,}$/;        // 11 in practice, but be lenient
   const VIMEO_ID = /^\d+(\/[A-Za-z0-9]+)?$/;  // numeric, optional unlisted hash
+  const DM_ID = /^[A-Za-z0-9]+$/;             // alphanumeric, typically x… prefix
+  const LOOM_ID = /^[0-9a-f]{32}$/i;            // 32-char hex string (case-insensitive)
+  const WISTIA_ID = /^[A-Za-z0-9]+$/;         // alphanumeric, typically 10 chars
 
   // Hosts we explicitly call out so the UI can show a helpful message
   // ("upload the file directly") instead of a generic "not recognised".
@@ -100,14 +116,44 @@
       return null;
     }
 
+    // ── Dailymotion ────────────────────────────────────────────────────────
+    if (host === 'dailymotion.com' || host === 'geo.dailymotion.com') {
+      // /video/ID or /embed/video/ID
+      const m = path.match(/^\/(?:embed\/)?video\/([A-Za-z0-9]+)/);
+      if (m && DM_ID.test(m[1])) return { platform: 'dailymotion', videoId: m[1] };
+      // geo.dailymotion.com/player.html?video=ID
+      if (host === 'geo.dailymotion.com' && path === '/player.html') {
+        const id = url.searchParams.get('video') || '';
+        return DM_ID.test(id) ? { platform: 'dailymotion', videoId: id } : null;
+      }
+      return null;
+    }
+    if (host === 'dai.ly') {
+      const id = path.split('/').filter(Boolean)[0] || '';
+      return DM_ID.test(id) ? { platform: 'dailymotion', videoId: id } : null;
+    }
+
+    // ── Loom ──────────────────────────────────────────────────────────────
+    if (host === 'loom.com') {
+      const m = path.match(/^\/(share|embed)\/([0-9a-fA-F]{32})/);
+      if (m && LOOM_ID.test(m[2])) return { platform: 'loom', videoId: m[2] };
+      return null;
+    }
+
+    // ── Wistia ────────────────────────────────────────────────────────────
+    if (host.endsWith('.wistia.com') || host.endsWith('.wistia.net')) {
+      // /medias/ID
+      let m = path.match(/^\/medias\/([A-Za-z0-9]+)/);
+      if (m && WISTIA_ID.test(m[1])) return { platform: 'wistia', videoId: m[1] };
+      // /embed/iframe/ID
+      m = path.match(/^\/embed\/iframe\/([A-Za-z0-9]+)/);
+      if (m && WISTIA_ID.test(m[1])) return { platform: 'wistia', videoId: m[1] };
+      return null;
+    }
+
     return null;
   }
 
-  /**
-   * Build the embed iframe URL for a parsed { platform, videoId }.
-   * For Vimeo unlisted videos the ID format "ID/HASH" maps to
-   * https://player.vimeo.com/video/ID?h=HASH which is required for embedding.
-   */
   function buildEmbedUrl(platform, videoId) {
     if (platform === 'youtube') {
       return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1`;
@@ -119,13 +165,18 @@
       const qs = hash ? `?h=${encodeURIComponent(hash)}` : '';
       return `https://player.vimeo.com/video/${encodeURIComponent(id)}${qs}`;
     }
+    if (platform === 'dailymotion') {
+      return `https://www.dailymotion.com/embed/video/${encodeURIComponent(videoId)}`;
+    }
+    if (platform === 'loom') {
+      return `https://www.loom.com/embed/${encodeURIComponent(videoId)}`;
+    }
+    if (platform === 'wistia') {
+      return `https://fast.wistia.net/embed/iframe/${encodeURIComponent(videoId)}`;
+    }
     return null;
   }
 
-  /**
-   * Build the canonical original URL for a parsed { platform, videoId }.
-   * Used in fallback messaging when an embed can't be displayed.
-   */
   function buildOriginalUrl(platform, videoId) {
     if (platform === 'youtube') {
       return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
@@ -137,6 +188,15 @@
       return hash
         ? `https://vimeo.com/${encodeURIComponent(id)}/${encodeURIComponent(hash)}`
         : `https://vimeo.com/${encodeURIComponent(id)}`;
+    }
+    if (platform === 'dailymotion') {
+      return `https://www.dailymotion.com/video/${encodeURIComponent(videoId)}`;
+    }
+    if (platform === 'loom') {
+      return `https://www.loom.com/share/${encodeURIComponent(videoId)}`;
+    }
+    if (platform === 'wistia') {
+      return `https://fast.wistia.com/medias/${encodeURIComponent(videoId)}`;
     }
     return null;
   }

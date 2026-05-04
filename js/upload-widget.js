@@ -53,10 +53,10 @@
             <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>
           </svg>
         </span>
-        <div class="link-zone-label">Paste a YouTube or Vimeo link</div>
+        <div class="link-zone-label">Paste a video link</div>
         <div class="link-zone-sub">We'll embed it on a shareable watch page.</div>
         <input type="url" class="link-input" data-el="linkInput"
-               placeholder="https://youtu.be/… or https://vimeo.com/…"
+               placeholder="YouTube, Vimeo, Dailymotion, Loom, or Wistia URL"
                autocomplete="off" spellcheck="false" aria-label="Video URL">
         <div class="link-detected" data-el="linkDetected" aria-live="polite"></div>
       </div>
@@ -86,7 +86,7 @@
 
     <div class="link-note password-note" data-el="passwordNote" hidden>
       Heads up: password and expiration only protect this watch page.
-      Anyone with the original YouTube or Vimeo URL can still view the video there.
+      Anyone with the original video URL can still view it on the source platform.
     </div>
 
     <button type="button" class="btn upload-btn" data-el="uploadBtn">Upload &amp; Get Link</button>
@@ -393,12 +393,13 @@
       const res = window.LinkParser ? window.LinkParser.parse(val) : null;
       if (res) {
         parsedLink = res;
-        linkDetected.textContent = `Detected: ${res.platform === 'youtube' ? 'YouTube' : 'Vimeo'} video`;
+        const platformNames = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
+        linkDetected.textContent = `Detected: ${platformNames[res.platform] || res.platform} video`;
       } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
-        linkDetected.textContent = 'Only YouTube and Vimeo links work here. For Dropbox/Drive files, upload the file instead.';
+        linkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a supported video link.';
         linkDetected.classList.add('error');
       } else {
-        linkDetected.textContent = 'Not a recognized YouTube or Vimeo URL';
+        linkDetected.textContent = 'Not a recognized video URL';
         linkDetected.classList.add('error');
       }
       updateUploadBtnState();
@@ -502,7 +503,8 @@
         if (isLink && platform) {
           const pb = document.createElement('span');
           pb.className = 'meta-badge';
-          pb.textContent = platform === 'youtube' ? 'YouTube embed' : 'Vimeo embed';
+          const pNames = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
+          pb.textContent = `${pNames[platform] || platform} embed`;
           metaRow.appendChild(pb);
         }
         const expBadge = document.createElement('span');

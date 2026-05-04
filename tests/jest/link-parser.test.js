@@ -232,6 +232,205 @@ describe('parse', () => {
     });
   });
 
+  describe('Dailymotion video URLs', () => {
+    test('standard /video/ URL', () => {
+      expect(parse('https://www.dailymotion.com/video/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('/video/ URL without www', () => {
+      expect(parse('https://dailymotion.com/video/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('/video/ URL with query params', () => {
+      expect(parse('https://www.dailymotion.com/video/x8qh6oa?playlist=abc')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+  });
+
+  describe('Dailymotion short URLs (dai.ly)', () => {
+    test('standard short URL', () => {
+      expect(parse('https://dai.ly/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('short URL with empty path returns null', () => {
+      expect(parse('https://dai.ly/')).toBeNull();
+    });
+  });
+
+  describe('Dailymotion embed URLs', () => {
+    test('/embed/video/ URL', () => {
+      expect(parse('https://www.dailymotion.com/embed/video/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('embed URL with query params', () => {
+      expect(parse('https://www.dailymotion.com/embed/video/x8qh6oa?autoplay=1')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+  });
+
+  describe('Dailymotion geo player URLs', () => {
+    test('geo.dailymotion.com/player.html?video=ID', () => {
+      expect(parse('https://geo.dailymotion.com/player.html?video=x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('geo player URL with missing video param returns null', () => {
+      expect(parse('https://geo.dailymotion.com/player.html')).toBeNull();
+    });
+  });
+
+  describe('Dailymotion unrecognised paths', () => {
+    test('dailymotion.com root returns null', () => {
+      expect(parse('https://www.dailymotion.com/')).toBeNull();
+    });
+
+    test('dailymotion.com/playlist returns null', () => {
+      expect(parse('https://www.dailymotion.com/playlist/x6sfvq')).toBeNull();
+    });
+
+    test('dailymotion.com user page returns null', () => {
+      expect(parse('https://www.dailymotion.com/username')).toBeNull();
+    });
+  });
+
+  describe('Loom share URLs', () => {
+    test('standard /share/ URL', () => {
+      expect(parse('https://www.loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+
+    test('/share/ URL without www', () => {
+      expect(parse('https://loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+
+    test('/share/ URL with query params', () => {
+      expect(parse('https://www.loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6?sid=abc')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+  });
+
+  describe('Loom embed URLs', () => {
+    test('standard /embed/ URL', () => {
+      expect(parse('https://www.loom.com/embed/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+  });
+
+  describe('Loom unrecognised paths', () => {
+    test('loom.com root returns null', () => {
+      expect(parse('https://www.loom.com/')).toBeNull();
+    });
+
+    test('loom.com/my-videos returns null', () => {
+      expect(parse('https://www.loom.com/my-videos')).toBeNull();
+    });
+
+    test('loom /share/ with non-hex ID returns null', () => {
+      expect(parse('https://www.loom.com/share/not-a-hex-id')).toBeNull();
+    });
+
+    test('loom /share/ with too-short ID returns null', () => {
+      expect(parse('https://www.loom.com/share/abc123')).toBeNull();
+    });
+
+    test('loom /share/ with uppercase hex ID parses correctly', () => {
+      expect(parse('https://www.loom.com/share/A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6')).toEqual({
+        platform: 'loom',
+        videoId: 'A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6'
+      });
+    });
+
+    test('loom /share/ with mixed-case hex ID parses correctly', () => {
+      expect(parse('https://www.loom.com/share/a1B2c3D4e5F6a7B8c9D0e1F2a3B4c5D6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1B2c3D4e5F6a7B8c9D0e1F2a3B4c5D6'
+      });
+    });
+  });
+
+  describe('Wistia medias URLs', () => {
+    test('fast.wistia.com/medias/ID', () => {
+      expect(parse('https://fast.wistia.com/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+
+    test('ACCOUNT.wistia.com/medias/ID', () => {
+      expect(parse('https://mycompany.wistia.com/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+
+    test('home.wistia.com/medias/ID', () => {
+      expect(parse('https://home.wistia.com/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+
+    test('ACCOUNT.wistia.net/medias/ID', () => {
+      expect(parse('https://mycompany.wistia.net/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+  });
+
+  describe('Wistia embed URLs', () => {
+    test('fast.wistia.net/embed/iframe/ID', () => {
+      expect(parse('https://fast.wistia.net/embed/iframe/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+
+    test('embed iframe URL with query params', () => {
+      expect(parse('https://fast.wistia.net/embed/iframe/abc123xyz0?autoPlay=true')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+  });
+
+  describe('Wistia unrecognised paths', () => {
+    test('wistia.com root returns null', () => {
+      expect(parse('https://fast.wistia.com/')).toBeNull();
+    });
+
+    test('wistia.com/projects returns null', () => {
+      expect(parse('https://mycompany.wistia.com/projects/abc123')).toBeNull();
+    });
+  });
+
   describe('edge cases: empty and non-string input', () => {
     test('empty string returns null', () => {
       expect(parse('')).toBeNull();
@@ -291,10 +490,6 @@ describe('parse', () => {
       expect(parse('https://example.com/video.mp4')).toBeNull();
     });
 
-    test('dailymotion returns null', () => {
-      expect(parse('https://www.dailymotion.com/video/x123abc')).toBeNull();
-    });
-
     test('tiktok returns null', () => {
       expect(parse('https://www.tiktok.com/@user/video/123')).toBeNull();
     });
@@ -322,6 +517,34 @@ describe('parse', () => {
       });
     });
 
+    test('dailymotion.com without https://', () => {
+      expect(parse('dailymotion.com/video/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('dai.ly without https://', () => {
+      expect(parse('dai.ly/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('loom.com without https://', () => {
+      expect(parse('loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+
+    test('wistia without https://', () => {
+      expect(parse('fast.wistia.com/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
+
     test('unsupported host without scheme still rejected', () => {
       expect(parse('dropbox.com/s/abc123/video.mp4')).toBeNull();
     });
@@ -341,6 +564,27 @@ describe('parse', () => {
         videoId: '123456789'
       });
     });
+
+    test('http:// Dailymotion URL still parses', () => {
+      expect(parse('http://www.dailymotion.com/video/x8qh6oa')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
+      });
+    });
+
+    test('http:// Loom URL still parses', () => {
+      expect(parse('http://www.loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toEqual({
+        platform: 'loom',
+        videoId: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      });
+    });
+
+    test('http:// Wistia URL still parses', () => {
+      expect(parse('http://fast.wistia.com/medias/abc123xyz0')).toEqual({
+        platform: 'wistia',
+        videoId: 'abc123xyz0'
+      });
+    });
   });
 
   describe('edge cases: whitespace around input', () => {
@@ -355,6 +599,13 @@ describe('parse', () => {
       expect(parse('\thttps://vimeo.com/123456789\n')).toEqual({
         platform: 'vimeo',
         videoId: '123456789'
+      });
+    });
+
+    test('whitespace around Dailymotion URL', () => {
+      expect(parse('  https://dai.ly/x8qh6oa  ')).toEqual({
+        platform: 'dailymotion',
+        videoId: 'x8qh6oa'
       });
     });
   });
@@ -404,9 +655,33 @@ describe('buildEmbedUrl', () => {
     });
   });
 
+  describe('Dailymotion', () => {
+    test('builds Dailymotion embed URL', () => {
+      expect(buildEmbedUrl('dailymotion', 'x8qh6oa')).toBe(
+        'https://www.dailymotion.com/embed/video/x8qh6oa'
+      );
+    });
+  });
+
+  describe('Loom', () => {
+    test('builds Loom embed URL', () => {
+      expect(buildEmbedUrl('loom', 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toBe(
+        'https://www.loom.com/embed/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      );
+    });
+  });
+
+  describe('Wistia', () => {
+    test('builds Wistia embed URL', () => {
+      expect(buildEmbedUrl('wistia', 'abc123xyz0')).toBe(
+        'https://fast.wistia.net/embed/iframe/abc123xyz0'
+      );
+    });
+  });
+
   describe('unknown platform', () => {
     test('returns null for unsupported platform', () => {
-      expect(buildEmbedUrl('dailymotion', '12345')).toBeNull();
+      expect(buildEmbedUrl('tiktok', '12345')).toBeNull();
     });
   });
 });
@@ -434,9 +709,33 @@ describe('buildOriginalUrl', () => {
     });
   });
 
+  describe('Dailymotion', () => {
+    test('builds Dailymotion video URL', () => {
+      expect(buildOriginalUrl('dailymotion', 'x8qh6oa')).toBe(
+        'https://www.dailymotion.com/video/x8qh6oa'
+      );
+    });
+  });
+
+  describe('Loom', () => {
+    test('builds Loom share URL', () => {
+      expect(buildOriginalUrl('loom', 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toBe(
+        'https://www.loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'
+      );
+    });
+  });
+
+  describe('Wistia', () => {
+    test('builds Wistia medias URL', () => {
+      expect(buildOriginalUrl('wistia', 'abc123xyz0')).toBe(
+        'https://fast.wistia.com/medias/abc123xyz0'
+      );
+    });
+  });
+
   describe('unknown platform', () => {
     test('returns null for unsupported platform', () => {
-      expect(buildOriginalUrl('dailymotion', '12345')).toBeNull();
+      expect(buildOriginalUrl('tiktok', '12345')).toBeNull();
     });
   });
 });
@@ -483,6 +782,11 @@ describe('roundtrip: parse → buildEmbedUrl → buildOriginalUrl', () => {
     'https://youtu.be/dQw4w9WgXcQ',
     'https://vimeo.com/123456789',
     'https://vimeo.com/123456789/abc123def',
+    'https://www.dailymotion.com/video/x8qh6oa',
+    'https://dai.ly/x8qh6oa',
+    'https://www.loom.com/share/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',
+    'https://fast.wistia.com/medias/abc123xyz0',
+    'https://fast.wistia.net/embed/iframe/abc123xyz0',
   ];
 
   test.each(urls)('parse then buildEmbedUrl produces a valid string for %s', (url) => {

@@ -269,10 +269,11 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_uploaded_at ON vs_uploads(uploaded_at);
     CREATE INDEX IF NOT EXISTS idx_vs_upload_chunks_created_at ON vs_upload_chunks(created_at);
 
-    -- Embed-link videos (YouTube/Vimeo). platform = 'upload' for legacy/native
-    -- uploads, 'youtube' or 'vimeo' for pasted links. embed_video_id holds the
-    -- platform-specific ID (e.g. YouTube 11-char code, Vimeo numeric ID, or
-    -- "NUMERIC/HASH" for unlisted Vimeo videos).
+    -- Embed-link videos (YouTube/Vimeo/Dailymotion/Loom/Wistia). platform = 'upload' for legacy/native
+    -- uploads, 'youtube'/'vimeo'/'dailymotion'/'loom'/'wistia' for pasted links.
+    -- embed_video_id holds the platform-specific ID (e.g. YouTube 11-char code,
+    -- Vimeo numeric ID, Dailymotion x-prefixed ID, Loom 32-hex-char ID, or
+    -- Wistia alphanumeric ID).
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'upload';
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS embed_video_id TEXT;
 
@@ -943,7 +944,8 @@ app.get('/api/video-meta/:id', async (req, res) => {
 
     const platform = v.platform || 'upload';
     let embedAvailable = true;
-    if ((platform === 'youtube' || platform === 'vimeo') && v.embed_video_id) {
+    if (v.embed_video_id && (platform === 'youtube' || platform === 'vimeo' ||
+        platform === 'dailymotion' || platform === 'loom' || platform === 'wistia')) {
       embedAvailable = await checkEmbedAvailability(platform, v.embed_video_id);
     }
 
@@ -966,10 +968,10 @@ app.get('/api/video-meta/:id', async (req, res) => {
   }
 });
 
-// ── Create link-based video (YouTube / Vimeo) ────────────────────────────────
-// Stores a watch-page record that points at a YouTube or Vimeo embed instead
-// of an uploaded blob. Reuses title / expiry / password fields so gating works
-// with no behavioural divergence on the watch page.
+// ── Create link-based video (YouTube / Vimeo / Dailymotion / Loom / Wistia) ──
+// Stores a watch-page record that points at a platform embed instead of an
+// uploaded blob. Reuses title / expiry / password fields so gating works with
+// no behavioural divergence on the watch page.
 const linkParser = require('./js/link-parser.js');
 
 app.post('/api/create-link-video', async (req, res) => {
@@ -981,7 +983,7 @@ app.post('/api/create-link-video', async (req, res) => {
     if (trimmedTitle.length > 120) return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
 
     if (typeof url !== 'string' || !url.trim()) {
-      return apiError(res, 400, 'URL_REQUIRED', 'Please paste a YouTube or Vimeo link.');
+      return apiError(res, 400, 'URL_REQUIRED', 'Please paste a video link (YouTube, Vimeo, Dailymotion, Loom, or Wistia).');
     }
     if (url.length > 2048) {
       return apiError(res, 400, 'URL_TOO_LONG', 'That URL is too long.');
@@ -992,11 +994,11 @@ app.post('/api/create-link-video', async (req, res) => {
     if (lowerUrl.includes('dropbox.com') || lowerUrl.includes('drive.google.com') ||
         lowerUrl.includes('onedrive.live.com') || lowerUrl.includes('icloud.com')) {
       return apiError(res, 400, 'UNSUPPORTED_HOST',
-        'Only YouTube and Vimeo links are supported here. For Dropbox/Drive files, upload the file directly.');
+        'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a YouTube, Vimeo, Dailymotion, Loom, or Wistia link.');
     }
     const parsed = linkParser.parse(url);
     if (!parsed) {
-      return apiError(res, 400, 'BAD_LINK', "That doesn't look like a YouTube or Vimeo link we can embed.");
+      return apiError(res, 400, 'BAD_LINK', "That doesn't look like a supported video link we can embed.");
     }
     if (password != null && typeof password !== 'string') {
       return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password format.');
@@ -1025,7 +1027,7 @@ app.post('/api/create-link-video', async (req, res) => {
     // Random opaque ID — no extension, distinct shape from upload IDs to keep
     // the watch URL pattern identical (?id=...) without leaking the platform.
     const videoId = crypto.randomBytes(12).toString('hex');
-    const contentType = parsed.platform === 'youtube' ? 'link/youtube' : 'link/vimeo';
+    const contentType = `link/${parsed.platform}`;
 
     await pool.query(
       `INSERT INTO vs_uploads
