@@ -190,6 +190,67 @@
       .tp-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
+    .edit-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px;
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    }
+    .edit-overlay.show { display: flex; }
+    .edit-dialog {
+      background: #0d0d0d; border: 1px solid #1c1c1e; border-radius: 16px;
+      max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto;
+      padding: 22px 22px 18px;
+    }
+    .edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; }
+    .edit-title { font-size: 1.1rem; font-weight: 700; }
+    .edit-close {
+      background: none; border: none; color: #959595; font-size: 1.6rem;
+      cursor: pointer; line-height: 1; padding: 0 4px; font-family: inherit;
+    }
+    .edit-close:hover { color: #fff; }
+    .edit-field { margin-bottom: 16px; }
+    .edit-field label {
+      display: block; font-size: 0.85rem; font-weight: 600; color: #ccc;
+      margin-bottom: 6px;
+    }
+    .edit-field input,
+    .edit-field select {
+      width: 100%; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid #2c2c2e; background: #1c1c1e; color: #fff;
+      font-size: 0.9rem; font-family: inherit; outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-field input:focus,
+    .edit-field select:focus { border-color: #4ecdc4; }
+    .edit-field .field-hint { font-size: 0.78rem; color: #959595; margin-top: 4px; }
+    .edit-error {
+      color: #ff6b6b; font-size: 0.82rem; margin-bottom: 12px; min-height: 1em;
+    }
+    .edit-actions {
+      display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
+    }
+    .edit-modal-btn {
+      padding: 9px 18px; border-radius: 10px; font-size: 0.88rem; font-weight: 600;
+      border: 1px solid #2c2c2e; background: #1c1c1e; color: #fff; cursor: pointer;
+      font-family: inherit;
+    }
+    .edit-modal-btn:hover:not(:disabled) { background: #2c2c2e; }
+    .edit-modal-btn.primary {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border-color: transparent;
+    }
+    .edit-modal-btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .edit-modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .edit-remove-pw {
+      display: flex; align-items: center; gap: 8px; margin-top: 6px;
+    }
+    .edit-remove-pw input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: #4ecdc4; cursor: pointer;
+    }
+    .edit-remove-pw label {
+      font-size: 0.82rem; color: #ccc; cursor: pointer; font-weight: 400;
+    }
+
     .toast {
       position: fixed; bottom: 30px; left: 50%;
       transform: translateX(-50%) translateY(20px);
@@ -257,6 +318,44 @@
   </main>
 
   <div class="toast" id="toast"></div>
+
+  <div class="edit-overlay" id="editOverlay" role="dialog" aria-modal="true" aria-labelledby="editDialogTitle" aria-hidden="true">
+    <div class="edit-dialog">
+      <div class="edit-header">
+        <div class="edit-title" id="editDialogTitle">Edit video</div>
+        <button class="edit-close" id="editClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="edit-field">
+        <label for="editTitleInput">Title</label>
+        <input type="text" id="editTitleInput" maxlength="120" autocomplete="off">
+      </div>
+      <div class="edit-field">
+        <label for="editExpirySelect">Expiration</label>
+        <select id="editExpirySelect">
+          <option value="keep">Keep current</option>
+          <option value="1">1 day from now</option>
+          <option value="7">7 days from now</option>
+          <option value="30">30 days from now</option>
+          <option value="never">Never</option>
+        </select>
+        <div class="field-hint" id="editExpiryHint"></div>
+      </div>
+      <div class="edit-field">
+        <label for="editPasswordInput">Password</label>
+        <input type="password" id="editPasswordInput" maxlength="200" autocomplete="off" placeholder="Enter new password">
+        <div class="field-hint" id="editPasswordHint"></div>
+        <div class="edit-remove-pw" id="editRemovePwRow" style="display:none">
+          <input type="checkbox" id="editRemovePw">
+          <label for="editRemovePw">Remove password protection</label>
+        </div>
+      </div>
+      <div class="edit-error" id="editError"></div>
+      <div class="edit-actions">
+        <button class="edit-modal-btn" id="editCancel">Cancel</button>
+        <button class="edit-modal-btn primary" id="editSave">Save changes</button>
+      </div>
+    </div>
+  </div>
 
   <div class="tp-overlay" id="tpOverlay" role="dialog" aria-modal="true" aria-labelledby="tpTitle" aria-hidden="true">
     <div class="tp-dialog">
@@ -528,6 +627,7 @@
           <div class="vc-actions">
             <a class="vc-btn" href="${watchUrl}" target="_blank" rel="noopener">Open</a>
             <button class="vc-btn copy-btn" data-url="${watchUrl}">Copy link</button>
+            <button class="vc-btn edit-btn">Edit</button>
             ${thumbBtn}
             <button class="vc-btn danger delete-btn">Delete</button>
           </div>
@@ -548,6 +648,13 @@
           const original = btn.textContent;
           btn.textContent = 'Copied!'; btn.classList.add('copied');
           setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+        });
+      });
+
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const card = btn.closest('.video-card');
+          openEditDialog(card.dataset.id);
         });
       });
 
@@ -589,6 +696,173 @@
       if (remaining === 0) renderVideos([]);
       else headerSub.textContent = `${remaining} video${remaining === 1 ? '' : 's'}`;
     }
+
+    // ── Edit video dialog ─────────────────────────────────────────────────
+    const editOverlay   = document.getElementById('editOverlay');
+    const editClose     = document.getElementById('editClose');
+    const editCancel    = document.getElementById('editCancel');
+    const editSave      = document.getElementById('editSave');
+    const editTitleInput    = document.getElementById('editTitleInput');
+    const editExpirySelect  = document.getElementById('editExpirySelect');
+    const editExpiryHint    = document.getElementById('editExpiryHint');
+    const editPasswordInput = document.getElementById('editPasswordInput');
+    const editPasswordHint  = document.getElementById('editPasswordHint');
+    const editRemovePwRow   = document.getElementById('editRemovePwRow');
+    const editRemovePw      = document.getElementById('editRemovePw');
+    const editError         = document.getElementById('editError');
+
+    let editState = null;
+    let editLastFocused = null;
+
+    function setEditError(msg) { editError.textContent = msg || ''; }
+
+    function openEditDialog(videoId) {
+      const v = videosById[videoId];
+      if (!v) return;
+      editLastFocused = document.activeElement;
+      editState = { videoId };
+      editTitleInput.value = v.title || '';
+      editExpirySelect.value = 'keep';
+      if (v.expires_at) {
+        editExpiryHint.textContent = 'Currently: ' + formatExpiry(v.expires_at);
+      } else {
+        editExpiryHint.textContent = 'Currently: no expiration';
+      }
+      editPasswordInput.value = '';
+      editRemovePw.checked = false;
+      if (v.has_password) {
+        editPasswordHint.textContent = 'Currently password-protected. Enter a new password to change it.';
+        editRemovePwRow.style.display = 'flex';
+      } else {
+        editPasswordHint.textContent = 'No password set. Enter one to add protection.';
+        editRemovePwRow.style.display = 'none';
+      }
+      setEditError('');
+      editSave.disabled = false;
+      editSave.textContent = 'Save changes';
+      editOverlay.classList.add('show');
+      editOverlay.setAttribute('aria-hidden', 'false');
+      setTimeout(() => editTitleInput.focus(), 0);
+    }
+
+    function closeEditDialog() {
+      editOverlay.classList.remove('show');
+      editOverlay.setAttribute('aria-hidden', 'true');
+      setEditError('');
+      editState = null;
+      if (editLastFocused && typeof editLastFocused.focus === 'function') {
+        editLastFocused.focus();
+      }
+    }
+
+    editClose.addEventListener('click', closeEditDialog);
+    editCancel.addEventListener('click', closeEditDialog);
+    editOverlay.addEventListener('click', (e) => {
+      if (e.target === editOverlay) closeEditDialog();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (!editOverlay.classList.contains('show')) return;
+      if (e.key === 'Escape') { closeEditDialog(); return; }
+      if (e.key === 'Tab') {
+        const focusable = Array.from(editOverlay.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled])'
+        ));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    });
+
+    editSave.addEventListener('click', async () => {
+      if (!editState) return;
+      const videoId = editState.videoId;
+      const v = videosById[videoId];
+      if (!v) return;
+
+      const newTitle = editTitleInput.value.trim();
+      if (!newTitle) { setEditError('Title cannot be empty.'); editTitleInput.focus(); return; }
+
+      const body = {};
+      if (newTitle !== (v.title || '').trim()) {
+        body.title = newTitle;
+      }
+
+      const expiryVal = editExpirySelect.value;
+      if (expiryVal !== 'keep') {
+        body.expiryDays = expiryVal === 'never' ? 'never' : parseInt(expiryVal, 10);
+      }
+
+      const pw = editPasswordInput.value;
+      if (pw !== '') {
+        body.password = pw;
+      } else if (v.has_password && editRemovePw.checked) {
+        body.password = '';
+      }
+
+      if (Object.keys(body).length === 0) {
+        closeEditDialog();
+        showToast('No changes to save');
+        return;
+      }
+
+      editSave.disabled = true; editSave.textContent = 'Saving…';
+      setEditError('');
+
+      let res;
+      try {
+        res = await fetch(`/api/my-videos/${encodeURIComponent(videoId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch (_) {
+        editSave.disabled = false; editSave.textContent = 'Save changes';
+        setEditError('Network error. Please try again.');
+        return;
+      }
+      if (res.status === 401) { closeEditDialog(); return redirectToLogin({ expired: true }); }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = (data && data.error && (data.error.message || data.error)) || 'Could not save changes.';
+        setEditError(typeof msg === 'string' ? msg : 'Could not save changes.');
+        editSave.disabled = false; editSave.textContent = 'Save changes';
+        return;
+      }
+
+      const { video } = await res.json().catch(() => ({}));
+      if (video) {
+        v.title = video.title;
+        v.expires_at = video.expires_at;
+        v.has_password = video.has_password;
+      }
+
+      const card = document.querySelector(`.video-card[data-id="${cssEscape(videoId)}"]`);
+      if (card) {
+        const titleEl = card.querySelector('.vc-title');
+        if (titleEl) titleEl.textContent = v.title || 'Untitled';
+
+        const metaEl = card.querySelector('.vc-meta');
+        if (metaEl) {
+          const exp = formatExpiry(v.expires_at);
+          metaEl.innerHTML = `
+            <span>${formatDate(v.uploaded_at)}</span>
+            <span>${formatBytes(v.file_size)}</span>
+            <span>${formatViews(v.view_count)}</span>
+            ${v.has_password ? '<span class="lock">Password</span>' : ''}
+            ${exp ? `<span class="exp">${exp}</span>` : ''}
+          `;
+        }
+      }
+
+      editSave.disabled = false; editSave.textContent = 'Save changes';
+      closeEditDialog();
+      showToast('Video updated');
+    });
 
     // ── Thumbnail picker dialog ─────────────────────────────────────────────
     const tpOverlay = document.getElementById('tpOverlay');

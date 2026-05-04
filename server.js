@@ -1330,6 +1330,76 @@ app.delete('/api/my-videos/:id', requireUser, async (req, res) => {
   }
 });
 
+app.patch('/api/my-videos/:id', requireUser, express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+
+    const owned = await pool.query(
+      'SELECT 1 FROM vs_uploads WHERE id = $1 AND user_id = $2',
+      [id, req.userId]
+    );
+    if (!owned.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+
+    const { title, expiryDays, password } = req.body || {};
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+
+    if (title !== undefined) {
+      const trimmed = typeof title === 'string' ? title.trim() : '';
+      if (!trimmed) return apiError(res, 400, 'TITLE_REQUIRED', 'Title cannot be empty.');
+      if (trimmed.length > 120) return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
+      sets.push(`title = $${idx++}`);
+      vals.push(trimmed);
+    }
+
+    if (expiryDays !== undefined) {
+      if (expiryDays === null || expiryDays === 'never') {
+        sets.push(`expires_at = $${idx++}`);
+        vals.push(null);
+      } else {
+        const days = parseInt(expiryDays, 10);
+        if (!Number.isInteger(days) || days <= 0 || days > 3650) {
+          return apiError(res, 400, 'BAD_EXPIRY', 'Invalid expiry value.');
+        }
+        sets.push(`expires_at = NOW() + $${idx++}::interval`);
+        vals.push(`${days} days`);
+      }
+    }
+
+    if (password !== undefined) {
+      if (password === null || password === '') {
+        sets.push(`password_hash = $${idx++}`);
+        vals.push(null);
+      } else {
+        if (typeof password !== 'string') return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password format.');
+        if (password.length > 200) return apiError(res, 400, 'PASSWORD_TOO_LONG', 'Password must be 200 characters or fewer.');
+        sets.push(`password_hash = $${idx++}`);
+        vals.push(hashPassword(password));
+      }
+    }
+
+    if (sets.length === 0) return apiError(res, 400, 'NO_FIELDS', 'No fields to update.');
+
+    vals.push(id);
+    vals.push(req.userId);
+    const result = await pool.query(
+      `UPDATE vs_uploads SET ${sets.join(', ')}
+       WHERE id = $${idx++} AND user_id = $${idx++}
+       RETURNING title, expires_at, (password_hash IS NOT NULL) AS has_password`,
+      vals
+    );
+
+    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+
+    res.json({ success: true, video: result.rows[0] });
+  } catch (err) {
+    console.error('my-videos patch error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not update video.');
+  }
+});
+
 // ── Clean URL routes ──────────────────────────────────────────────────────────
 app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html')));
 app.get('/watch',   (req, res) => res.sendFile(path.join(__dirname, 'watch.html')));
