@@ -729,11 +729,8 @@
                 const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
                 alert(typeof msg === 'string' ? msg : 'Update failed.');
               } else {
-                u.is_paid = newPaid;
-                label.textContent = newPaid ? 'Paid' : 'Free';
-                label.className = 'tier-label ' + (newPaid ? 'tier-label-paid' : 'tier-label-free');
-                badge.textContent = newPaid ? 'Paid' : 'Free';
-                badge.className = 'badge ' + (newPaid ? 'badge-paid' : 'badge-free');
+                loadUsers();
+                return;
               }
             } catch {
               checkbox.checked = !newPaid;
