@@ -150,7 +150,16 @@
     .tp-frame.selected { border-color: #4ecdc4; }
     .tp-frame.loading {
       display: flex; align-items: center; justify-content: center;
-      color: #959595; font-size: 0.75rem;
+      background: linear-gradient(90deg, #1c1c1e 25%, #2a2a2e 50%, #1c1c1e 75%);
+      background-size: 200% 100%;
+      animation: tp-shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes tp-shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tp-frame.loading { animation: none; background: #252528; }
     }
     .tp-frame.empty {
       display: flex; align-items: center; justify-content: center;
@@ -1065,7 +1074,7 @@
       for (let n = 0; n < TP_FRAME_RATIOS.length; n++) {
         const tile = document.createElement('div');
         tile.className = 'tp-frame loading';
-        tile.textContent = 'Loading\u2026';
+        tile.setAttribute('aria-label', 'Loading frame');
         tpGrid.appendChild(tile);
         slots.push(tile);
       }
