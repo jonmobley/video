@@ -2503,6 +2503,10 @@
     
     <!-- Shared utilities -->
     <script src="js/shared-errors.js"></script>
+    <script src="js/shared-color-utils.js"></script>
+    <script src="js/shared-url-utils.js"></script>
+    <script src="js/shared-thumbnail-utils.js"></script>
+    <script src="js/shared-video-detect.js"></script>
     
     <script>
         let currentWistiaVideo = null;
@@ -2510,9 +2514,6 @@
 
         // Track currently playing video
         let currentlyPlayingVideoId = null;
-
-        // Store video URL mappings
-        let videoUrlMappings = {};
 
         // Track which videos are vertical format (9:16)
         let verticalVideoIds = new Set();
@@ -2613,81 +2614,6 @@
         // MULTI-PLATFORM VIDEO SUPPORT
         // ====================================================================
         
-        // Video platform detection function
-        function detectVideoPlatform(url) {
-            if (!url) return null;
-            
-            // Wistia patterns
-            if (url.includes('wistia.com') || url.includes('wistia.net') || url.includes('wi.st')) {
-                return 'wistia';
-            }
-            
-            // Vimeo patterns
-            if (url.includes('vimeo.com') || url.includes('player.vimeo.com')) {
-                return 'vimeo';
-            }
-            
-            // YouTube patterns
-            if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                return 'youtube';
-            }
-            
-            // Dropbox patterns
-            if (url.includes('dropbox.com') || url.includes('dl.dropboxusercontent.com')) {
-                return 'dropbox';
-            }
-            
-            return null;
-        }
-        
-        // Extract video ID from different platforms
-        function extractVideoId(url, platform) {
-            let videoId = null;
-            
-            switch(platform) {
-                case 'wistia':
-                    // Wistia URLs: https://company.wistia.com/medias/xxxxx
-                    const wistiaMatch = url.match(/medias?\/([a-zA-Z0-9]+)/);
-                    videoId = wistiaMatch ? wistiaMatch[1] : null;
-                    break;
-                    
-                case 'vimeo':
-                    // Vimeo URLs: https://vimeo.com/123456 or https://player.vimeo.com/video/123456
-                    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-                    videoId = vimeoMatch ? vimeoMatch[1] : null;
-                    break;
-                    
-                case 'youtube':
-                    // YouTube URLs: https://www.youtube.com/watch?v=xxxxx or https://youtu.be/xxxxx
-                    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-                    videoId = ytMatch ? ytMatch[1] : null;
-                    break;
-                    
-                case 'dropbox':
-                    // For Dropbox, generate a unique ID based on URL
-                    videoId = 'dropbox_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    break;
-            }
-            
-            return videoId;
-        }
-
-        // Get thumbnail URL for different platforms
-        function getThumbnailUrl(videoUrl, platform, videoId) {
-            switch(platform) {
-                case 'wistia':
-                    return `https://embed-ssl.wistia.com/deliveries/${videoId}.jpg`;
-                case 'vimeo':
-                    return `https://vumbnail.com/${videoId}.jpg`;
-                case 'youtube':
-                    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-                case 'dropbox':
-                    return null; // No thumbnail for Dropbox
-                default:
-                    return null;
-            }
-        }
-
         // Generic video loading function
         function loadVideo(videoUrl, title, platform = null, videoId = null) {
             // If platform not provided, detect it
@@ -2748,58 +2674,6 @@
                 </div>
             `;
         }
-
-        function updateBrowserUrl(wistiaId) {
-            const video = videoUrlMappings[wistiaId];
-            if (video && video.urlString) {
-                // Update URL without triggering page reload
-                const newUrl = `${window.location.pathname}#${video.urlString}`;
-                window.history.replaceState(null, '', newUrl);
-            }
-        }
-
-        function clearBrowserUrl() {
-            // Remove hash from URL
-            const newUrl = window.location.pathname + window.location.search;
-            window.history.replaceState(null, '', newUrl);
-        }
-
-        function buildVideoUrlMappings(videos) {
-            // Clear existing mappings
-            videoUrlMappings = {};
-            
-            // Build mappings from video data
-            videos.forEach(video => {
-                if (video.urlString) {
-                    videoUrlMappings[video.wistiaId] = video;
-                    // Also create reverse mapping for URL string to wistiaId
-                    videoUrlMappings[video.urlString] = video;
-                }
-            });
-            
-            console.log('🔗 Built video URL mappings:', Object.keys(videoUrlMappings).length / 2, 'videos');
-        }
-
-        function checkForDirectVideoLink() {
-            const hash = window.location.hash.substring(1); // Remove # symbol
-            if (hash) {
-                // Look for video with this URL string
-                const video = videoUrlMappings[hash];
-                if (video && video.wistiaId) {
-                    console.log('🔗 Direct link detected, loading video:', video.title);
-                    // Small delay to ensure video grid is ready
-                    setTimeout(() => {
-                        loadWistiaVideo(video.wistiaId, video.title);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }, 100);
-                }
-            }
-        }
-
-        // Listen for hash changes (back/forward navigation)
-        window.addEventListener('hashchange', function() {
-            checkForDirectVideoLink();
-        });
 
         // Function to update categories dropdown with icons - REMOVED as dropdown is no longer used
         // function updateCategoriesDropdown(categoriesData) {
@@ -3146,31 +3020,6 @@
             }
         }
 
-        // Fix orphaned words in video titles
-        function fixOrphanedWords() {
-            document.querySelectorAll('.item-title').forEach(titleElement => {
-                const originalText = titleElement.textContent.trim();
-                
-                // Split into words
-                const words = originalText.split(/\s+/);
-                
-                // If only 1-2 words, no need to fix
-                if (words.length <= 2) return;
-                
-                // Check if last word is 1-2 characters (orphaned)
-                const lastWord = words[words.length - 1];
-                if (lastWord.length <= 2) {
-                    // Move previous word with the orphaned word
-                    const newLastLine = words.slice(-2).join(' ');
-                    const firstLine = words.slice(0, -2).join(' ');
-                    
-                    // Replace with non-breaking space between the last two words
-                    const fixedText = firstLine + ' ' + newLastLine.replace(' ', '\u00A0');
-                    titleElement.innerHTML = fixedText;
-                }
-            });
-        }
-
         // Render video grid
         function renderVideoGrid(videos) {
             const videoGrid = document.getElementById('videoGrid');
@@ -3312,120 +3161,6 @@
             }
         }
 
-        // Load video duration from Wistia oEmbed API
-        async function loadVideoDuration(wistiaId) {
-            console.log('🕐 DEBUG: === LOADING DURATION FOR:', wistiaId, '===');
-            
-            const thumbnailDurationElement = document.getElementById(`thumb-duration-${wistiaId}`);
-            console.log('🕐 DEBUG: Thumbnail duration element found:', thumbnailDurationElement);
-            
-            if (!thumbnailDurationElement) {
-                console.error('🕐 ERROR: No thumbnail duration element found for:', wistiaId);
-                return;
-            }
-
-            try {
-                console.log('🕐 DEBUG: Starting API calls for:', wistiaId);
-                
-                // Try multiple API endpoints for better compatibility
-                const apiUrls = [
-                    `https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`,
-                    `https://fast.wistia.com/oembed?url=https://home.wistia.com/medias/${wistiaId}&format=json`,
-                    `https://fast.wistia.com/oembed?url=https://app.wistia.com/medias/${wistiaId}&format=json`
-                ];
-
-                let durationFound = false;
-                
-                for (let i = 0; i < apiUrls.length; i++) {
-                    const apiUrl = apiUrls[i];
-                    try {
-                        console.log(`🕐 DEBUG: Trying API URL ${i + 1}/${apiUrls.length}:`, apiUrl);
-                        const response = await fetch(apiUrl);
-                        console.log('🕐 DEBUG: Response status:', response.status, response.statusText);
-                        
-                        if (!response.ok) {
-                            console.log('🕐 DEBUG: API response not ok:', response.status, 'for', apiUrl);
-                            continue;
-                        }
-                        
-                        const data = await response.json();
-                        console.log('🕐 DEBUG: Full API response data for', wistiaId, ':', data);
-                        console.log('🕐 DEBUG: Duration value:', data.duration, 'Type:', typeof data.duration);
-                        
-                        if (data.duration && data.duration > 0) {
-                            const minutes = Math.floor(data.duration / 60);
-                            const seconds = Math.floor(data.duration % 60);
-                            const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                            console.log('🕐 SUCCESS: Setting duration to:', formattedDuration);
-                            
-                            // Update thumbnail duration element
-                            thumbnailDurationElement.textContent = formattedDuration;
-                            thumbnailDurationElement.classList.remove('placeholder');
-                            
-                            durationFound = true;
-                            break;
-                        } else {
-                            console.log('🕐 DEBUG: No valid duration in response for', wistiaId);
-                        }
-                    } catch (apiError) {
-                        console.error('🕐 ERROR: API call failed for', apiUrl, ':', apiError);
-                        continue;
-                    }
-                }
-                
-                // If no duration found from API, show a placeholder
-                if (!durationFound) {
-                    console.log('🕐 FALLBACK: No duration found via API for', wistiaId, ', showing placeholder');
-                    thumbnailDurationElement.textContent = '--:--';
-                    thumbnailDurationElement.classList.add('placeholder');
-                }
-                
-            } catch (error) {
-                console.error('🕐 ERROR: Failed to load duration for', wistiaId, error);
-                // Show placeholder on error
-                thumbnailDurationElement.textContent = '--:--';
-                thumbnailDurationElement.classList.add('placeholder');
-            }
-
-        }
-
-        // Load Wistia thumbnail using oEmbed API
-        async function loadWistiaThumbnail(wistiaId) {
-            try {
-                const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
-                const data = await response.json();
-                
-                if (data.thumbnail_url) {
-                    const thumbElement = document.getElementById(`thumb-${wistiaId}`);
-                    if (thumbElement) {
-                        const img = thumbElement.querySelector('img');
-                        if (img) {
-                            img.src = data.thumbnail_url;
-                            img.style.display = 'block';
-                        }
-                    }
-                } else {
-                    // Fallback to gradient background
-                    setThumbnailFallback(wistiaId);
-                }
-            } catch (error) {
-                console.log('Failed to load thumbnail for', wistiaId, error);
-                // Fallback to gradient background
-                setThumbnailFallback(wistiaId);
-            }
-        }
-
-        function setThumbnailFallback(wistiaId) {
-            const thumbElement = document.getElementById(`thumb-${wistiaId}`);
-            if (thumbElement) {
-                const img = thumbElement.querySelector('img');
-                if (img) {
-                    img.style.display = 'none';
-                }
-                thumbElement.style.background = 'linear-gradient(135deg, #2a2a2a, #1a1a1a)';
-            }
-        }
-
         // Attach event listeners to video items
         function attachVideoListeners() {
             const videoItems = document.querySelectorAll('.video-item');
@@ -3506,24 +3241,7 @@
                 if (response.ok) {
                     const config = await response.json();
                     if (config.accent_color) {
-                        // Update CSS variables
-                        const root = document.documentElement;
-                        root.style.setProperty('--accent-color', config.accent_color);
-                        
-                        // Calculate hover color (slightly darker)
-                        const hoverColor = darkenColor(config.accent_color, 0.1);
-                        root.style.setProperty('--accent-hover', hoverColor);
-                        
-                        // Calculate light variant
-                        const lightColor = hexToRgba(config.accent_color, 0.1);
-                        root.style.setProperty('--accent-light', lightColor);
-                        
-                        // Calculate shadow variant
-                        const shadowColor = hexToRgba(config.accent_color, 0.3);
-                        root.style.setProperty('--accent-shadow', shadowColor);
-                        
-                        // Update meta theme color
-                        document.getElementById('theme-color-meta').content = config.accent_color;
+                        applyAccentColor(config.accent_color);
                     }
                     
                     if (config.page_title) {
@@ -3535,55 +3253,6 @@
             }
         }
         
-        /**
-         * Helper function to darken a hex color
-         * @param {string} hex - Hex color value (e.g., '#4d90db')
-         * @param {number} percent - Percentage to darken (0-1)
-         * @returns {string} Darkened hex color
-         */
-        function darkenColor(hex, percent) {
-            const num = parseInt(hex.slice(1), 16);
-            const amt = Math.round(2.55 * percent * 100);
-            const R = (num >> 16) - amt;
-            const G = ((num >> 8) & 0x00FF) - amt;
-            const B = (num & 0x0000FF) - amt;
-            return '#' + ((R < 0 ? 0 : R) * 0x10000 + (G < 0 ? 0 : G) * 0x100 + (B < 0 ? 0 : B)).toString(16).padStart(6, '0');
-        }
-        
-        /**
-         * Helper function to convert hex to rgba
-         * @param {string} hex - Hex color value (e.g., '#4d90db')
-         * @param {number} alpha - Alpha transparency value (0-1)
-         * @returns {string} RGBA color string
-         */
-        function hexToRgba(hex, alpha) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha})` : null;
-        }
-        
-        /**
-         * Apply accent color to the page immediately
-         * Used for live preview in edit mode
-         * @param {string} color - Hex color value
-         */
-        function applyAccentColor(color) {
-            const root = document.documentElement;
-            root.style.setProperty('--accent-color', color);
-            
-            // Calculate and set derived colors
-            const hoverColor = darkenColor(color, 0.1);
-            root.style.setProperty('--accent-hover', hoverColor);
-            
-            const lightColor = hexToRgba(color, 0.1);
-            root.style.setProperty('--accent-light', lightColor);
-            
-            const shadowColor = hexToRgba(color, 0.3);
-            root.style.setProperty('--accent-shadow', shadowColor);
-            
-            // Update meta theme color
-            document.getElementById('theme-color-meta').content = color;
-        }
-
         /**
          * Load current accent color from server for admin panel
          */

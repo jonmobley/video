@@ -2837,6 +2837,11 @@ Main page structure with:
     
     <!-- Shared utilities -->
     <script src="js/shared-errors.js"></script>
+    <script src="js/shared-color-utils.js"></script>
+    <script src="js/shared-url-utils.js"></script>
+    <script src="js/shared-thumbnail-utils.js"></script>
+    <!-- oz.html uses setThumbnailFallback and fixOrphanedWords from shared-thumbnail-utils.js
+         but defines its own loadVideoDuration and loadWistiaThumbnail below (with caching) -->
     
     <!-- 
     ========================================================================
@@ -2859,8 +2864,6 @@ Main page structure with:
         // Track currently playing video for proper cleanup
         let currentlyPlayingVideoId = null;
 
-        // Store video URL mappings for direct video links
-        let videoUrlMappings = {};
         
         // Available category icons for admin interface
         const availableIcons = {
@@ -2911,58 +2914,6 @@ Main page structure with:
                 clearBrowserUrl();
             }
         }
-
-        function updateBrowserUrl(wistiaId) {
-            const video = videoUrlMappings[wistiaId];
-            if (video && video.urlString) {
-                // Update URL without triggering page reload
-                const newUrl = `${window.location.pathname}#${video.urlString}`;
-                window.history.replaceState(null, '', newUrl);
-            }
-        }
-
-        function clearBrowserUrl() {
-            // Remove hash from URL
-            const newUrl = window.location.pathname + window.location.search;
-            window.history.replaceState(null, '', newUrl);
-        }
-
-        function buildVideoUrlMappings(videos) {
-            // Clear existing mappings
-            videoUrlMappings = {};
-            
-            // Build mappings from video data
-            videos.forEach(video => {
-                if (video.urlString) {
-                    videoUrlMappings[video.wistiaId] = video;
-                    // Also create reverse mapping for URL string to wistiaId
-                    videoUrlMappings[video.urlString] = video;
-                }
-            });
-            
-            console.log('🔗 Built video URL mappings:', Object.keys(videoUrlMappings).length / 2, 'videos');
-        }
-
-        function checkForDirectVideoLink() {
-            const hash = window.location.hash.substring(1); // Remove # symbol
-            if (hash) {
-                // Look for video with this URL string
-                const video = videoUrlMappings[hash];
-                if (video && video.wistiaId) {
-                    console.log('🔗 Direct link detected, loading video:', video.title);
-                    // Small delay to ensure video grid is ready
-                    setTimeout(() => {
-                        loadWistiaVideo(video.wistiaId, video.title);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }, 100);
-                }
-            }
-        }
-
-        // Listen for hash changes (back/forward navigation)
-        window.addEventListener('hashchange', function() {
-            checkForDirectVideoLink();
-        });
 
         // Function to update category dropdown with icons
         // ===== CATEGORY AND FILTERING FUNCTIONS =====
@@ -3394,31 +3345,6 @@ Main page structure with:
             hideCategoryDropdownIfAllVideosAreAll(videos);
         }
 
-        // Fix orphaned words in video titles
-        function fixOrphanedWords() {
-            document.querySelectorAll('.item-title').forEach(titleElement => {
-                const originalText = titleElement.textContent.trim();
-                
-                // Split into words
-                const words = originalText.split(/\s+/);
-                
-                // If only 1-2 words, no need to fix
-                if (words.length <= 2) return;
-                
-                // Check if last word is 1-2 characters (orphaned)
-                const lastWord = words[words.length - 1];
-                if (lastWord.length <= 2) {
-                    // Move previous word with the orphaned word
-                    const newLastLine = words.slice(-2).join(' ');
-                    const firstLine = words.slice(0, -2).join(' ');
-                    
-                    // Replace with non-breaking space between the last two words
-                    const fixedText = firstLine + ' ' + newLastLine.replace(' ', '\u00A0');
-                    titleElement.innerHTML = fixedText;
-                }
-            });
-        }
-
         // ===== VIDEO GRID RENDERING AND UI FUNCTIONS =====
         
         /**
@@ -3795,17 +3721,6 @@ Main page structure with:
             return url;
         }
 
-        function setThumbnailFallback(wistiaId) {
-            const thumbElement = document.getElementById(`thumb-${wistiaId}`);
-            if (thumbElement) {
-                const img = thumbElement.querySelector('img');
-                if (img) {
-                    img.style.display = 'none';
-                }
-                thumbElement.style.background = 'linear-gradient(135deg, #2a2a2a, #1a1a1a)';
-            }
-        }
-
         // Hide category dropdown if all videos have 'all' category
         function hideCategoryDropdownIfAllVideosAreAll(videos) {
             const categoryDropdown = document.querySelector('.categories-dropdown');
@@ -3930,64 +3845,6 @@ Main page structure with:
                 applyAccentColor('#008f67');
                 loadPageTitle();
             }
-        }
-
-        /**
-         * Helper function to darken a hex color
-         * @param {string} hex - Hex color value (e.g., '#008f67')
-         * @param {number} percent - Percentage to darken (0-1)
-         * @returns {string} Darkened hex color
-         */
-        function darkenColor(hex, percent) {
-            const num = parseInt(hex.slice(1), 16);
-            const amt = Math.round(2.55 * percent * 100);
-            const R = (num >> 16) - amt;
-            const G = ((num >> 8) & 0x00FF) - amt;
-            const B = (num & 0x0000FF) - amt;
-            return '#' + ((R < 0 ? 0 : R) * 0x10000 + (G < 0 ? 0 : G) * 0x100 + (B < 0 ? 0 : B)).toString(16).padStart(6, '0');
-        }
-        
-        /**
-         * Helper function to convert hex to rgba
-         * @param {string} hex - Hex color value (e.g., '#008f67')
-         * @param {number} alpha - Alpha transparency value (0-1)
-         * @returns {string} RGBA color string
-         */
-        function hexToRgba(hex, alpha) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha})` : null;
-        }
-        
-        /**
-         * Apply accent color to the page immediately
-         * Used for live preview in edit mode
-         * @param {string} color - Hex color value
-         */
-        function applyAccentColor(color) {
-            console.log('🎨 DEBUG: applyAccentColor called with:', color);
-            const root = document.documentElement;
-            root.style.setProperty('--accent-color', color);
-            
-            // Calculate and set derived colors
-            const hoverColor = darkenColor(color, 0.1);
-            root.style.setProperty('--accent-hover', hoverColor);
-            
-            const lightColor = hexToRgba(color, 0.1);
-            root.style.setProperty('--accent-light', lightColor);
-            
-            const shadowColor = hexToRgba(color, 0.3);
-            root.style.setProperty('--accent-shadow', shadowColor);
-            
-            // Calculate medium variant (for play button background)
-            const mediumColor = hexToRgba(color, 0.2);
-            root.style.setProperty('--accent-medium', mediumColor);
-            
-            // Calculate heavy variant (for play button hover)
-            const heavyColor = hexToRgba(color, 0.4);
-            root.style.setProperty('--accent-heavy', heavyColor);
-            
-            // Update meta theme color
-            document.getElementById('theme-color-meta').content = color;
         }
 
         /**
