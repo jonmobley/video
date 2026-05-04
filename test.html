@@ -2302,6 +2302,7 @@
     <script src="js/shared-color-utils.js"></script>
     <script src="js/shared-page-config.js"></script>
     <script src="js/shared-url-utils.js"></script>
+    <script src="js/shared-cache-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
     <script src="js/shared-video-detect.js"></script>
     
@@ -2315,47 +2316,6 @@
         
         // Track currently playing video
         let currentlyPlayingVideoId = null;
-
-        const METADATA_CACHE_DURATION = 24 * 60 * 60 * 1000;
-
-        function getCachedMetadata(wistiaId) {
-            const cacheKey = `wistia_${wistiaId}`;
-            try {
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) {
-                    const data = JSON.parse(cached);
-                    const now = Date.now();
-                    if (now - data.timestamp < METADATA_CACHE_DURATION) {
-                        return data.metadata;
-                    } else {
-                        localStorage.removeItem(cacheKey);
-                    }
-                }
-            } catch (error) {
-                console.warn('Cache read error:', error);
-            }
-            return null;
-        }
-
-        function setCachedMetadata(wistiaId, metadata) {
-            const cacheKey = `wistia_${wistiaId}`;
-            try {
-                const cacheData = {
-                    metadata: metadata,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-            } catch (error) {
-                console.warn('Cache write error:', error);
-            }
-        }
-
-        function getOptimizedThumbnailUrl(url) {
-            if (url && url.includes('embed-ssl.wistia.com')) {
-                return url.replace('image.png', 'image.png?image_resize=640');
-            }
-            return url;
-        }
 
         const testCacheOptions = {
             getCached: getCachedMetadata,
