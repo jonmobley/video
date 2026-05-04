@@ -118,6 +118,10 @@ CREATE INDEX IF NOT EXISTS idx_videos_order ON videos("order");
 CREATE INDEX IF NOT EXISTS idx_categories_page ON categories(page);
 CREATE INDEX IF NOT EXISTS idx_categories_order ON categories("order");
 
+-- Composite indexes for common query patterns (filter by page, sort by order)
+CREATE INDEX IF NOT EXISTS idx_videos_page_order ON videos(page, "order");
+CREATE INDEX IF NOT EXISTS idx_categories_page_order ON categories(page, "order");
+
 -- ============================================================================
 -- RLS (Row Level Security) - Optional but recommended
 -- ============================================================================
