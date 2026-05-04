@@ -426,12 +426,31 @@ app.use((req, res, next) => {
     "connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com https://api.qrserver.com",
     "frame-src https://player.vimeo.com https://www.youtube.com https://www.youtube-nocookie.com https://www.dailymotion.com https://geo.dailymotion.com https://www.loom.com https://fast.wistia.net",
     "media-src 'self' blob:",
-    "frame-ancestors 'none'"
+    "frame-ancestors 'none'",
+    "report-uri /api/csp-report"
   ].join('; '));
   res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   next();
 });
+
+app.post('/api/csp-report',
+  express.json({ type: ['application/json', 'application/csp-report', 'application/reports+json'] }),
+  (req, res) => {
+    const report = req.body && (req.body['csp-report'] || req.body);
+    if (report) {
+      console.warn('[CSP Violation]', JSON.stringify({
+        blockedUri: report['blocked-uri'] || report.blockedURL || 'unknown',
+        violatedDirective: report['violated-directive'] || report.effectiveDirective || 'unknown',
+        documentUri: report['document-uri'] || report.documentURL || 'unknown',
+        sourceFile: report['source-file'] || report.sourceFile || '',
+        lineNumber: report['line-number'] || report.lineNumber || '',
+        timestamp: new Date().toISOString()
+      }));
+    }
+    res.status(204).end();
+  }
+);
 
 app.use(attachUser);
 
