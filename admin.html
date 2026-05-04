@@ -304,6 +304,16 @@
 
       <div id="videosPanel" class="tab-panel active" role="tabpanel">
         <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
+        <div class="filter-bar" id="videoFilterBar" style="display:none">
+          <input class="search-input" id="videoSearchInput" type="text" placeholder="Search by title…" aria-label="Search videos by title">
+          <select class="tier-filter" id="videoStatusFilter" aria-label="Filter by status">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+            <option value="password">Password-protected</option>
+          </select>
+        </div>
+        <div class="user-count" id="videoCount" style="display:none"></div>
         <div class="video-list" id="videoList"></div>
         <div class="pagination" id="videoPagination"></div>
       </div>
@@ -346,6 +356,10 @@
     const userCountEl     = document.getElementById('userCount');
     const videoPagination = document.getElementById('videoPagination');
     const userPagination  = document.getElementById('userPagination');
+    const videoSearchInput = document.getElementById('videoSearchInput');
+    const videoStatusFilter = document.getElementById('videoStatusFilter');
+    const videoFilterBar  = document.getElementById('videoFilterBar');
+    const videoCountEl    = document.getElementById('videoCount');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
 
@@ -354,6 +368,7 @@
     let videoOffset = 0;
     let userOffset = 0;
     let userSearchDebounce = null;
+    let videoSearchDebounce = null;
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -472,11 +487,18 @@
 
     async function loadVideos() {
       videoList.innerHTML = '<div class="loading-spinner"></div>';
+      videoFilterBar.style.display = 'none';
+      videoCountEl.style.display = 'none';
       statsRow.innerHTML = '';
       videoPagination.innerHTML = '';
 
       try {
         const params = new URLSearchParams({ limit: PAGE_SIZE, offset: videoOffset });
+        const searchVal = videoSearchInput.value.trim();
+        const statusVal = videoStatusFilter.value;
+        if (searchVal) params.set('search', searchVal);
+        if (statusVal && statusVal !== 'all') params.set('status', statusVal);
+
         const res = await fetch('/api/admin/videos?' + params, {
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
@@ -505,14 +527,27 @@
         }
 
         statsRow.innerHTML = `
-          <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total videos</div></div>
+          <div class="stat-card"><div class="stat-val">${data.total_unfiltered || total}</div><div class="stat-label">Total videos</div></div>
           <div class="stat-card"><div class="stat-val">${formatBytes(data.total_size)}</div><div class="stat-label">Storage used</div></div>
           <div class="stat-card"><div class="stat-val">${(data.total_views || 0).toLocaleString()}</div><div class="stat-label">Total views</div></div>
           <div class="stat-card"><div class="stat-val">${data.expired_count || 0}</div><div class="stat-label">Expired</div></div>
         `;
 
-        if (!videos.length && total === 0) {
+        videoFilterBar.style.display = 'flex';
+
+        if (searchVal || statusVal !== 'all') {
+          videoCountEl.textContent = total + ' video' + (total === 1 ? '' : 's') + ' found';
+          videoCountEl.style.display = 'block';
+        }
+
+        if (!videos.length && total === 0 && !searchVal && statusVal === 'all') {
           videoList.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div>No videos uploaded yet.</div></div>`;
+          videoFilterBar.style.display = 'none';
+          return;
+        }
+
+        if (!videos.length) {
+          videoList.innerHTML = '<div class="empty-state"><div>No videos match your filters.</div></div>';
           return;
         }
 
@@ -777,13 +812,22 @@
       userTierFilter.value = 'all';
       userFilterBar.style.display = 'none';
       userCountEl.style.display = 'none';
+      videoSearchInput.value = '';
+      videoStatusFilter.value = 'all';
+      videoFilterBar.style.display = 'none';
+      videoCountEl.style.display = 'none';
       resetTabs();
     }
 
     loginBtn.addEventListener('click', tryLogin);
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
-    refreshBtn.addEventListener('click', () => { videoOffset = 0; loadVideos(); });
+    refreshBtn.addEventListener('click', () => {
+      videoOffset = 0;
+      videoSearchInput.value = '';
+      videoStatusFilter.value = 'all';
+      loadVideos();
+    });
     refreshUsersBtn.addEventListener('click', () => {
       usersLoaded = false;
       userOffset = 0;
@@ -796,6 +840,11 @@
       userSearchDebounce = setTimeout(() => { userOffset = 0; loadUsers(); }, 300);
     });
     userTierFilter.addEventListener('change', () => { userOffset = 0; loadUsers(); });
+    videoSearchInput.addEventListener('input', () => {
+      clearTimeout(videoSearchDebounce);
+      videoSearchDebounce = setTimeout(() => { videoOffset = 0; loadVideos(); }, 300);
+    });
+    videoStatusFilter.addEventListener('change', () => { videoOffset = 0; loadVideos(); });
 
     if (adminToken) showDashboard();
     else loginScreen.style.display = 'flex';

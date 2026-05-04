@@ -1092,10 +1092,40 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
   try {
     const limit  = Math.max(1, Math.min(200, parseInt(req.query.limit,  10) || 50));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const search = (req.query.search || '').trim();
+    const status = (req.query.status || '').trim().toLowerCase();
 
-    const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM vs_uploads');
+    const conditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (search) {
+      conditions.push(`u.title ILIKE $${paramIdx}`);
+      params.push('%' + search + '%');
+      paramIdx++;
+    }
+    if (status === 'expired') {
+      conditions.push(`u.expires_at IS NOT NULL AND u.expires_at < NOW()`);
+    } else if (status === 'password') {
+      conditions.push(`u.password_hash IS NOT NULL`);
+    } else if (status === 'active') {
+      conditions.push(`(u.expires_at IS NULL OR u.expires_at >= NOW())`);
+      conditions.push(`u.password_hash IS NULL`);
+    }
+
+    const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM vs_uploads u ${whereClause}`,
+      params
+    );
     const total = countResult.rows[0].total;
 
+    const totalUnfilteredResult = await pool.query('SELECT COUNT(*)::int AS total FROM vs_uploads');
+    const totalUnfiltered = totalUnfilteredResult.rows[0].total;
+
+    const limitParam = paramIdx++;
+    const offsetParam = paramIdx++;
     const result = await pool.query(
       `SELECT u.id, u.title, u.content_type, u.uploaded_at, u.expires_at,
               u.view_count, u.file_size,
@@ -1103,9 +1133,10 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
               COALESCE(usr.is_paid, FALSE) as owner_is_paid
        FROM vs_uploads u
        LEFT JOIN vs_users usr ON u.user_id = usr.id
+       ${whereClause}
        ORDER BY u.uploaded_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
+       LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      [...params, limit, offset]
     );
 
     const statsResult = await pool.query(
@@ -1119,6 +1150,7 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     res.json({
       videos: result.rows,
       total,
+      total_unfiltered: totalUnfiltered,
       limit,
       offset,
       total_size: Number(stats.total_size),
