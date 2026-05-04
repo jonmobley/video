@@ -899,8 +899,34 @@
     const TP_FRAME_RATIOS = [0.05, 0.20, 0.40, 0.55, 0.75, 0.92];
 
     let tpState = null; // { videoId, selection, frames: [{base64,contentType}], custom }
+    const tpFrameCache = new Map();
 
     function setTpError(msg) { tpError.textContent = msg || ''; }
+
+    function renderFrameTile(tile, f, idx) {
+      if (!f) {
+        tile.className = 'tp-frame empty';
+        tile.textContent = '\u2014';
+        return;
+      }
+      tile.className = 'tp-frame';
+      tile.innerHTML = '';
+      tile.tabIndex = 0;
+      tile.setAttribute('role', 'option');
+      tile.setAttribute('aria-selected', 'false');
+      tile.setAttribute('aria-label', 'Frame ' + (idx + 1));
+      const img = document.createElement('img');
+      img.src = f.dataUrl;
+      img.alt = 'Frame ' + (idx + 1);
+      tile.appendChild(img);
+      tile.addEventListener('click', () => selectFrame(idx));
+      tile.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectFrame(idx);
+        }
+      });
+    }
 
     function closeThumbnailDialog() {
       tpOverlay.classList.remove('show');
@@ -943,11 +969,7 @@
       setTpError('');
     }
 
-    // Load the video once, then seek through each ratio in sequence and
-    // grab a JPEG frame at each stop. One <video> element keeps memory and
-    // network use sane vs. spinning up captureVideoThumbnail N times (which
-    // would re-download the file for every frame).
-    function extractCandidateFrames(videoUrl, ratios) {
+    function extractCandidateFrames(videoUrl, ratios, onFrame) {
       return new Promise((resolve) => {
         const out = ratios.map(() => null);
         let i = 0;
@@ -994,7 +1016,7 @@
             if (comma < 0) return null;
             return { dataUrl, base64: dataUrl.slice(comma + 1), contentType: 'image/jpeg' };
           } catch (_) {
-            return null; // Tainted canvas / decode error — skip this frame.
+            return null;
           }
         }
 
@@ -1008,7 +1030,9 @@
 
         video.addEventListener('loadedmetadata', () => seekNext());
         video.addEventListener('seeked', () => {
-          out[i] = captureCurrent();
+          const idx = i;
+          out[idx] = captureCurrent();
+          if (typeof onFrame === 'function') onFrame(idx, out[idx]);
           i++;
           seekNext();
         });
@@ -1035,14 +1059,12 @@
       tpUploadPreview.classList.remove('selected');
       tpFileInput.value = '';
 
-      // Render skeleton tiles so the dialog feels responsive while we
-      // pull frames out of the video.
       tpGrid.innerHTML = '';
       const slots = [];
       for (let n = 0; n < TP_FRAME_RATIOS.length; n++) {
         const tile = document.createElement('div');
         tile.className = 'tp-frame loading';
-        tile.textContent = 'Loading…';
+        tile.textContent = 'Loading\u2026';
         tpGrid.appendChild(tile);
         slots.push(tile);
       }
@@ -1053,52 +1075,44 @@
       }, 0);
 
       if (v.has_password) {
-        // The /api/video/:id endpoint requires a password token even for
-        // the owner, and we deliberately don't surface that here. Custom
-        // upload still works.
         tpFramesTitle.textContent = 'Pick a frame';
         slots.forEach(tile => {
           tile.className = 'tp-frame empty';
-          tile.textContent = 'Password-protected — upload an image instead';
+          tile.textContent = 'Password-protected \u2014 upload an image instead';
         });
         return;
       }
 
-      const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
-      const frames = await extractCandidateFrames(videoUrl, TP_FRAME_RATIOS);
-
-      // Dialog may have been closed while we were extracting — bail.
-      if (!tpState || tpState.videoId !== videoId) return;
-      tpState.frames = frames;
-
-      let any = false;
-      frames.forEach((f, idx) => {
-        const tile = slots[idx];
-        if (!f) {
-          tile.className = 'tp-frame empty';
-          tile.textContent = '—';
-          return;
-        }
-        any = true;
-        tile.className = 'tp-frame';
-        tile.innerHTML = '';
-        tile.tabIndex = 0;
-        tile.setAttribute('role', 'option');
-        tile.setAttribute('aria-selected', 'false');
-        tile.setAttribute('aria-label', `Frame ${idx + 1}`);
-        const img = document.createElement('img');
-        img.src = f.dataUrl;
-        img.alt = `Frame ${idx + 1}`;
-        tile.appendChild(img);
-        tile.addEventListener('click', () => selectFrame(idx));
-        tile.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            selectFrame(idx);
-          }
+      const cached = tpFrameCache.get(videoId);
+      if (cached) {
+        tpState.frames = cached;
+        let any = false;
+        cached.forEach((f, idx) => {
+          if (f) any = true;
+          renderFrameTile(slots[idx], f, idx);
         });
+        if (!any) {
+          tpFramesTitle.textContent = 'Pick a frame';
+          slots.forEach(tile => {
+            tile.className = 'tp-frame empty';
+            tile.textContent = 'Could not load frames';
+          });
+        }
+        return;
+      }
+
+      const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
+      const frames = await extractCandidateFrames(videoUrl, TP_FRAME_RATIOS, (idx, f) => {
+        if (!tpState || tpState.videoId !== videoId) return;
+        tpState.frames[idx] = f;
+        renderFrameTile(slots[idx], f, idx);
       });
 
+      if (!tpState || tpState.videoId !== videoId) return;
+      tpState.frames = frames;
+      tpFrameCache.set(videoId, frames);
+
+      const any = frames.some(f => !!f);
       if (!any) {
         tpFramesTitle.textContent = 'Pick a frame';
         slots.forEach(tile => {
@@ -1269,6 +1283,7 @@
       }
       const out = await res.json().catch(() => ({}));
       const version = out.version || Date.now();
+      tpFrameCache.delete(videoId);
 
       // Update the card thumbnail in place + flag has_thumbnail so the
       // next list re-render keeps showing the real frame.
