@@ -464,7 +464,9 @@
     const VALID_STATUSES = ['all', 'active', 'expired', 'password'];
     const VALID_PLATFORMS = ['all', 'upload', 'youtube', 'vimeo'];
 
-    function syncFiltersToUrl() {
+    let isPopstateNav = false;
+
+    function buildFilterUrl() {
       const params = new URLSearchParams();
       const trimmed = videoSearchState.trim();
       if (trimmed) params.set('search', trimmed);
@@ -472,8 +474,18 @@
       if (videoPlatformState && videoPlatformState !== 'all') params.set('platform', videoPlatformState);
       if (videoOffset > 0) params.set('page', Math.floor(videoOffset / PAGE_SIZE) + 1);
       const qs = params.toString();
-      const newUrl = window.location.pathname + (qs ? '?' + qs : '');
-      history.replaceState(null, '', newUrl);
+      return window.location.pathname + (qs ? '?' + qs : '');
+    }
+
+    function syncFiltersToUrl() {
+      const newUrl = buildFilterUrl();
+      if (isPopstateNav) {
+        isPopstateNav = false;
+        return;
+      }
+      if (newUrl !== window.location.pathname + window.location.search) {
+        history.pushState(null, '', newUrl);
+      }
     }
 
     function readFiltersFromUrl() {
@@ -1096,6 +1108,14 @@
       videoPlatformState = videoPlatformFilter.value;
       updateVideoFilterIndicator();
       videoOffset = 0;
+      loadVideos();
+    });
+
+    window.addEventListener('popstate', () => {
+      if (!adminToken) return;
+      isPopstateNav = true;
+      readFiltersFromUrl();
+      updateVideoFilterIndicator();
       loadVideos();
     });
 
