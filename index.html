@@ -112,6 +112,7 @@
             text-align: center;
             min-height: 176px;
             box-sizing: border-box;
+            display: grid;
         }
         .hero-drop:hover,
         .hero-drop.drag-over {
@@ -139,10 +140,13 @@
         }
         .hero-upload-content,
         .hero-link-content {
-            animation: heroFadeIn 0.18s ease both;
+            grid-column: 1;
+            grid-row: 1;
+            transition: opacity 0.18s ease, visibility 0.18s ease;
         }
         .hero-link-content {
-            display: none;
+            opacity: 0;
+            visibility: hidden;
         }
         .hero-link-content .hero-drop-icon {
             margin-bottom: 6px;
@@ -151,17 +155,15 @@
             margin-bottom: 0;
         }
         .hero-drop.hero-link-mode .hero-upload-content {
-            display: none;
+            opacity: 0;
+            visibility: hidden;
         }
         .hero-drop.hero-link-mode .hero-link-content {
-            display: block;
+            opacity: 1;
+            visibility: visible;
         }
         .hero-drop.hero-link-mode {
             cursor: default;
-        }
-        @keyframes heroFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
         .hero-link-row {
             display: flex;
