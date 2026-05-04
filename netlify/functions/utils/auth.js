@@ -16,6 +16,8 @@
  *   };
  */
 
+const crypto = require('crypto');
+
 /**
  * Check if request is authorized
  * @param {Object} event - Netlify function event object
@@ -29,13 +31,11 @@ function requireAuth(event) {
     'Content-Type': 'application/json'
   };
 
-  // Get ADMIN_TOKEN fresh from environment each time
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
   
   console.log('🔐 Auth check - ADMIN_TOKEN present:', !!ADMIN_TOKEN);
   console.log('🔐 Auth check - Authorization header:', event.headers.authorization ? 'present' : 'missing');
 
-  // If no admin token is configured, deny access with helpful message
   if (!ADMIN_TOKEN) {
     return {
       authorized: false,
@@ -49,7 +49,6 @@ function requireAuth(event) {
     };
   }
 
-  // Get authorization header
   const authHeader = event.headers.authorization || event.headers.Authorization;
   
   if (!authHeader) {
@@ -65,12 +64,13 @@ function requireAuth(event) {
     };
   }
 
-  // Support both "Bearer TOKEN" and just "TOKEN" formats
   const token = authHeader.startsWith('Bearer ') 
     ? authHeader.substring(7) 
     : authHeader;
 
-  if (token !== ADMIN_TOKEN) {
+  const a = Buffer.from(token);
+  const b = Buffer.from(ADMIN_TOKEN);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return {
       authorized: false,
       response: {

@@ -411,6 +411,28 @@ app.use((err, req, res, next) => {
   }
   next();
 });
+
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https: blob:",
+    "font-src 'self'",
+    "connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com https://api.qrserver.com",
+    "frame-src https://player.vimeo.com https://www.youtube.com https://www.youtube-nocookie.com https://www.dailymotion.com https://geo.dailymotion.com https://www.loom.com https://fast.wistia.net",
+    "media-src 'self' blob:",
+    "frame-ancestors 'none'"
+  ].join('; '));
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  next();
+});
+
 app.use(attachUser);
 
 // ── Watch page with dynamic OG tags (must be before static middleware) ───────

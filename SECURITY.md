@@ -41,7 +41,8 @@ All admin endpoints require authentication via the `ADMIN_TOKEN` environment var
 
 ### CORS Configuration
 
-Admin endpoints use restricted CORS headers:
+Admin endpoints use restricted CORS headers via per-function logic (`getSecuredCorsHeaders()`), not a blanket `netlify.toml` rule. Read-only functions use `getCorsHeaders()` which returns `Access-Control-Allow-Origin: *`. Admin/write functions respect the `ALLOWED_ORIGIN` environment variable.
+
 - Default: `Access-Control-Allow-Origin: *` (for development)
 - Production: Set `ALLOWED_ORIGIN` environment variable to your domain
 
@@ -49,6 +50,42 @@ Admin endpoints use restricted CORS headers:
 ```
 ALLOWED_ORIGIN=https://your-site.netlify.app
 ```
+
+### Constant-Time Token Comparison
+
+Both `server.js` and Netlify function auth (`netlify/functions/utils/auth.js`) use `crypto.timingSafeEqual` for admin token verification. This prevents timing-based attacks that could be used to discover the token character by character.
+
+## Security Headers
+
+The following headers are set on all responses (via `netlify.toml` for Netlify and middleware in `server.js` for the Replit dev server):
+
+### Content-Security-Policy (CSP)
+
+Restricts what resources browsers are allowed to load, providing the primary defense against XSS:
+
+- `default-src 'self'` — only allow resources from the same origin by default
+- `script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net` — allows inline scripts (needed for current codebase) and Wistia player scripts
+- `style-src 'self' 'unsafe-inline'` — allows inline styles
+- `img-src 'self' data: https: blob:` — allows images from any HTTPS source (thumbnails from Wistia, YouTube, Vimeo, etc.)
+- `connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com https://api.qrserver.com` — controls fetch/XHR destinations
+- `frame-src` — allows embedding video players from YouTube, Vimeo, Dailymotion, Loom, and Wistia
+- `media-src 'self' blob:` — allows video playback from same origin and blob URLs
+- `frame-ancestors 'none'` — prevents this site from being embedded in iframes elsewhere
+
+### Strict-Transport-Security (HSTS)
+
+`max-age=63072000; includeSubDomains` — tells browsers to always use HTTPS for this domain (2 year max-age).
+
+### Permissions-Policy
+
+`camera=(), microphone=(), geolocation=(), payment=()` — disables access to sensitive browser APIs that this application does not use, limiting what injected scripts could access.
+
+### Other Headers
+
+- `X-Frame-Options: DENY` — legacy clickjacking protection (supplemented by CSP frame-ancestors)
+- `X-Content-Type-Options: nosniff` — prevents MIME type sniffing
+- `X-XSS-Protection: 1; mode=block` — legacy XSS filter (supplemented by CSP)
+- `Referrer-Policy: strict-origin-when-cross-origin` — controls referrer information
 
 ## XSS Prevention
 
@@ -177,6 +214,8 @@ Before deploying:
 - [ ] User-generated content is sanitized before rendering
 - [ ] File uploads are validated
 - [ ] HTTPS is enforced (handled by Netlify)
+- [ ] CSP, HSTS, and Permissions-Policy headers are present on all responses
+- [ ] Token comparison uses constant-time (`crypto.timingSafeEqual`) in both server.js and Netlify functions
 
 ## Reporting Security Issues
 
