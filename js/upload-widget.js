@@ -333,8 +333,20 @@
     progressFill.setAttribute('aria-valuemax', '100');
     progressFill.setAttribute('aria-valuenow', '0');
 
+    let isPaidUser = false;
     const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then(r => r.ok)
+      .then(async r => {
+        if (!r.ok) return false;
+        try {
+          const data = await r.json();
+          if (data && data.is_paid) {
+            isPaidUser = true;
+            expirySelect.value = 'never';
+            expirySelect.disabled = true;
+          }
+          return true;
+        } catch { return false; }
+      })
       .catch(() => false);
 
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }

@@ -292,6 +292,7 @@ async function ensureSchema() {
       email TEXT UNIQUE NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE vs_users ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT FALSE;
     CREATE TABLE IF NOT EXISTS vs_meta (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -340,7 +341,10 @@ async function ensureSchema() {
 async function cleanupExpired() {
   try {
     const res = await pool.query(
-      'SELECT id FROM vs_uploads WHERE expires_at IS NOT NULL AND expires_at < NOW()'
+      `SELECT u.id FROM vs_uploads u
+       LEFT JOIN vs_users usr ON u.user_id = usr.id
+       WHERE u.expires_at IS NOT NULL AND u.expires_at < NOW()
+         AND (u.user_id IS NULL OR usr.is_paid IS NOT TRUE)`
     );
     for (const { id } of res.rows) {
       await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [id]);
@@ -1257,9 +1261,9 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/me', async (req, res) => {
   if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.');
-  const result = await pool.query('SELECT email FROM vs_users WHERE id = $1', [req.userId]);
+  const result = await pool.query('SELECT email, is_paid FROM vs_users WHERE id = $1', [req.userId]);
   if (!result.rows.length) { clearSessionCookie(res); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
-  res.json({ email: result.rows[0].email });
+  res.json({ email: result.rows[0].email, is_paid: result.rows[0].is_paid });
 });
 
 // ── My videos: list + delete ─────────────────────────────────────────────────
@@ -1397,6 +1401,48 @@ app.patch('/api/my-videos/:id', requireUser, express.json(), async (req, res) =>
   } catch (err) {
     console.error('my-videos patch error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not update video.');
+  }
+});
+
+// ── Admin: toggle paid tier ───────────────────────────────────────────────────
+app.patch('/api/admin/users/:id/tier', requireAdmin, express.json(), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { is_paid } = req.body || {};
+    if (typeof is_paid !== 'boolean') {
+      return apiError(res, 400, 'BAD_INPUT', 'is_paid must be a boolean.');
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'UPDATE vs_users SET is_paid = $1 WHERE id = $2 RETURNING id, email, is_paid',
+        [is_paid, userId]
+      );
+      if (!result.rows.length) {
+        await client.query('ROLLBACK');
+        return apiError(res, 404, 'NOT_FOUND', 'User not found.');
+      }
+      if (is_paid) {
+        const cleared = await client.query(
+          'UPDATE vs_uploads SET expires_at = NULL WHERE user_id = $1 AND expires_at IS NOT NULL',
+          [userId]
+        );
+        if (cleared.rowCount) {
+          console.log(`Cleared expiration on ${cleared.rowCount} video(s) for paid user ${userId}`);
+        }
+      }
+      await client.query('COMMIT');
+      res.json({ success: true, user: result.rows[0] });
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('admin tier toggle error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not update user tier.');
   }
 });
 

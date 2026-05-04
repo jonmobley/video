@@ -49,6 +49,14 @@
     .header-sub { color: #888; font-size: 0.9rem; margin-bottom: 26px; }
     .email-pill { font-size: 0.85rem; color: #888; }
     .email-pill strong { color: #ddd; font-weight: 600; }
+    .paid-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px; font-size: 0.75rem;
+      font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase;
+      background: linear-gradient(135deg, rgba(78,205,196,0.15), rgba(255,107,107,0.15));
+      color: #4ecdc4; border: 1px solid rgba(78,205,196,0.25);
+      margin-left: 8px; vertical-align: middle;
+    }
 
     .empty {
       padding: 50px 30px; text-align: center;
@@ -446,7 +454,9 @@
         return;
       }
       const meData = await me.json();
-      emailPill.innerHTML = 'Signed in as <strong>' + escapeHtml(meData.email) + '</strong>';
+      const paidBadge = meData.is_paid ? '<span class="paid-badge">Paid</span>' : '';
+      emailPill.innerHTML = 'Signed in as <strong>' + escapeHtml(meData.email) + '</strong>' + paidBadge;
+      window.__isPaidUser = !!meData.is_paid;
 
       const res = await fetch('/api/my-videos');
       // Session may have expired between the /me check and this call —
@@ -723,10 +733,15 @@
       editState = { videoId };
       editTitleInput.value = v.title || '';
       editExpirySelect.value = 'keep';
-      if (v.expires_at) {
+      if (window.__isPaidUser) {
+        editExpiryHint.textContent = 'Paid account — your videos never expire.';
+        editExpirySelect.disabled = true;
+      } else if (v.expires_at) {
         editExpiryHint.textContent = 'Currently: ' + formatExpiry(v.expires_at);
+        editExpirySelect.disabled = false;
       } else {
         editExpiryHint.textContent = 'Currently: no expiration';
+        editExpirySelect.disabled = false;
       }
       editPasswordInput.value = '';
       editRemovePw.checked = false;
