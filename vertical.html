@@ -2519,6 +2519,53 @@
         // Track which videos are vertical format (9:16)
         let verticalVideoIds = new Set();
 
+        const METADATA_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+        function getCachedMetadata(wistiaId) {
+            const cacheKey = `wistia_${wistiaId}`;
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const data = JSON.parse(cached);
+                    const now = Date.now();
+                    if (now - data.timestamp < METADATA_CACHE_DURATION) {
+                        return data.metadata;
+                    } else {
+                        localStorage.removeItem(cacheKey);
+                    }
+                }
+            } catch (error) {
+                console.warn('Cache read error:', error);
+            }
+            return null;
+        }
+
+        function setCachedMetadata(wistiaId, metadata) {
+            const cacheKey = `wistia_${wistiaId}`;
+            try {
+                const cacheData = {
+                    metadata: metadata,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            } catch (error) {
+                console.warn('Cache write error:', error);
+            }
+        }
+
+        function getOptimizedThumbnailUrl(url) {
+            if (url && url.includes('embed-ssl.wistia.com')) {
+                return url.replace('image.png', 'image.png?image_resize=640');
+            }
+            return url;
+        }
+
+        const verticalCacheOptions = {
+            getCached: getCachedMetadata,
+            setCached: setCachedMetadata,
+            transformUrl: getOptimizedThumbnailUrl
+        };
+
         // Global videos array
         let videos = [];
 
@@ -3152,7 +3199,7 @@
             
             // Load durations for displayed videos only
             videosToDisplay.forEach(video => {
-                loadVideoDuration(video.wistiaId);
+                loadVideoDuration(video.wistiaId, verticalCacheOptions);
                 // Check for vertical video format after a delay to ensure Wistia is ready
                 setTimeout(() => checkVideoAspectRatio(video.wistiaId), 1000);
             });
@@ -5203,7 +5250,7 @@
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}')">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}', verticalCacheOptions)">
                     <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
@@ -5231,8 +5278,8 @@
             addVideoEventListeners(videoElement);
             
             // Load thumbnail and duration
-            loadWistiaThumbnail(video.wistiaId);
-            loadVideoDuration(video.wistiaId);
+            loadWistiaThumbnail(video.wistiaId, verticalCacheOptions);
+            loadVideoDuration(video.wistiaId, verticalCacheOptions);
             
             // If in edit mode, add edit listeners
             if (isEditMode) {
