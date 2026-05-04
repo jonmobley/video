@@ -267,6 +267,12 @@
       font-size: 0.78rem; color: #959595; padding: 0 8px;
     }
 
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
     .loading-spinner {
       width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1);
       border-top-color: #fff; border-radius: 50%; animation: spin 0.9s linear infinite;
@@ -335,7 +341,7 @@
 
       <div id="videosPanel" class="tab-panel active" role="tabpanel">
         <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
-        <div class="filter-bar" id="videoFilterBar" style="display:none">
+        <div class="filter-bar" id="videoFilterBar" style="display:none" aria-busy="false">
           <input class="search-input" id="videoSearchInput" type="text" placeholder="Search by title…" aria-label="Search videos by title">
           <select class="tier-filter" id="videoStatusFilter" aria-label="Filter by status">
             <option value="all">All statuses</option>
@@ -350,6 +356,7 @@
             <option value="vimeo">Vimeo</option>
           </select>
         </div>
+        <div id="videoFilterStatus" class="sr-only" aria-live="polite" role="status"></div>
         <div class="user-count" id="videoCount" style="display:none"></div>
         <div class="video-list" id="videoList"></div>
         <div class="pagination" id="videoPagination"></div>
@@ -357,7 +364,7 @@
 
       <div id="usersPanel" class="tab-panel" role="tabpanel">
         <button class="refresh-btn" id="refreshUsersBtn">↻ Refresh</button>
-        <div class="filter-bar" id="userFilterBar" style="display:none">
+        <div class="filter-bar" id="userFilterBar" style="display:none" aria-busy="false">
           <input class="search-input" id="userSearchInput" type="text" placeholder="Search by email…" aria-label="Search users by email">
           <select class="tier-filter" id="userTierFilter" aria-label="Filter by tier">
             <option value="all">All tiers</option>
@@ -365,6 +372,7 @@
             <option value="free">Free only</option>
           </select>
         </div>
+        <div id="userFilterStatus" class="sr-only" aria-live="polite" role="status"></div>
         <div class="user-count" id="userCount" style="display:none"></div>
         <div class="video-list" id="userList"></div>
         <div class="pagination" id="userPagination"></div>
@@ -398,6 +406,8 @@
     const videoPlatformFilter = document.getElementById('videoPlatformFilter');
     const videoFilterBar  = document.getElementById('videoFilterBar');
     const videoCountEl    = document.getElementById('videoCount');
+    const videoFilterStatus = document.getElementById('videoFilterStatus');
+    const userFilterStatus  = document.getElementById('userFilterStatus');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
 
@@ -556,6 +566,8 @@
       videoStatusFilter.disabled = true;
       videoFilterBar.classList.add('loading');
       videoPlatformFilter.disabled = true;
+      videoFilterBar.setAttribute('aria-busy', 'true');
+      videoFilterStatus.textContent = 'Loading videos…';
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoCountEl.style.display = 'none';
       statsRow.innerHTML = '';
@@ -584,6 +596,7 @@
           const data = await res.json().catch(() => ({}));
           const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load videos';
           videoList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load videos'}</div></div>`;
+          videoFilterStatus.textContent = 'Loading failed';
           return;
         }
 
@@ -607,6 +620,8 @@
 
         videoFilterBar.style.display = 'flex';
         videoFilterBar.classList.remove('loading');
+        videoFilterBar.setAttribute('aria-busy', 'false');
+        videoFilterStatus.textContent = 'Loading complete';
 
         if (searchVal || statusVal !== 'all' || platformVal !== 'all') {
           videoCountEl.textContent = total + ' video' + (total === 1 ? '' : 's') + ' found';
@@ -675,6 +690,7 @@
       } catch (err) {
         if (err.name === 'AbortError') return;
         videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
+        videoFilterStatus.textContent = 'Loading failed';
       } finally {
         if (!signal.aborted) {
           refreshBtn.disabled = false;
@@ -684,6 +700,7 @@
           videoPlatformFilter.disabled = false;
         }
         videoFilterBar.classList.remove('loading');
+        videoFilterBar.setAttribute('aria-busy', 'false');
       }
     }
 
@@ -697,6 +714,8 @@
       userSearchInput.disabled = true;
       userTierFilter.disabled = true;
       userFilterBar.classList.add('loading');
+      userFilterBar.setAttribute('aria-busy', 'true');
+      userFilterStatus.textContent = 'Loading users…';
       userList.innerHTML = '<div class="loading-spinner"></div>';
       userPagination.innerHTML = '';
       userCountEl.style.display = 'none';
@@ -716,6 +735,7 @@
           const data = await res.json().catch(() => ({}));
           const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load users';
           userList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load users'}</div></div>`;
+          userFilterStatus.textContent = 'Loading failed';
           return;
         }
         const data = await res.json();
@@ -725,6 +745,8 @@
 
         userFilterBar.style.display = 'flex';
         userFilterBar.classList.remove('loading');
+        userFilterBar.setAttribute('aria-busy', 'false');
+        userFilterStatus.textContent = 'Loading complete';
 
         if (searchVal || tierVal !== 'all') {
           userCountEl.textContent = total + ' user' + (total === 1 ? '' : 's') + ' found';
@@ -852,6 +874,7 @@
         errDiv.appendChild(errMsg);
         userList.innerHTML = '';
         userList.appendChild(errDiv);
+        userFilterStatus.textContent = 'Loading failed';
       } finally {
         if (!signal.aborted) {
           refreshUsersBtn.disabled = false;
@@ -860,6 +883,7 @@
           userTierFilter.disabled = false;
         }
         userFilterBar.classList.remove('loading');
+        userFilterBar.setAttribute('aria-busy', 'false');
       }
     }
 
