@@ -1,0 +1,508 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0f0f0f;
+    color: #ffffff;
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+.header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 20px;
+    text-align: center;
+}
+
+.page-title {
+    font-size: 2rem;
+    color: #008f67;
+    margin-bottom: 10px;
+}
+
+.page-title-clickable {
+    cursor: pointer;
+}
+
+.subtitle {
+    color: #999;
+    font-size: 1rem;
+}
+
+.control-panel {
+    background: #1a1a1a;
+    padding: 20px;
+    margin: 20px;
+    border-radius: 12px;
+    border: 1px solid #2a2a2a;
+}
+
+.control-section {
+    margin-bottom: 20px;
+}
+
+.control-section h3 {
+    color: #008f67;
+    margin-bottom: 12px;
+}
+
+.button-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+button {
+    background: #008f67;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    background: #007a5a;
+    transform: translateY(-1px);
+}
+
+button:disabled {
+    background: #3a3a3a;
+    cursor: not-allowed;
+    transform: none;
+}
+
+button.secondary {
+    background: #4a4a4a;
+}
+
+button.secondary:hover {
+    background: #5a5a5a;
+}
+
+button.danger {
+    background: #dc3545;
+}
+
+button.danger:hover {
+    background: #c82333;
+}
+
+.url-input-section {
+    background: #2a2a2a;
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 16px;
+}
+
+.url-input-heading-wistia {
+    color: #4d90db;
+    margin-bottom: 12px;
+}
+
+.url-input-heading-dropbox {
+    color: #008f67;
+    margin-bottom: 12px;
+}
+
+.url-input-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+input[type="text"] {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: #008f67;
+}
+
+.example-urls {
+    font-size: 12px;
+    color: #999;
+}
+
+.example-urls code {
+    background: #1a1a1a;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.video-player-container {
+    background: #1a1a1a;
+    margin: 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    display: none;
+}
+
+.video-player-container.active {
+    display: block;
+}
+
+.video-header {
+    padding: 16px 20px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.video-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+.close-button {
+    background: #dc3545;
+    padding: 6px 16px;
+    font-size: 14px;
+}
+
+.video-wrapper {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    background: #000;
+}
+
+.video-wrapper video,
+.video-wrapper .wistia_embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.video-item {
+    background: #1a1a1a;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    position: relative;
+}
+
+.video-item:hover {
+    transform: scale(1.02);
+}
+
+.video-item.active {
+    outline: 3px solid #008f67;
+}
+
+.thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #2a2a2a;
+    overflow: hidden;
+}
+
+.thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.platform-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.video-info {
+    padding: 12px 16px;
+}
+
+.video-item-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.video-meta {
+    font-size: 12px;
+    color: #999;
+}
+
+.video-controls {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: none;
+    gap: 8px;
+}
+
+.edit-mode .video-controls {
+    display: flex;
+}
+
+.video-controls button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.status-message {
+    margin: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    display: none;
+}
+
+.status-message.success {
+    background: rgba(0, 143, 103, 0.2);
+    border: 1px solid #008f67;
+    color: #00ff99;
+}
+
+.status-message.error {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid #ff3333;
+    color: #ff6666;
+}
+
+.status-message.info {
+    background: rgba(77, 144, 219, 0.2);
+    border: 1px solid #4d90db;
+    color: #66aaff;
+}
+
+body.edit-mode {
+    border: 4px solid #008f67;
+}
+
+body.edit-mode .page-title:hover {
+    background: rgba(0, 143, 103, 0.1);
+    border-color: #008f67 !important;
+}
+
+.edit-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #008f67;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 1000;
+    display: none;
+}
+
+body.edit-mode .edit-indicator {
+    display: block;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #1a1a1a;
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-title {
+    font-size: 1.5rem;
+    color: #008f67;
+}
+
+.modal-form-field {
+    margin-bottom: 16px;
+}
+
+.modal-form-field label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.modal-form-field input[type="text"] {
+    width: 100%;
+}
+
+.delete-confirm-body {
+    margin-bottom: 20px;
+}
+
+.delete-confirm-body p {
+    line-height: 1.6;
+}
+
+.delete-confirm-text {
+    color: #ccc;
+}
+
+.delete-confirm-title {
+    color: #ff6666;
+    font-weight: 500;
+    margin-top: 12px;
+}
+
+.delete-confirm-warning {
+    color: #999;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.dropbox-empty-grid {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .url-input-group {
+        flex-direction: column;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .control-panel {
+        margin: 12px;
+        padding: 16px;
+    }
+
+    .url-input-section {
+        padding: 12px;
+    }
+
+    .modal-content {
+        padding: 20px 16px;
+    }
+
+    .modal-header .modal-title {
+        font-size: 1.2rem;
+    }
+}
+
+.dropbox-section-heading-wistia {
+    color: #4d90db;
+    margin-bottom: 12px;
+}
+
+.dropbox-section-heading-dropbox {
+    color: #008f67;
+    margin-bottom: 12px;
+}
+
+.dropbox-modal-field {
+    margin-bottom: 16px;
+}
+
+.dropbox-modal-label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.dropbox-modal-input {
+    width: 100%;
+}
+
+.dropbox-delete-body {
+    margin-bottom: 20px;
+}
+
+.dropbox-delete-msg {
+    color: #ccc;
+    line-height: 1.6;
+}
+
+.dropbox-delete-title {
+    color: #ff6666;
+    font-weight: 500;
+    margin-top: 12px;
+}
+
+.dropbox-delete-warning {
+    color: #999;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.dropbox-empty-grid {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}

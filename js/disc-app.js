@@ -4,7 +4,7 @@ function loadWistiaVideo(wistiaId, title) {
 
     videoContainer.innerHTML = '';
 
-    videoContainer.innerHTML = '<div id="wistia_' + wistiaId + '" class="wistia_embed wistia_async_' + wistiaId + '" style="height:100%;width:100%">&nbsp;</div>';
+    videoContainer.innerHTML = '<div id="wistia_' + wistiaId + '" class="wistia_embed wistia_async_' + wistiaId + ' wistia-embed-full">&nbsp;</div>';
 
     modal.classList.add('active');
 

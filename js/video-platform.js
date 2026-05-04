@@ -298,7 +298,7 @@ class VideoPlatformManager {
         // Add error handling
         videoElement.onerror = (e) => {
             console.error('Error loading Dropbox video:', e);
-            container.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff6666;">Error loading video. The link may have expired or the file may not be accessible.</div>';
+            container.innerHTML = '<div class="video-load-error">Error loading video. The link may have expired or the file may not be accessible.</div>';
         };
 
         // Add loaded callback
@@ -321,7 +321,7 @@ class VideoPlatformManager {
      */
     loadWistiaVideo(video, container, onReady) {
         // Clear container
-        container.innerHTML = `<div id="wistia_${video.wistiaId}" class="wistia_embed wistia_async_${video.wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+        container.innerHTML = `<div id="wistia_${video.wistiaId}" class="wistia_embed wistia_async_${video.wistiaId} wistia-embed-full">&nbsp;</div>`;
         
         // Set container attributes
         container.setAttribute('data-platform', 'wistia');

@@ -1,0 +1,72 @@
+.video-container.vertical {
+    max-width: 600px;
+    aspect-ratio: 9/16;
+}
+
+.thumbnail.vertical {
+    aspect-ratio: 9/16;
+}
+
+.platform-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    z-index: 10;
+}
+
+.video-grid {
+    align-items: start;
+}
+
+.video-grid.mixed-aspect {
+    grid-auto-rows: auto;
+}
+
+@media (max-width: 768px) {
+    .login-link {
+        display: none;
+    }
+}
+
+.thumbnail-play-button {
+    background: var(--accent-medium);
+}
+
+@media screen and (min-width: 768px) {
+    .video-item:not(.active):hover .thumbnail-play-button:hover {
+        background: var(--accent-heavy);
+    }
+}
+
+.video-item .featured-controls {
+    top: 8px;
+    left: 8px;
+}
+
+@media screen and (min-width: 600px) and (max-width: 999px) {
+    .video-container.vertical {
+        max-width: 400px;
+        aspect-ratio: 9/16;
+    }
+}
+
+@media screen and (min-width: 1000px) and (max-width: 1299px) {
+    .video-container.vertical {
+        max-width: 400px;
+        aspect-ratio: 9/16;
+    }
+}
+
+@media screen and (min-width: 1300px) {
+    .video-container.vertical {
+        max-width: 600px;
+        aspect-ratio: 9/16;
+    }
+}

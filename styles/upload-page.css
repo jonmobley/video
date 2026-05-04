@@ -1,0 +1,83 @@
+:root {
+  --upload-content-width: 480px;
+  --upload-content-pad: 20px;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: radial-gradient(ellipse at top, rgba(78,205,196,0.08), transparent 60%),
+              radial-gradient(ellipse at bottom, rgba(255,107,107,0.06), transparent 60%),
+              #0a0a0a;
+}
+
+.nav {
+  border-bottom: 1px solid #1a1a1a;
+}
+.nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: calc(var(--upload-content-width) + 2 * var(--upload-content-pad));
+  margin: 0 auto; padding: 18px var(--upload-content-pad);
+}
+.nav-left { display: flex; align-items: center; gap: 18px; }
+.logo {
+  font-size: 1.2rem; font-weight: 800; text-decoration: none;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.nav-link {
+  font-size: 0.9rem; color: #aaa; text-decoration: none;
+  padding: 8px 14px; border-radius: 10px; transition: all 0.2s;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.logout-btn {
+  background: none; border: 1px solid #2c2c2e; color: #aaa;
+  padding: 8px 14px; border-radius: 10px; font-size: 0.85rem;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.logout-btn:hover { color: #fff; border-color: #3a3a3c; }
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px var(--upload-content-pad) 60px;
+}
+
+.page-title {
+  width: 100%;
+  max-width: var(--upload-content-width);
+  font-size: 1rem; color: #959595; margin-bottom: 32px; text-align: center;
+}
+
+@media (max-width: 768px) {
+  body { padding: 0; }
+}
+
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin: 60px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+  :root {
+    --upload-content-pad: 14px;
+  }
+  .nav-inner { padding: 12px var(--upload-content-pad); gap: 8px; flex-wrap: wrap; }
+  .nav-left { gap: 8px; }
+  .nav-link { display: none; }
+  .logout-btn { padding: 9px 12px; font-size: 0.82rem; }
+  main {
+    padding: 22px var(--upload-content-pad) max(40px, env(safe-area-inset-bottom));
+  }
+  .page-title { font-size: 0.92rem; margin-bottom: 22px; }
+}

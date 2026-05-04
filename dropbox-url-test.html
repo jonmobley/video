@@ -4,197 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dropbox URL Test - VidShare</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #0f0f0f;
-            color: #ffffff;
-        }
-        
-        h1 {
-            color: #008f67;
-            margin-bottom: 30px;
-        }
-        
-        .section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            border: 1px solid #2a2a2a;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        
-        input[type="text"] {
-            flex: 1;
-            background: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #008f67;
-        }
-        
-        button {
-            background: #008f67;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        button:hover {
-            background: #007a5a;
-            transform: translateY(-1px);
-        }
-        
-        button:disabled {
-            background: #3a3a3a;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .video-player {
-            width: 100%;
-            max-width: 800px;
-            margin: 20px auto;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-        }
-        
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        
-        .info-panel {
-            background: #2a2a2a;
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 16px;
-        }
-        
-        .info-panel h3 {
-            margin: 0 0 12px 0;
-            color: #008f67;
-        }
-        
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #3a3a3a;
-        }
-        
-        .info-item:last-child {
-            border-bottom: none;
-        }
-        
-        .info-label {
-            color: #999;
-        }
-        
-        .info-value {
-            color: #fff;
-            font-family: monospace;
-            font-size: 14px;
-            word-break: break-all;
-        }
-        
-        .status {
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 16px;
-            font-size: 14px;
-        }
-        
-        .status.success {
-            background: rgba(0, 143, 103, 0.2);
-            border: 1px solid #008f67;
-            color: #00ff99;
-        }
-        
-        .status.error {
-            background: rgba(255, 0, 0, 0.2);
-            border: 1px solid #ff3333;
-            color: #ff6666;
-        }
-        
-        .status.info {
-            background: rgba(77, 144, 219, 0.2);
-            border: 1px solid #4d90db;
-            color: #66aaff;
-        }
-        
-        .thumbnail-preview {
-            margin-top: 16px;
-            text-align: center;
-        }
-        
-        .thumbnail-preview img {
-            max-width: 320px;
-            border-radius: 8px;
-            border: 1px solid #3a3a3a;
-        }
-        
-        .examples {
-            margin-top: 16px;
-            padding: 16px;
-            background: rgba(77, 144, 219, 0.1);
-            border-radius: 8px;
-            border: 1px solid #4d90db;
-        }
-        
-        .examples h4 {
-            margin: 0 0 12px 0;
-            color: #4d90db;
-        }
-        
-        .examples code {
-            display: block;
-            background: #2a2a2a;
-            padding: 8px;
-            margin: 8px 0;
-            border-radius: 4px;
-            font-size: 12px;
-            word-break: break-all;
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #3a3a3a;
-            border-top-color: #008f67;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: 12px;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <link rel="stylesheet" href="styles/dropbox-url-test.css">
 </head>
 <body>
     <h1>Dropbox Public URL Test</h1>
@@ -214,10 +24,10 @@
             <code>https://www.dropbox.com/scl/fi/xxxxx/video.mp4?rlkey=xxxxx&dl=0</code>
         </div>
         
-        <div id="status-message" style="display: none;"></div>
+        <div id="status-message" class="hidden"></div>
     </div>
     
-    <div class="section" id="url-info" style="display: none;">
+    <div class="section hidden" id="url-info">
         <h2>URL Conversion Result</h2>
         <div class="info-panel">
             <h3>URL Information</h3>
@@ -240,13 +50,13 @@
         </div>
     </div>
     
-    <div class="section" id="video-section" style="display: none;">
+    <div class="section hidden" id="video-section">
         <h2>Video Preview</h2>
         <div class="video-player">
             <video id="test-video" controls></video>
         </div>
         
-        <div class="info-panel" id="video-info" style="display: none;">
+        <div class="info-panel hidden" id="video-info">
             <h3>Video Information</h3>
             <div class="info-item">
                 <span class="info-label">Duration:</span>
@@ -262,7 +72,7 @@
             </div>
         </div>
         
-        <div class="thumbnail-preview" id="thumbnail-preview" style="display: none;">
+        <div class="thumbnail-preview hidden" id="thumbnail-preview">
             <h3>Generated Thumbnail</h3>
             <img id="thumbnail-img" alt="Video thumbnail" />
         </div>

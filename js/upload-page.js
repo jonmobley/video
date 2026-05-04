@@ -8,7 +8,7 @@ async function initPage() {
     spinner.remove();
     document.getElementById('pageMain').style.display = '';
     document.getElementById('uploadRoot').innerHTML =
-      '<div style="text-align:center;color:#959595;padding:40px 0">Network error. Please refresh.</div>';
+      '<div class="upload-error-msg">Network error. Please refresh.</div>';
     return;
   }
   if (me.status === 401) {
@@ -20,7 +20,7 @@ async function initPage() {
     spinner.remove();
     document.getElementById('pageMain').style.display = '';
     document.getElementById('uploadRoot').innerHTML =
-      '<div style="text-align:center;color:#959595;padding:40px 0">Something went wrong. Please refresh.</div>';
+      '<div class="upload-error-msg">Something went wrong. Please refresh.</div>';
     return;
   }
 

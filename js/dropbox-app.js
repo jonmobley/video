@@ -280,7 +280,7 @@
             const grid = document.getElementById('video-grid');
             
             if (videos.length === 0) {
-                grid.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">No videos yet. Enter edit mode to add videos.</div>';
+                grid.innerHTML = '<div class="dropbox-empty-grid">No videos yet. Enter edit mode to add videos.</div>';
                 return;
             }
             

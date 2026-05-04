@@ -1,0 +1,26 @@
+.video-container[data-platform] {
+    aspect-ratio: unset;
+}
+
+.admin-banner {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+}
+
+.thumbnail-play-button {
+    background: var(--accent-light);
+}
+
+@media screen and (min-width: 768px) {
+    .video-item:not(.active):hover .thumbnail-play-button:hover {
+        background: var(--accent-color);
+    }
+}
+
+.video-item .featured-controls {
+    top: 8px;
+    right: 8px;
+}
+
+.edit-mode .video-item .featured-controls {
+    display: flex;
+}

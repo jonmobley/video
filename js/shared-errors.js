@@ -17,11 +17,11 @@ function showError(errorType) {
     }
 
     videoGrid.innerHTML = `
-        <div style="text-align: center; padding: 60px 20px; color: #ccc; grid-column: 1 / -1;">
-            <div style="margin-bottom: 16px;" aria-hidden="true">${icon}</div>
-            <h3 style="color: #fff; font-size: 20px; font-weight: 600; margin: 0 0 8px 0;">${headline}</h3>
-            <p style="color: #aaa; font-size: 15px; margin: 0 0 24px 0; max-width: 400px; margin-left: auto; margin-right: auto;">${subtitle}</p>
-            <button data-action="reload-videos" style="padding: 10px 24px; background: var(--accent-color, #008f67); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; transition: opacity 0.2s;">Try Again</button>
+        <div class="error-state-container">
+            <div class="error-state-icon" aria-hidden="true">${icon}</div>
+            <h3 class="error-state-headline">${headline}</h3>
+            <p class="error-state-subtitle">${subtitle}</p>
+            <button data-action="reload-videos" class="error-state-btn">Try Again</button>
         </div>
     `;
 }

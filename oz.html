@@ -59,554 +59,11 @@ Last Updated: 2024
     <meta name="theme-color" content="#008f67" id="theme-color-meta">
     <link rel="canonical" href="https://vidsharepro.netlify.app/oz.html" id="canonical-link">
     
-    <!-- Inline accent color to prevent flash of unstyled content -->
-    <style>
-        :root {
-            --accent-color: #008f67;
-            --accent-hover: #007554;
-            --accent-light: rgba(0, 143, 103, 0.1);
-            --accent-shadow: rgba(0, 143, 103, 0.3);
-        }
-    </style>
-    
-    <!-- 
-    ========================================================================
-                        DYNAMIC META TAG LOADING SCRIPT
-    ========================================================================
-    This script loads page configuration from Supabase and dynamically
-    updates meta tags for SEO and social media sharing optimization.
-    Runs immediately on page load to ensure proper meta tag values.
-    ======================================================================== 
-    -->
     <script src="js/meta-loader.js" data-page="oz"></script>
-    
-    <!-- 
-    ========================================================================
-                                 MAIN STYLESHEET
-    ========================================================================
-    Comprehensive CSS for the Oz dance videos page including:
-    - Base styles and CSS reset
-    - Layout and grid system
-    - Video player styling
-    - Navigation and filtering components
-    - Admin interface styling
-    - Responsive design breakpoints
-    - Animation and transition effects
-    ======================================================================== 
-    -->
     <link rel="stylesheet" href="styles/gallery-base.css">
     <link rel="stylesheet" href="styles/gallery-mobile.css">
-    <style>
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('./assets/wizard.jpg');
-            background-size: cover;
-            background-position: center top;
-            background-repeat: no-repeat;
-            opacity: 0.28;
-            filter: blur(3px);
-            z-index: -1;
-        }
-
-        @media screen and (max-width: 767px) {
-            body::before,
-            body::after {
-                display: none;
-            }
-        }
-
-        @media screen and (min-width: 768px) and (max-width: 1024px) {
-            body::before {
-                background-position: center top;
-                opacity: 0.25;
-                filter: blur(2.5px);
-            }
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(15, 15, 15, 0.3) 60%, rgba(15, 15, 15, 0.7) 100%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .video-container:hover .video-title-overlay,
-        .video-container.active .video-title-overlay {
-            opacity: 1;
-        }
-
-        .video-container.active .video-title-overlay {
-            animation: titleFadeIn 3s ease-in-out;
-        }
-
-        @keyframes titleFadeIn {
-            0% { opacity: 1; }
-            70% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        @media (max-width: 767px) {
-            .video-title-overlay {
-                display: none !important;
-            }
-
-            .mobile-video-title {
-                display: block;
-            }
-        }
-
-        @media screen and (min-width: 768px) {
-            .edit-mode .video-item:hover .thumbnail-close-overlay {
-                display: none !important;
-            }
-        }
-
-        .navigation-section {
-            padding: 8px 0 12px 0;
-            background: transparent;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-            position: relative;
-            z-index: 50;
-            width: 100%;
-            overflow-x: visible;
-        }
-
-        @media screen and (min-width: 768px) {
-            .navigation-section {
-                flex-direction: row;
-                justify-content: flex-start;
-                align-items: center;
-                gap: 12px;
-                padding: 8px 0 12px 0;
-            }
-        }
-
-        .category-dropdown-container {
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-            width: 100%;
-            justify-content: center;
-        }
-
-        @media screen and (min-width: 768px) {
-            .category-dropdown-container {
-                width: auto;
-                justify-content: flex-start;
-            }
-        }
-
-        .category-dropdown {
-            background: #2a2a2a;
-            color: white;
-            border: 2px solid var(--accent-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            outline: none;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            position: relative;
-            padding-right: 40px;
-            white-space: nowrap;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
-            height: 40px;
-            box-sizing: border-box;
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%23008f67" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 20px;
-        }
-
-        .category-dropdown:hover {
-            background-color: #333333;
-            border-color: var(--accent-hover);
-        }
-
-        .category-dropdown:focus {
-            background-color: #333333;
-            border-color: var(--accent-hover);
-            box-shadow: 0 0 0 2px var(--accent-shadow);
-        }
-
-        .tags-container {
-            padding: 0;
-            justify-content: flex-start;
-            align-items: center;
-            gap: 0;
-            width: 100%;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            position: static;
-            z-index: auto;
-        }
-
-        .tags-container.loaded {
-            opacity: 1;
-        }
-
-        .tags-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        @media screen and (min-width: 768px) {
-            .tags-container {
-                width: auto;
-                flex: 1;
-                justify-content: flex-start;
-                overflow-x: visible;
-            }
-        }
-
-        .categories-dropdown {
-            display: flex;
-            align-items: center;
-            position: relative;
-            margin-top: 8px;
-            flex-shrink: 0;
-        }
-
-        .category-select {
-            background: #2a2a2a;
-            color: white;
-            border: 2px solid var(--accent-color);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            outline: none;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            position: relative;
-            padding-right: 40px;
-            white-space: nowrap;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            min-width: 140px;
-            height: 40px;
-            box-sizing: border-box;
-        }
-
-        .category-select:hover {
-            background: #333333;
-            border-color: var(--accent-hover);
-        }
-
-        .category-select:focus {
-            background: #333333;
-            border-color: var(--accent-hover);
-            box-shadow: 0 0 0 2px var(--accent-shadow);
-        }
-
-        .categories-dropdown::after {
-            content: '\25BC';
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--accent-color);
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 2;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 20px;
-            height: 20px;
-        }
-
-        .tags {
-            justify-content: flex-start;
-        }
-
-        .content {
-            padding: 0 20px 24px 20px;
-        }
-
-        .edit-mode .video-item {
-            cursor: pointer;
-        }
-
-        .edit-mode .video-item:hover {
-            transform: none !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        .edit-mode .video-item .thumbnail {
-            transform: none !important;
-        }
-
-        .edit-mode .video-item:hover .thumbnail {
-            transform: none !important;
-        }
-
-        .organize-mode #adminOrganizeVideosBtn {
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-            color: white;
-        }
-
-        .organize-mode #adminOrganizeVideosBtn:hover {
-            background: var(--accent-hover);
-            border-color: var(--accent-hover);
-        }
-
-        .organize-mode .video-item .thumbnail {
-            cursor: grab;
-        }
-
-        .organize-mode .video-item .thumbnail:active {
-            cursor: grabbing;
-        }
-
-        .organize-mode .video-item:active {
-            cursor: grabbing;
-        }
-
-        .organize-mode .video-item.dragging {
-            opacity: 0.5;
-            transform: rotate(2deg);
-            cursor: grabbing;
-        }
-
-        .organize-mode .video-item.drag-over {
-            transform: scale(1.05);
-        }
-
-        .video-position-controls {
-            z-index: 100;
-        }
-
-        .organize-mode .video-item:hover .video-position-controls {
-            display: block;
-            pointer-events: auto;
-        }
-
-        .edit-mode:not(.organize-mode) .video-item .video-position-controls {
-            display: none !important;
-        }
-
-        .position-arrow {
-            z-index: 101;
-        }
-
-        .organize-mode .video-item::before {
-            display: none !important;
-        }
-
-        .edit-mode .video-item::before {
-            content: "\270F\FE0F EDIT";
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: var(--accent-color);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            z-index: 12;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .edit-mode .video-item:hover::before {
-            background: var(--accent-hover);
-            transform: scale(1.05);
-        }
-
-        .video-edit-overlay {
-            z-index: 30;
-            pointer-events: none;
-        }
-
-        .edit-mode .video-item:hover .video-edit-overlay {
-            pointer-events: auto;
-        }
-
-        .organize-mode .video-item:hover .video-edit-overlay {
-            display: none !important;
-        }
-
-        .organize-mode .video-item:hover .thumbnail-close-overlay {
-            display: none !important;
-        }
-
-        .video-edit-btn {
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            pointer-events: auto;
-            position: relative;
-            z-index: 35;
-        }
-
-        .video-edit-btn:hover {
-            box-shadow: 0 6px 16px rgba(0, 143, 103, 0.4);
-        }
-
-        .thumbnail-play-button {
-            background: var(--accent-medium);
-        }
-
-        .thumbnail-play-button::after {
-            border-left-color: white;
-        }
-
-        @media screen and (min-width: 768px) {
-            .video-item:not(.active):hover .thumbnail-play-button:hover {
-                background: var(--accent-heavy);
-            }
-
-            .edit-mode .video-item:hover .thumbnail-play-button {
-                display: none !important;
-            }
-        }
-
-        .video-item .featured-controls {
-            bottom: 8px;
-            left: 8px;
-        }
-
-        .category-checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: #ccc;
-            cursor: pointer;
-        }
-
-        .category-visibility-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-left: 8px;
-        }
-
-        .category-show-checkbox {
-            margin: 0;
-        }
-
-        .category-predefined-label {
-            font-size: 12px;
-            color: #888;
-            background: #333;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-style: italic;
-        }
-
-        .category-item input[readonly] {
-            background: #333;
-            color: #ccc;
-            cursor: not-allowed;
-        }
-
-        .video-item {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .video-item.filtering-out {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-
-        @media screen and (max-width: 767px) {
-            .categories-dropdown {
-                position: relative;
-                top: auto;
-                left: auto;
-                right: auto;
-                z-index: auto;
-                background: #0f0f0f;
-                margin-top: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                width: 100%;
-            }
-
-            .categories-dropdown::after {
-                display: none;
-            }
-
-            .category-select {
-                appearance: auto;
-                -webkit-appearance: auto;
-                -moz-appearance: auto;
-                padding-right: 16px;
-            }
-
-            .tags-container {
-                padding: 12px 0 16px 0;
-            }
-
-            .content {
-                padding: 0 20px 24px 20px;
-            }
-
-            .login-link {
-                display: none;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .navigation-section {
-                padding: 8px 0;
-            }
-            .category-dropdown {
-                width: 100%;
-                min-width: 0;
-            }
-        }
-
-        @media screen and (min-width: 600px) and (max-width: 999px) {
-            .content {
-                padding: 0 20px 24px 20px;
-            }
-        }
-
-        @media screen and (min-width: 1000px) and (max-width: 1299px) {
-            .content {
-                padding: 0 20px 24px 20px;
-            }
-        }
-
-        @media screen and (min-width: 1300px) {
-            .content {
-                padding: 0 20px 24px 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="styles/common.css">
+    <link rel="stylesheet" href="styles/oz-page.css">
 </head>
 
 <!-- 
@@ -625,17 +82,17 @@ Main page structure with:
 <body>
     <!-- ===== ADMIN BANNER ===== -->
     <!-- Displayed when user enters edit mode - contains admin controls -->
-    <div class="admin-banner" id="adminBanner" style="display: none;">
+    <div class="admin-banner hidden" id="adminBanner">
         <div class="admin-banner-content">
             <div class="admin-banner-text">
                 <span class="admin-banner-title">Edit Mode</span>
                 <span class="admin-banner-subtitle">Remember to save your changes</span>
             </div>
             <div class="admin-banner-buttons">
-                <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
-                    <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="#008f67" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                <div class="admin-accent-controls">
+                    <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
+                    <input type="color" id="adminAccentColor" value="#008f67" class="admin-accent-color-input">
+                    <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -651,14 +108,14 @@ Main page structure with:
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" id="pageTitle" style="cursor: pointer;">Grace Church Wizard of Oz</h1>
+            <h1 class="page-title page-title-clickable" id="pageTitle">Grace Church Wizard of Oz</h1>
         </div>
 
         <!-- ===== VIDEO PLAYER SECTION ===== -->
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
-                    <div style="text-align: center;">
+                <div class="video-placeholder video-placeholder-state">
+                    <div class="video-placeholder-inner">
 
                         <div>Loading video player...</div>
                     </div>
@@ -717,7 +174,7 @@ Main page structure with:
     <!-- Login Popup -->
     <!-- ===== POPUP OVERLAYS ===== -->
     <!-- Login popup for admin authentication -->
-    <div class="login-overlay" id="loginOverlay" style="display: none;">
+    <div class="login-overlay hidden" id="loginOverlay">
         <div class="login-popup">
             <h3>Admin Login</h3>
             <form id="loginForm">
@@ -727,13 +184,13 @@ Main page structure with:
                     <button type="button" class="btn-cancel" id="cancelLogin">Cancel</button>
                 </div>
             </form>
-            <div class="login-error" id="loginError" style="display: none;"></div>
+            <div class="login-error hidden" id="loginError"></div>
         </div>
     </div>
 
     <!-- Add Video Popup -->
     <!-- Add video popup for admin video management -->
-    <div class="add-video-overlay" id="addVideoOverlay" style="display: none;">
+    <div class="add-video-overlay hidden" id="addVideoOverlay">
         <div class="add-video-popup">
             <h3>Add New Video</h3>
             <form id="addVideoForm">
@@ -768,13 +225,13 @@ Main page structure with:
                     <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
                 </div>
             </form>
-            <div class="add-video-error" id="addVideoError" style="display: none;"></div>
+            <div class="add-video-error hidden" id="addVideoError"></div>
         </div>
     </div>
 
     <!-- Edit Video Popup -->
     <!-- Edit video popup for modifying existing videos -->
-    <div class="edit-video-overlay" id="editVideoOverlay" style="display: none;">
+    <div class="edit-video-overlay hidden" id="editVideoOverlay">
         <div class="edit-video-popup">
             <h3>Edit Video</h3>
             <form id="editVideoForm">
@@ -800,7 +257,7 @@ Main page structure with:
                 
                 <div class="form-group">
                     <label>Wistia Video ID</label>
-                    <input type="text" id="editVideoId" readonly style="background: #333; color: #aaa;">
+                    <input type="text" id="editVideoId" readonly class="readonly-input">
                     <small>Video ID cannot be changed</small>
                 </div>
                 
@@ -810,12 +267,12 @@ Main page structure with:
                     <button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button>
                 </div>
             </form>
-            <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
+            <div class="edit-video-error hidden" id="editVideoError"></div>
         </div>
     </div>
 
     <!-- Manage Categories Popup (Songs) -->
-    <div class="manage-categories-overlay" id="manageCategoriesOverlay" style="display: none;">
+    <div class="manage-categories-overlay hidden" id="manageCategoriesOverlay">
         <div class="manage-categories-popup">
             <h3>Manage Categories</h3>
             
@@ -839,15 +296,15 @@ Main page structure with:
                 <button type="button" class="btn-save-categories" id="saveCategoriesBtn">Save Changes</button>
                 <button type="button" class="btn-cancel-categories" id="cancelManageCategoriesBtn">Cancel</button>
             </div>
-            <div class="manage-categories-error" id="manageCategoriesError" style="display: none;"></div>
+            <div class="manage-categories-error hidden" id="manageCategoriesError"></div>
         </div>
     </div>
 
     <!-- Manage Tags Popup (People: Chorus, Kids, Dancers) -->
-    <div class="manage-categories-overlay" id="manageTagsOverlay" style="display: none;">
+    <div class="manage-categories-overlay hidden" id="manageTagsOverlay">
         <div class="manage-categories-popup">
             <h3>Manage Tags</h3>
-            <p style="color: #aaa; font-size: 14px; margin-bottom: 20px;">Tags identify who should watch each video (e.g., Chorus, Kids, Dancers)</p>
+            <p class="oz-dialog-text">Tags identify who should watch each video (e.g., Chorus, Kids, Dancers)</p>
             
             <!-- Tags List -->
             <div class="form-group">
@@ -862,7 +319,7 @@ Main page structure with:
                 <button type="button" class="btn-save-categories" id="saveTagsBtn">Save Changes</button>
                 <button type="button" class="btn-cancel-categories" id="cancelManageTagsBtn">Cancel</button>
             </div>
-            <div class="manage-categories-error" id="manageTagsError" style="display: none;"></div>
+            <div class="manage-categories-error hidden" id="manageTagsError"></div>
         </div>
     </div>
 

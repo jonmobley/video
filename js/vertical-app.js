@@ -154,7 +154,7 @@
             // Replace with platform-specific placeholder
             const pInfo = platformInfo({platform: platform});
             thumbnailElement.innerHTML = `
-                <div class="thumbnail-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #2a2a2a; color: #666; font-size: 14px;">
+                <div class="thumbnail-placeholder thumbnail-placeholder-state">
                     ${pInfo.label} Video
                 </div>
                 <div class="platform-badge ${pInfo.key}">${pInfo.label}</div>
@@ -232,8 +232,8 @@
                 // Clear the video container content
                 const videoContainer = document.getElementById('wistia-player');
                 videoContainer.innerHTML = `
-                    <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
-                        <div style="text-align: center;">
+                    <div class="video-placeholder video-placeholder-state">
+                        <div class="video-placeholder-inner">
                             <div>Loading video player...</div>
                         </div>
                     </div>
@@ -294,7 +294,7 @@
             videoContainerElement.classList.add('active');
             
             // Clear any existing content and load new video
-            videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
+            videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId} wistia-embed-full">&nbsp;</div>`;
             
             // Update video title
             const titleElement = document.getElementById('current-video-title');
@@ -364,7 +364,7 @@
                         frameborder="0" 
                         allow="autoplay; fullscreen; picture-in-picture" 
                         allowfullscreen
-                        style="width: 100%; height: 100%;">
+                        class="embed-iframe-full">
                 </iframe>
             `;
             
@@ -400,7 +400,7 @@
                         frameborder="0" 
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                         allowfullscreen
-                        style="width: 100%; height: 100%;">
+                        class="embed-iframe-full">
                 </iframe>
             `;
             
@@ -441,7 +441,7 @@
             
             // Clear any existing content and load new video
             videoContainer.innerHTML = `
-                <video controls autoplay style="width: 100%; height: 100%;">
+                <video controls autoplay class="video-full">
                     <source src="${directUrl}" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
@@ -526,10 +526,10 @@
             
             if (videosToDisplay.length === 0 && videos.length === 0) {
                 videoGrid.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #666;">
+                    <div class="empty-grid-state">
                         <h3>No videos yet</h3>
                         <p>Use the admin panel to add dance instruction videos</p>
-                        <a href="/admin.html" style="color: var(--accent-color); text-decoration: none; margin-top: 12px; display: inline-block;">Go to Admin Panel</a>
+                        <a href="/admin.html" class="empty-grid-link">Go to Admin Panel</a>
                     </div>
                 `;
                 return;
@@ -589,8 +589,8 @@
                         <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${video.wistiaId}" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
                             ${thumbnailUrl ? 
-                                `<img src="${thumbnailUrl}" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" data-thumb-fallback="${video.wistiaId}" data-thumb-platform="${platform}">` :
-                                `<div class="thumbnail-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #2a2a2a; color: #666; font-size: 14px;">${platformInfo({platform}).label} Video</div>`
+                                `<img src="${thumbnailUrl}" alt="${video.title}" class="thumb-img-cover" data-thumb-fallback="${video.wistiaId}" data-thumb-platform="${platform}">` :
+                                `<div class="thumbnail-placeholder thumbnail-placeholder-state">${platformInfo({platform}).label} Video</div>`
                             }
                             <div class="platform-badge ${platformInfo({platform}).key}">${platformInfo({platform}).label}</div>
                             <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
@@ -1067,16 +1067,16 @@
             `;
             
             popup.innerHTML = `
-                <h3 style="margin: 0 0 15px 0; color: var(--accent-color);">Choose Category Icon</h3>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-                    <button class="icon-option" data-icon="" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === '' ? 'var(--accent-color)' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer;">None</button>
+                <h3 class="oz-icon-picker-title">Choose Category Icon</h3>
+                <div class="oz-icon-grid">
+                    <button class="icon-option oz-icon-option${currentIcon === '' ? ' selected' : ''}" data-icon="">None</button>
                     ${Object.entries(availableIcons).map(([key, icon]) => 
-                        `<button class="icon-option" data-icon="${key}" style="padding: 10px; background: #333; border: 2px solid ${currentIcon === key ? 'var(--accent-color)' : 'transparent'}; border-radius: 8px; color: white; cursor: pointer; font-size: 18px;">${icon} ${key.replace('-', ' ')}</button>`
+                        `<button class="icon-option oz-icon-option oz-icon-option-lg${currentIcon === key ? ' selected' : ''}" data-icon="${key}">${icon} ${key.replace('-', ' ')}</button>`
                     ).join('')}
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button id="cancelIconEdit" style="padding: 8px 16px; background: #666; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
-                    <button id="saveIconEdit" style="padding: 8px 16px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer;">Save</button>
+                <div class="oz-icon-picker-actions">
+                    <button id="cancelIconEdit" class="oz-icon-picker-btn-cancel">Cancel</button>
+                    <button id="saveIconEdit" class="oz-icon-picker-btn-save">Save</button>
                 </div>
             `;
             
@@ -1216,19 +1216,19 @@
             `;
             
             dialog.innerHTML = `
-                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 400px;">
-                    <h3 style="color: white; margin: 0 0 16px 0;">Delete Tag</h3>
-                    <p style="color: #aaa; margin: 0 0 16px 0;">
+                <div class="oz-dialog-panel">
+                    <h3 class="oz-dialog-title">Delete Tag</h3>
+                    <p class="oz-dialog-text">
                         "${categoryName}" has ${videosInCategory.length} video(s). 
                         Choose a tag to reassign them to:
                     </p>
-                    <select id="reassignSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; margin-bottom: 20px;">
+                    <select id="reassignSelect" class="oz-dialog-select">
                         <option value="">Select tag...</option>
                         ${reassignmentOptions}
                     </select>
-                    <div style="display: flex; gap: 12px;">
-                        <button id="confirmDelete" style="flex: 1; padding: 8px 16px; background: #ff3b30; color: white; border: none; border-radius: 6px; cursor: pointer;">Delete & Reassign</button>
-                        <button id="cancelDelete" style="flex: 1; padding: 8px 16px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                    <div class="oz-dialog-actions">
+                        <button id="confirmDelete" class="oz-btn-danger">Delete & Reassign</button>
+                        <button id="cancelDelete" class="oz-btn-cancel">Cancel</button>
                     </div>
                 </div>
             `;
@@ -1657,14 +1657,14 @@
             `;
             
             dialog.innerHTML = `
-                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 400px; text-align: center;">
-                    <h3 style="color: white; margin: 0 0 16px 0; font-size: 20px;">Delete Video</h3>
-                    <p style="color: #aaa; margin: 0 0 24px 0; font-size: 16px;">
+                <div class="oz-dialog-panel-center">
+                    <h3 class="oz-dialog-title-lg">Delete Video</h3>
+                    <p class="oz-dialog-text-lg">
                         Are you sure you want to delete "${video.title}"?
                     </p>
-                    <div style="display: flex; gap: 12px; justify-content: center;">
-                        <button id="confirmDelete" style="padding: 12px 24px; background: #ff3b30; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Delete</button>
-                        <button id="cancelDelete" style="padding: 12px 24px; background: #333; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Cancel</button>
+                    <div class="oz-dialog-actions-center">
+                        <button id="confirmDelete" class="oz-btn-danger-lg">Delete</button>
+                        <button id="cancelDelete" class="oz-btn-cancel-lg">Cancel</button>
                     </div>
                 </div>
             `;
@@ -2093,38 +2093,38 @@
             `;
             
             dialog.innerHTML = `
-                <div style="background: #1a1a1a; padding: 32px; border-radius: 12px; border: 1px solid #333; max-width: 500px; width: 90%;">
-                    <h3 style="color: white; margin: 0 0 20px 0;">Set Featured Content</h3>
+                <div class="oz-dialog-panel-wide">
+                    <h3 class="oz-dialog-title-featured">Set Featured Content</h3>
                     
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; gap: 8px; color: white; margin-bottom: 12px; cursor: pointer;">
+                    <div class="oz-featured-section">
+                        <label class="oz-featured-label">
                             <input type="radio" name="featuredType" value="video" ${featuredContent.type === 'video' ? 'checked' : ''}>
                             <span>Featured Video</span>
                         </label>
-                        <label style="display: flex; align-items: center; gap: 8px; color: white; cursor: pointer;">
+                        <label class="oz-featured-label-last">
                             <input type="radio" name="featuredType" value="image" ${featuredContent.type === 'image' ? 'checked' : ''}>
                             <span>Featured Image</span>
                         </label>
                     </div>
                     
-                    <div id="videoOptions" style="margin-bottom: 20px; ${featuredContent.type === 'video' ? '' : 'display: none;'}">
-                        <label style="color: white; display: block; margin-bottom: 8px;">Select Video:</label>
-                        <select id="featuredVideoSelect" style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white;">
+                    <div id="videoOptions" class="oz-featured-field${featuredContent.type === 'video' ? '' : ' hidden'}">
+                        <label class="oz-featured-field-label">Select Video:</label>
+                        <select id="featuredVideoSelect" class="oz-featured-input">
                             <option value="">Choose a video...</option>
                         </select>
                     </div>
                     
-                    <div id="imageOptions" style="margin-bottom: 20px; ${featuredContent.type === 'image' ? '' : 'display: none;'}">
-                        <label style="color: white; display: block; margin-bottom: 8px;">Image URL:</label>
+                    <div id="imageOptions" class="oz-featured-field${featuredContent.type === 'image' ? '' : ' hidden'}">
+                        <label class="oz-featured-field-label">Image URL:</label>
                         <input type="url" id="featuredImageUrl" placeholder="https://example.com/image.jpg" 
                                value="${featuredContent.imageUrl || ''}"
-                               style="width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: white; box-sizing: border-box;">
+                               class="oz-featured-input">
                     </div>
                     
-                    <div style="display: flex; gap: 12px;">
-                        <button id="setFeaturedConfirm" style="flex: 1; padding: 12px 20px; background: #ff9500; color: white; border: none; border-radius: 6px; cursor: pointer;">Set Featured</button>
-                        <button id="clearFeatured" style="flex: 1; padding: 12px 20px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Featured</button>
-                        <button id="cancelFeatured" style="flex: 1; padding: 12px 20px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer;">Cancel</button>
+                    <div class="oz-featured-actions">
+                        <button id="setFeaturedConfirm" class="oz-featured-btn-confirm">Set Featured</button>
+                        <button id="clearFeatured" class="oz-featured-btn-clear">Clear Featured</button>
+                        <button id="cancelFeatured" class="oz-featured-btn-cancel">Cancel</button>
                     </div>
                 </div>
             `;
@@ -2213,12 +2213,12 @@
             videoContainer.innerHTML = `
                 <div class="featured-image-placeholder">
                     <img src="${imageUrl}" alt="Featured Image" 
-                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;"
+                         class="featured-img-cover"
                          data-img-hide-on-error="true">
-                    <div style="display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                    <div class="featured-img-error">
                         <div class="icon">🖼️</div>
                         <div>Featured Image</div>
-                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.7;">Image failed to load</div>
+                        <div class="featured-img-error-sub">Image failed to load</div>
                     </div>
                 </div>
             `;
@@ -2703,7 +2703,7 @@
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" data-thumb-fallback="${video.wistiaId}">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" class="thumb-img-cover" data-thumb-fallback="${video.wistiaId}">
                     <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">

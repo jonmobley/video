@@ -146,7 +146,7 @@ function showEmbed(meta) {
     '<div class="video-wrap">' +
       '<div class="embed-frame" id="embedFrame">' +
         '<div class="embed-host" id="embedHost"></div>' +
-        '<div class="embed-fallback" id="embedFallback" style="display:none;" role="alert" aria-live="assertive">' +
+        '<div class="embed-fallback embed-fallback-hidden" id="embedFallback" role="alert" aria-live="assertive">' +
           '<div class="ef-icon" aria-hidden="true">\u26A0\uFE0F</div>' +
           '<div class="ef-title">This embed isn\'t available</div>' +
           '<div class="ef-sub">The video may be private, removed, or have embedding disabled by the owner.</div>' +
@@ -192,7 +192,7 @@ function showPasswordPrompt(videoId) {
     '<div class="pw-card">' +
       '<div class="pw-icon" aria-hidden="true">\uD83D\uDD12</div>' +
       '<div class="pw-title">Password required</div>' +
-      '<label for="pwInput" class="pw-sub" style="display:block">This video is password protected.</label>' +
+      '<label for="pwInput" class="pw-sub pw-sub-block">This video is password protected.</label>' +
       '<input class="pw-input" id="pwInput" type="password" placeholder="Enter password" autocomplete="off" aria-describedby="pwError">' +
       '<button class="pw-btn" id="pwSubmit">Watch Video</button>' +
       '<div class="pw-error" id="pwError" role="alert" aria-live="assertive">Incorrect password. Try again.</div>' +

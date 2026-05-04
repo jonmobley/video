@@ -62,7 +62,7 @@
       </div>
     </div>
 
-    <div class="fields" data-el="fieldsArea" style="display:none;">
+    <div class="fields hidden" data-el="fieldsArea">
       <div class="field">
         <label>Title</label>
         <input type="text" data-el="titleInput" placeholder="e.g. Practice run – June 3" maxlength="120" required>

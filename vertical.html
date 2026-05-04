@@ -39,94 +39,22 @@
     
     <link rel="stylesheet" href="styles/gallery-base.css">
     <link rel="stylesheet" href="styles/gallery-mobile.css">
-    <style>
-        .video-container.vertical {
-            max-width: 600px;
-            aspect-ratio: 9/16;
-        }
-
-        .thumbnail.vertical {
-            aspect-ratio: 9/16;
-        }
-
-        .platform-badge {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            z-index: 10;
-        }
-
-        .video-grid {
-            align-items: start;
-        }
-
-        .video-grid.mixed-aspect {
-            grid-auto-rows: auto;
-        }
-
-        @media (max-width: 768px) {
-            .login-link {
-                display: none;
-            }
-        }
-
-        .thumbnail-play-button {
-            background: var(--accent-medium);
-        }
-
-        @media screen and (min-width: 768px) {
-            .video-item:not(.active):hover .thumbnail-play-button:hover {
-                background: var(--accent-heavy);
-            }
-        }
-
-        .video-item .featured-controls {
-            top: 8px;
-            left: 8px;
-        }
-
-        @media screen and (min-width: 600px) and (max-width: 999px) {
-            .video-container.vertical {
-                max-width: 400px;
-                aspect-ratio: 9/16;
-            }
-        }
-
-        @media screen and (min-width: 1000px) and (max-width: 1299px) {
-            .video-container.vertical {
-                max-width: 400px;
-                aspect-ratio: 9/16;
-            }
-        }
-
-        @media screen and (min-width: 1300px) {
-            .video-container.vertical {
-                max-width: 600px;
-                aspect-ratio: 9/16;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="styles/common.css">
+    <link rel="stylesheet" href="styles/vertical-page.css">
 </head>
 <body>
     <!-- Admin Banner -->
-    <div class="admin-banner" id="adminBanner" style="display: none;">
+    <div class="admin-banner hidden" id="adminBanner">
         <div class="admin-banner-content">
             <div class="admin-banner-text">
                 <span class="admin-banner-title">Edit Mode</span>
                 <span class="admin-banner-subtitle">Remember to save your changes</span>
             </div>
             <div class="admin-banner-buttons">
-                <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
-                    <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                <div class="admin-accent-controls">
+                    <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
+                    <input type="color" id="adminAccentColor" value="" class="admin-accent-color-input">
+                    <input type="text" id="adminAccentColorText" value="" placeholder="#4d90db" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -139,13 +67,13 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" id="pageTitle" style="cursor: pointer;">DISC Heroes - Vertical Video Test</h1>
+            <h1 class="page-title page-title-clickable" id="pageTitle">DISC Heroes - Vertical Video Test</h1>
         </div>
 
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
-                    <div style="text-align: center;">
+                <div class="video-placeholder video-placeholder-state">
+                    <div class="video-placeholder-inner">
 
                         <div>Loading video player...</div>
                     </div>
@@ -158,7 +86,7 @@
         <div class="tags-container">
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
-                <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
+                <div class="tag add-category-btn hidden" id="addCategoryBtn">+</div>
                 <div class="tag" data-category="conflict">Conflict</div>
                 <div class="tag" data-category="adapted">Adapted</div>
             </div>
@@ -191,7 +119,7 @@
     </div>
 
     <!-- Login Popup -->
-    <div class="login-overlay" id="loginOverlay" style="display: none;">
+    <div class="login-overlay hidden" id="loginOverlay">
         <div class="login-popup">
             <h3>Admin Login</h3>
             <form id="loginForm">
@@ -201,12 +129,12 @@
                     <button type="button" class="btn-cancel" id="cancelLogin">Cancel</button>
                 </div>
             </form>
-            <div class="login-error" id="loginError" style="display: none;"></div>
+            <div class="login-error hidden" id="loginError"></div>
         </div>
     </div>
 
     <!-- Add Video Popup -->
-    <div class="add-video-overlay" id="addVideoOverlay" style="display: none;">
+    <div class="add-video-overlay hidden" id="addVideoOverlay">
         <div class="add-video-popup">
             <h3>Add New Video</h3>
             <form id="addVideoForm">
@@ -241,12 +169,12 @@
                     <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
                 </div>
             </form>
-            <div class="add-video-error" id="addVideoError" style="display: none;"></div>
+            <div class="add-video-error hidden" id="addVideoError"></div>
         </div>
     </div>
 
     <!-- Edit Video Popup -->
-    <div class="edit-video-overlay" id="editVideoOverlay" style="display: none;">
+    <div class="edit-video-overlay hidden" id="editVideoOverlay">
         <div class="edit-video-popup">
             <h3>Edit Video</h3>
             <form id="editVideoForm">
@@ -265,7 +193,7 @@
                 
                 <div class="form-group">
                     <label>Wistia Video ID</label>
-                    <input type="text" id="editVideoId" readonly style="background: #333; color: #aaa;">
+                    <input type="text" id="editVideoId" readonly class="readonly-input">
                     <small>Video ID cannot be changed</small>
                 </div>
                 
@@ -275,12 +203,12 @@
                     <button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button>
                 </div>
             </form>
-            <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
+            <div class="edit-video-error hidden" id="editVideoError"></div>
         </div>
     </div>
 
     <!-- Manage Categories Popup -->
-    <div class="manage-categories-overlay" id="manageCategoriesOverlay" style="display: none;">
+    <div class="manage-categories-overlay hidden" id="manageCategoriesOverlay">
         <div class="manage-categories-popup">
             <h3>Manage Categories</h3>
             
@@ -304,7 +232,7 @@
                 <button type="button" class="btn-save-categories" id="saveCategoriesBtn">Save Changes</button>
                 <button type="button" class="btn-cancel-categories" id="cancelManageCategoriesBtn">Cancel</button>
             </div>
-            <div class="manage-categories-error" id="manageCategoriesError" style="display: none;"></div>
+            <div class="manage-categories-error hidden" id="manageCategoriesError"></div>
         </div>
     </div>
 

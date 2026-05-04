@@ -25,7 +25,7 @@
       <div class="upload-modal-backdrop" data-modal-close></div>
       <div class="upload-modal-dialog">
         <button type="button" class="upload-modal-close" aria-label="Close upload dialog" data-modal-close>✕</button>
-        <h2 id="uploadModalTitle" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Upload a video</h2>
+        <h2 id="uploadModalTitle" class="sr-only">Upload a video</h2>
         <div data-el="uploadRoot"></div>
         <a class="upload-modal-link" href="/upload">Open the full upload page →</a>
       </div>

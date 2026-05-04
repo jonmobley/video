@@ -39,48 +39,22 @@
     
     <link rel="stylesheet" href="styles/gallery-base.css">
     <link rel="stylesheet" href="styles/gallery-mobile.css">
-    <style>
-        .video-container[data-platform] {
-            aspect-ratio: unset;
-        }
-
-        .admin-banner {
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-        }
-
-        .thumbnail-play-button {
-            background: var(--accent-light);
-        }
-
-        @media screen and (min-width: 768px) {
-            .video-item:not(.active):hover .thumbnail-play-button:hover {
-                background: var(--accent-color);
-            }
-        }
-
-        .video-item .featured-controls {
-            top: 8px;
-            right: 8px;
-        }
-
-        .edit-mode .video-item .featured-controls {
-            display: flex;
-        }
-    </style>
+    <link rel="stylesheet" href="styles/common.css">
+    <link rel="stylesheet" href="styles/test-page.css">
 </head>
 <body>
     <!-- Admin Banner -->
-    <div class="admin-banner" id="adminBanner" style="display: none;">
+    <div class="admin-banner hidden" id="adminBanner">
         <div class="admin-banner-content">
             <div class="admin-banner-text">
                 <span class="admin-banner-title">Edit Mode</span>
                 <span class="admin-banner-subtitle">Make your changes and click Save when ready</span>
             </div>
             <div class="admin-banner-buttons">
-                <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
-                    <label for="adminAccentColor" style="color: white; font-size: 14px; font-weight: 500;">Accent:</label>
-                    <input type="color" id="adminAccentColor" value="" style="width: 40px; height: 32px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; cursor: pointer;">
-                    <input type="text" id="adminAccentColorText" value="" placeholder="#4d90db" style="width: 80px; padding: 6px 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; color: white; font-size: 12px;" pattern="^#[0-9A-Fa-f]{6}$">
+                <div class="admin-accent-controls">
+                    <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
+                    <input type="color" id="adminAccentColor" value="" class="admin-accent-color-input">
+                    <input type="text" id="adminAccentColorText" value="" placeholder="#4d90db" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminSetFeaturedBtn">Set Featured</button>
@@ -94,13 +68,13 @@
     <div class="header">
         <div class="page-header">
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
-            <h1 class="page-title" id="pageTitle" style="cursor: pointer;">DISC Heroes</h1>
+            <h1 class="page-title page-title-clickable" id="pageTitle">DISC Heroes</h1>
         </div>
 
         <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div class="video-placeholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2a2a2a, #1a1a1a); color: #666;">
-                    <div style="text-align: center;">
+                <div class="video-placeholder video-placeholder-state">
+                    <div class="video-placeholder-inner">
 
                         <div>Loading video player...</div>
                     </div>
@@ -113,7 +87,7 @@
         <div class="tags-container">
             <div class="tags">
                 <div class="tag active" data-category="all">All</div>
-                <div class="tag add-category-btn" id="addCategoryBtn" style="display: none;">+</div>
+                <div class="tag add-category-btn hidden" id="addCategoryBtn">+</div>
                 <div class="tag" data-category="conflict">Conflict</div>
                 <div class="tag" data-category="adapted">Adapted</div>
             </div>
@@ -146,7 +120,7 @@
     </div>
 
     <!-- Login Popup -->
-    <div class="login-overlay" id="loginOverlay" style="display: none;">
+    <div class="login-overlay hidden" id="loginOverlay">
         <div class="login-popup">
             <h3>Admin Login</h3>
             <form id="loginForm">
@@ -156,12 +130,12 @@
                     <button type="button" class="btn-cancel" id="cancelLogin">Cancel</button>
                 </div>
             </form>
-            <div class="login-error" id="loginError" style="display: none;"></div>
+            <div class="login-error hidden" id="loginError"></div>
         </div>
     </div>
 
     <!-- Add Video Popup -->
-    <div class="add-video-overlay" id="addVideoOverlay" style="display: none;">
+    <div class="add-video-overlay hidden" id="addVideoOverlay">
         <div class="add-video-popup">
             <h3>Add New Video</h3>
             <form id="addVideoForm">
@@ -196,12 +170,12 @@
                     <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
                 </div>
             </form>
-            <div class="add-video-error" id="addVideoError" style="display: none;"></div>
+            <div class="add-video-error hidden" id="addVideoError"></div>
         </div>
     </div>
 
     <!-- Edit Video Popup -->
-    <div class="edit-video-overlay" id="editVideoOverlay" style="display: none;">
+    <div class="edit-video-overlay hidden" id="editVideoOverlay">
         <div class="edit-video-popup">
             <h3>Edit Video</h3>
             <form id="editVideoForm">
@@ -220,7 +194,7 @@
                 
                 <div class="form-group">
                     <label>Wistia Video ID</label>
-                    <input type="text" id="editVideoId" readonly style="background: #333; color: #aaa;">
+                    <input type="text" id="editVideoId" readonly class="readonly-input">
                     <small>Video ID cannot be changed</small>
                 </div>
                 
@@ -230,18 +204,18 @@
                     <button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button>
                 </div>
             </form>
-            <div class="edit-video-error" id="editVideoError" style="display: none;"></div>
+            <div class="edit-video-error hidden" id="editVideoError"></div>
         </div>
     </div>
 
     <!-- Page Settings Popup -->
-    <div class="add-video-overlay" id="pageSettingsOverlay" style="display: none;">
-        <div class="add-video-popup" style="max-width: 600px;">
+    <div class="add-video-overlay hidden" id="pageSettingsOverlay">
+        <div class="add-video-popup page-settings-popup">
             <h3>Page Settings</h3>
             <form id="pageSettingsForm">
                 <!-- Basic Settings -->
                 <div class="form-section">
-                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">Basic Settings</h4>
+                    <h4 class="form-section-heading">Basic Settings</h4>
                     
                     <div class="form-group">
                         <label for="pageTitle">Page Title</label>
@@ -251,9 +225,9 @@
                     
                     <div class="form-group">
                         <label for="accentColor">Accent Color</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="color" id="accentColor" value="#ff6b6b" style="width: 60px; height: 40px; padding: 4px; cursor: pointer;">
-                            <input type="text" id="accentColorText" placeholder="#ff6b6b" pattern="^#[0-9A-Fa-f]{6}$" style="flex: 1;">
+                        <div class="settings-color-row">
+                            <input type="color" id="accentColor" value="#ff6b6b" class="settings-color-picker">
+                            <input type="text" id="accentColorText" placeholder="#ff6b6b" pattern="^#[0-9A-Fa-f]{6}$">
                         </div>
                         <small>Theme color for buttons and highlights</small>
                     </div>
@@ -261,11 +235,11 @@
 
                 <!-- SEO Settings -->
                 <div class="form-section">
-                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">SEO Settings</h4>
+                    <h4 class="form-section-heading">SEO Settings</h4>
                     
                     <div class="form-group">
                         <label for="metaDescription">Meta Description</label>
-                        <textarea id="metaDescription" rows="3" placeholder="Enter meta description..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <textarea id="metaDescription" rows="3" placeholder="Enter meta description..." class="settings-textarea"></textarea>
                         <small>Recommended: 150-160 characters</small>
                     </div>
                     
@@ -284,7 +258,7 @@
 
                 <!-- Social Media Settings -->
                 <div class="form-section">
-                    <h4 style="color: #ffffff; margin: 20px 0 15px 0; font-size: 16px;">Social Media Sharing</h4>
+                    <h4 class="form-section-heading">Social Media Sharing</h4>
                     
                     <div class="form-group">
                         <label for="ogTitle">Open Graph Title</label>
@@ -294,7 +268,7 @@
                     
                     <div class="form-group">
                         <label for="ogDescription">Open Graph Description</label>
-                        <textarea id="ogDescription" rows="3" placeholder="Description for social media..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <textarea id="ogDescription" rows="3" placeholder="Description for social media..." class="settings-textarea"></textarea>
                         <small>Leave empty to use meta description</small>
                     </div>
                     
@@ -312,7 +286,7 @@
                     
                     <div class="form-group">
                         <label for="twitterDescription">Twitter Description</label>
-                        <textarea id="twitterDescription" rows="2" placeholder="Twitter-specific description..." style="width: 100%; padding: 12px 16px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #ffffff; font-size: 16px; box-sizing: border-box; resize: vertical;"></textarea>
+                        <textarea id="twitterDescription" rows="2" placeholder="Twitter-specific description..." class="settings-textarea"></textarea>
                         <small>Leave empty to use Open Graph description</small>
                     </div>
                 </div>
@@ -322,7 +296,7 @@
                     <button type="button" class="btn-cancel-add" id="cancelPageSettings">Cancel</button>
                 </div>
             </form>
-            <div class="add-video-error" id="pageSettingsError" style="display: none;"></div>
+            <div class="add-video-error hidden" id="pageSettingsError"></div>
         </div>
     </div>
 
