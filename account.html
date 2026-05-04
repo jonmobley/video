@@ -100,6 +100,9 @@
     .vc-badge.youtube { background: #ff0000; }
     .vc-badge.vimeo { background: #1ab7ea; }
     .vc-badge.upload { background: rgba(78,205,196,0.9); }
+    .vc-badge.dailymotion { background: #0d0d6e; }
+    .vc-badge.loom { background: #625df5; }
+    .vc-badge.wistia { background: #54bbff; }
     .vc-main { flex: 1; min-width: 0; }
     .vc-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; display: flex; align-items: center; min-width: 0; }
     .vc-title-text { overflow: hidden; text-overflow: ellipsis; }
@@ -577,8 +580,11 @@
 
     function platformInfo(v) {
       const p = (v.platform || 'upload').toLowerCase();
-      if (p === 'youtube') return { key: 'youtube', label: 'YouTube' };
-      if (p === 'vimeo')   return { key: 'vimeo',   label: 'Vimeo' };
+      if (p === 'youtube')      return { key: 'youtube',      label: 'YouTube' };
+      if (p === 'vimeo')        return { key: 'vimeo',        label: 'Vimeo' };
+      if (p === 'dailymotion')  return { key: 'dailymotion',  label: 'Dailymotion' };
+      if (p === 'loom')         return { key: 'loom',         label: 'Loom' };
+      if (p === 'wistia')       return { key: 'wistia',       label: 'Wistia' };
       return { key: 'upload', label: 'Upload' };
     }
 
