@@ -282,19 +282,23 @@
     @media (max-width: 600px) {
       .nav-inner { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
       .nav-left { gap: 8px; }
-      .nav-link { display: none; } /* logo + upload + sign out is enough on phones */
+      .nav-link { display: none; }
       .upload-cta, .logout-btn { padding: 9px 12px; font-size: 0.82rem; }
       main { padding: 20px 14px 80px; }
       h1 { font-size: 1.35rem; }
-      .video-card { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
-      .vc-thumb { width: 100%; max-width: 240px; align-self: flex-start; }
-      .vc-actions { justify-content: stretch; flex-wrap: wrap; }
-      .vc-actions .vc-btn { flex: 1 1 30%; min-width: 0; padding: 10px 8px; }
+      .video-list { gap: 10px; }
+      .video-card { flex-direction: column; align-items: stretch; gap: 10px; padding: 0; overflow: hidden; }
+      .vc-thumb { width: 100%; border-radius: 0; }
+      .vc-main { padding: 0 14px; }
       .vc-title { white-space: normal; display: -webkit-box;
         -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .vc-meta { margin-top: 4px; }
+      .vc-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 0 14px 14px; }
+      .vc-actions .vc-btn { min-width: 0; padding: 10px 8px; text-align: center; }
+      .vc-actions .vc-btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
     }
     @media (max-width: 380px) {
-      .vc-meta { gap: 8px; font-size: 0.75rem; }
+      .vc-meta { gap: 6px 10px; font-size: 0.75rem; }
     }
   </style>
 </head>
