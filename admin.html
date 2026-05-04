@@ -369,6 +369,8 @@
     let userOffset = 0;
     let userSearchDebounce = null;
     let videoSearchDebounce = null;
+    let videoSearchState = '';
+    let videoStatusState = 'all';
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -379,6 +381,10 @@
         const panel = document.getElementById(btn.getAttribute('aria-controls'));
         panel.classList.add('active');
         if (btn.dataset.tab === 'users' && !usersLoaded) loadUsers();
+        if (btn.dataset.tab === 'videos') {
+          videoSearchInput.value = videoSearchState;
+          videoStatusFilter.value = videoStatusState;
+        }
       });
     });
 
@@ -494,8 +500,8 @@
 
       try {
         const params = new URLSearchParams({ limit: PAGE_SIZE, offset: videoOffset });
-        const searchVal = videoSearchInput.value.trim();
-        const statusVal = videoStatusFilter.value;
+        const searchVal = videoSearchState.trim();
+        const statusVal = videoStatusState;
         if (searchVal) params.set('search', searchVal);
         if (statusVal && statusVal !== 'all') params.set('status', statusVal);
 
@@ -790,6 +796,8 @@
       usersLoaded = false;
       videoOffset = 0;
       userOffset = 0;
+      videoSearchState = '';
+      videoStatusState = 'all';
       resetTabs();
       loadVideos();
     }
@@ -812,6 +820,8 @@
       userTierFilter.value = 'all';
       userFilterBar.style.display = 'none';
       userCountEl.style.display = 'none';
+      videoSearchState = '';
+      videoStatusState = 'all';
       videoSearchInput.value = '';
       videoStatusFilter.value = 'all';
       videoFilterBar.style.display = 'none';
@@ -824,6 +834,8 @@
     logoutBtn.addEventListener('click', logout);
     refreshBtn.addEventListener('click', () => {
       videoOffset = 0;
+      videoSearchState = '';
+      videoStatusState = 'all';
       videoSearchInput.value = '';
       videoStatusFilter.value = 'all';
       loadVideos();
@@ -841,10 +853,15 @@
     });
     userTierFilter.addEventListener('change', () => { userOffset = 0; loadUsers(); });
     videoSearchInput.addEventListener('input', () => {
+      videoSearchState = videoSearchInput.value;
       clearTimeout(videoSearchDebounce);
       videoSearchDebounce = setTimeout(() => { videoOffset = 0; loadVideos(); }, 300);
     });
-    videoStatusFilter.addEventListener('change', () => { videoOffset = 0; loadVideos(); });
+    videoStatusFilter.addEventListener('change', () => {
+      videoStatusState = videoStatusFilter.value;
+      videoOffset = 0;
+      loadVideos();
+    });
 
     if (adminToken) showDashboard();
     else loginScreen.style.display = 'flex';
