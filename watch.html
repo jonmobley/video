@@ -56,7 +56,7 @@
       width: 100%; height: 100%; border: 0;
     }
     .gating-note {
-      margin-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.45);
+      margin-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.6);
       text-align: center; max-width: 640px; line-height: 1.5;
     }
 
@@ -80,7 +80,7 @@
     }
     .embed-fallback .ef-icon { font-size: 2.2rem; }
     .embed-fallback .ef-title { font-size: 1rem; font-weight: 600; }
-    .embed-fallback .ef-sub { font-size: 0.85rem; color: #888; max-width: 360px; }
+    .embed-fallback .ef-sub { font-size: 0.85rem; color: #959595; max-width: 360px; }
     .embed-fallback a {
       display: inline-block; padding: 10px 18px; border-radius: 10px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
@@ -111,7 +111,7 @@
     /* ── Footer ──────────────────────────────────────────────────────────── */
     .footer {
       flex-shrink: 0; padding: 14px 20px; text-align: center;
-      font-size: 0.82rem; color: rgba(255,255,255,0.45);
+      font-size: 0.82rem; color: rgba(255,255,255,0.6);
       border-top: 1px solid #1a1a1a;
     }
     .footer a {
@@ -142,7 +142,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .state-title { font-size: 1.05rem; font-weight: 600; }
-    .state-sub { font-size: 0.88rem; color: #888; max-width: 320px; }
+    .state-sub { font-size: 0.88rem; color: #959595; max-width: 320px; }
     .upload-link {
       display: inline-block; margin-top: 6px; padding: 10px 18px; border-radius: 10px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
@@ -156,13 +156,14 @@
     }
     .pw-icon { font-size: 2.5rem; margin-bottom: 14px; }
     .pw-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
-    .pw-sub { font-size: 0.88rem; color: #888; margin-bottom: 22px; }
+    .pw-sub { font-size: 0.88rem; color: #959595; margin-bottom: 22px; }
     .pw-input {
       width: 100%; padding: 14px; background: #1c1c1e; border: 1px solid #2c2c2e;
       border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit;
-      outline: none; margin-bottom: 14px; text-align: center; letter-spacing: 0.1em;
+      margin-bottom: 14px; text-align: center; letter-spacing: 0.1em;
     }
-    .pw-input:focus { border-color: #4ecdc4; }
+    .pw-input:focus { border-color: #4ecdc4; outline: none; }
+    .pw-input:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }
     .pw-btn {
       width: 100%; padding: 14px; border: none; border-radius: 12px;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
@@ -216,10 +217,15 @@
       pointer-events: none; white-space: nowrap; z-index: 99;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    :focus-visible {
+      outline: 2px solid #4ecdc4;
+      outline-offset: 2px;
+    }
   </style>
 </head>
 <body>
-  <main class="stage" id="root"></main>
+  <main class="stage" id="root" aria-live="polite"></main>
 
   <footer class="footer">
     Powered by <a href="/">VidShare</a>
@@ -244,13 +250,13 @@
     }
 
     function showLoading() {
-      root.innerHTML = `<div class="state-overlay"><div class="spinner"></div><div class="state-title">Loading…</div></div>`;
+      root.innerHTML = `<div class="state-overlay" role="status"><div class="spinner" aria-hidden="true"></div><div class="state-title">Loading…</div></div>`;
     }
 
     function showError(msg, showUploadLink) {
       root.innerHTML = `
-        <div class="state-overlay">
-          <div style="font-size:2.5rem">⚠️</div>
+        <div class="state-overlay" role="alert">
+          <div style="font-size:2.5rem" aria-hidden="true">⚠️</div>
           <div class="state-title">Can't play this video</div>
           <div class="state-sub">${msg}</div>
           ${showUploadLink ? '<a href="/upload" class="upload-link">Upload a video</a>' : ''}
@@ -397,8 +403,8 @@
         <div class="video-wrap">
           <div class="embed-frame" id="embedFrame">
             <div class="embed-host" id="embedHost"></div>
-            <div class="embed-fallback" id="embedFallback" style="display:none;">
-              <div class="ef-icon">⚠️</div>
+            <div class="embed-fallback" id="embedFallback" style="display:none;" role="alert" aria-live="assertive">
+              <div class="ef-icon" aria-hidden="true">⚠️</div>
               <div class="ef-title">This embed isn't available</div>
               <div class="ef-sub">The video may be private, removed, or have embedding disabled by the owner.</div>
               ${originalUrl ? `<a href="${originalUrl}" target="_blank" rel="noopener noreferrer">Open on ${platformLabel} ↗</a>` : ''}
@@ -452,12 +458,12 @@
     function showPasswordPrompt(videoId) {
       root.innerHTML = `
         <div class="pw-card">
-          <div class="pw-icon">🔒</div>
+          <div class="pw-icon" aria-hidden="true">🔒</div>
           <div class="pw-title">Password required</div>
-          <div class="pw-sub">This video is password protected.</div>
-          <input class="pw-input" id="pwInput" type="password" placeholder="Enter password" autocomplete="off">
+          <label for="pwInput" class="pw-sub" style="display:block">This video is password protected.</label>
+          <input class="pw-input" id="pwInput" type="password" placeholder="Enter password" autocomplete="off" aria-describedby="pwError">
           <button class="pw-btn" id="pwSubmit">Watch Video</button>
-          <div class="pw-error" id="pwError">Incorrect password. Try again.</div>
+          <div class="pw-error" id="pwError" role="alert" aria-live="assertive">Incorrect password. Try again.</div>
         </div>`;
 
       const pwInput  = document.getElementById('pwInput');

@@ -54,7 +54,7 @@
       background: #0d0d0d; border: 1px dashed #1c1c1e; border-radius: 16px;
     }
     .empty-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
-    .empty-sub { color: #888; font-size: 0.9rem; margin-bottom: 18px; }
+    .empty-sub { color: #959595; font-size: 0.9rem; margin-bottom: 18px; }
 
     .video-list { display: flex; flex-direction: column; gap: 12px; }
     .video-card {
@@ -74,7 +74,7 @@
     .vc-thumb-placeholder {
       width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
-      color: #555;
+      color: #959595;
     }
     .vc-thumb-placeholder svg { width: 30px; height: 30px; }
     .vc-badge {
@@ -121,11 +121,11 @@
     .tp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 16px; }
     .tp-title { font-size: 1.1rem; font-weight: 700; }
     .tp-close {
-      background: none; border: none; color: #888; font-size: 1.6rem;
+      background: none; border: none; color: #959595; font-size: 1.6rem;
       cursor: pointer; line-height: 1; padding: 0 4px; font-family: inherit;
     }
     .tp-close:hover { color: #fff; }
-    .tp-sub { color: #888; font-size: 0.85rem; margin-bottom: 16px; }
+    .tp-sub { color: #959595; font-size: 0.85rem; margin-bottom: 16px; }
     .tp-section-title { font-size: 0.85rem; font-weight: 600; color: #ccc; margin: 14px 0 10px; }
     .tp-grid {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
@@ -140,11 +140,11 @@
     .tp-frame.selected { border-color: #4ecdc4; }
     .tp-frame.loading {
       display: flex; align-items: center; justify-content: center;
-      color: #555; font-size: 0.75rem;
+      color: #959595; font-size: 0.75rem;
     }
     .tp-frame.empty {
       display: flex; align-items: center; justify-content: center;
-      color: #555; font-size: 0.75rem; cursor: default;
+      color: #959595; font-size: 0.75rem; cursor: default;
     }
     .tp-frame.empty:hover { border-color: transparent; }
     .tp-upload-row {
@@ -156,7 +156,7 @@
       width: 80px; aspect-ratio: 16 / 9; border-radius: 6px;
       background: #1c1c1e; overflow: hidden; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      color: #555; font-size: 0.7rem;
+      color: #959595; font-size: 0.7rem;
     }
     .tp-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .tp-upload-preview.selected { outline: 2px solid #4ecdc4; outline-offset: -2px; }
@@ -166,7 +166,7 @@
       font-family: inherit;
     }
     .tp-file-btn:hover { background: #2c2c2e; }
-    .tp-file-hint { color: #888; font-size: 0.78rem; flex: 1; min-width: 140px; }
+    .tp-file-hint { color: #959595; font-size: 0.78rem; flex: 1; min-width: 140px; }
     .tp-error {
       color: #ff6b6b; font-size: 0.82rem; margin-top: 10px; min-height: 1em;
     }
@@ -199,6 +199,11 @@
       pointer-events: none; z-index: 99;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    :focus-visible {
+      outline: 2px solid #4ecdc4;
+      outline-offset: 2px;
+    }
 
     .spinner {
       width: 36px; height: 36px;
@@ -252,7 +257,7 @@
 
   <div class="toast" id="toast"></div>
 
-  <div class="tp-overlay" id="tpOverlay" role="dialog" aria-modal="true" aria-labelledby="tpTitle">
+  <div class="tp-overlay" id="tpOverlay" role="dialog" aria-modal="true" aria-labelledby="tpTitle" aria-hidden="true">
     <div class="tp-dialog">
       <div class="tp-header">
         <div class="tp-title" id="tpTitle">Change thumbnail</div>
@@ -261,7 +266,7 @@
       <div class="tp-sub" id="tpSub">Pick a frame from your video or upload your own image.</div>
 
       <div class="tp-section-title" id="tpFramesTitle">Pick a frame</div>
-      <div class="tp-grid" id="tpGrid"></div>
+      <div class="tp-grid" id="tpGrid" role="listbox" aria-label="Thumbnail frame options"></div>
 
       <div class="tp-section-title">Upload your own</div>
       <div class="tp-upload-row">
@@ -608,6 +613,7 @@
 
     function closeThumbnailDialog() {
       tpOverlay.classList.remove('show');
+      tpOverlay.setAttribute('aria-hidden', 'true');
       tpGrid.innerHTML = '';
       setTpError('');
       tpFileInput.value = '';
@@ -615,6 +621,9 @@
       tpUploadPreview.classList.remove('selected');
       tpSave.disabled = true;
       tpState = null;
+      if (tpLastFocused && typeof tpLastFocused.focus === 'function') {
+        tpLastFocused.focus();
+      }
     }
 
     function selectFrame(index) {
@@ -622,8 +631,10 @@
       tpState.selection = { kind: 'frame', index };
       Array.from(tpGrid.children).forEach((el, i) => {
         el.classList.toggle('selected', i === index);
+        el.setAttribute('aria-selected', String(i === index));
       });
       tpUploadPreview.classList.remove('selected');
+      tpUploadPreview.setAttribute('aria-selected', 'false');
       tpSave.disabled = false;
       setTpError('');
     }
@@ -631,8 +642,12 @@
     function selectCustom() {
       if (!tpState || !tpState.custom) return;
       tpState.selection = { kind: 'custom' };
-      Array.from(tpGrid.children).forEach(el => el.classList.remove('selected'));
+      Array.from(tpGrid.children).forEach(el => {
+        el.classList.remove('selected');
+        el.setAttribute('aria-selected', 'false');
+      });
       tpUploadPreview.classList.add('selected');
+      tpUploadPreview.setAttribute('aria-selected', 'true');
       tpSave.disabled = false;
       setTpError('');
     }
@@ -719,8 +734,10 @@
     async function openThumbnailDialog(videoId) {
       const v = videosById[videoId];
       if (!v) return;
+      tpLastFocused = document.activeElement;
       tpState = { videoId, selection: null, frames: [], custom: null };
       tpOverlay.classList.add('show');
+      tpOverlay.setAttribute('aria-hidden', 'false');
       setTpError('');
       tpSave.disabled = true;
       tpUploadPreview.innerHTML = 'No file';
@@ -738,6 +755,11 @@
         tpGrid.appendChild(tile);
         slots.push(tile);
       }
+
+      setTimeout(() => {
+        const first = tpOverlay.querySelector('button:not([disabled]), input:not([disabled])');
+        if (first) first.focus();
+      }, 0);
 
       if (v.has_password) {
         // The /api/video/:id endpoint requires a password token even for
@@ -769,11 +791,21 @@
         any = true;
         tile.className = 'tp-frame';
         tile.innerHTML = '';
+        tile.tabIndex = 0;
+        tile.setAttribute('role', 'option');
+        tile.setAttribute('aria-selected', 'false');
+        tile.setAttribute('aria-label', `Frame ${idx + 1}`);
         const img = document.createElement('img');
         img.src = f.dataUrl;
         img.alt = `Frame ${idx + 1}`;
         tile.appendChild(img);
         tile.addEventListener('click', () => selectFrame(idx));
+        tile.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectFrame(idx);
+          }
+        });
       });
 
       if (!any) {
@@ -785,16 +817,39 @@
       }
     }
 
+    let tpLastFocused = null;
+
     tpClose.addEventListener('click', closeThumbnailDialog);
     tpCancel.addEventListener('click', closeThumbnailDialog);
     tpOverlay.addEventListener('click', (e) => {
       if (e.target === tpOverlay) closeThumbnailDialog();
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && tpOverlay.classList.contains('show')) closeThumbnailDialog();
+      if (!tpOverlay.classList.contains('show')) return;
+      if (e.key === 'Escape') { closeThumbnailDialog(); return; }
+      if (e.key === 'Tab') {
+        const focusable = Array.from(tpOverlay.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"]), .tp-frame:not(.empty):not(.loading)'
+        ));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
     });
 
     tpFileBtn.addEventListener('click', () => tpFileInput.click());
+    tpUploadPreview.addEventListener('click', () => { if (tpState && tpState.custom) selectCustom(); });
+    tpUploadPreview.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && tpState && tpState.custom) {
+        e.preventDefault();
+        selectCustom();
+      }
+    });
     tpFileInput.addEventListener('change', () => {
       const file = tpFileInput.files && tpFileInput.files[0];
       if (!file) return;
@@ -816,6 +871,10 @@
             }
             if (!tpState) return;
             tpState.custom = custom;
+            tpUploadPreview.tabIndex = 0;
+            tpUploadPreview.setAttribute('role', 'option');
+            tpUploadPreview.setAttribute('aria-selected', 'false');
+            tpUploadPreview.setAttribute('aria-label', 'Custom uploaded image');
             tpUploadPreview.innerHTML = '';
             const preview = document.createElement('img');
             preview.src = custom.dataUrl;

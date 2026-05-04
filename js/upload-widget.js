@@ -6,6 +6,7 @@
 (function () {
   const CHUNK_SIZE = 3 * 1024 * 1024;
   const MAX_SIZE = 1024 * 1024 * 1024;
+  let widgetCounter = 0;
 
   const TEMPLATE = `
     <div class="mode-tabs" role="tablist" data-el="modeTabs">
@@ -15,7 +16,7 @@
 
     <div class="mode-panel active" data-el="panelFile">
       <div class="drop-zone" data-el="dropZone">
-        <input type="file" data-el="fileInput" accept="video/*">
+        <input type="file" data-el="fileInput" accept="video/*" aria-label="Choose a video file">
         <span class="drop-icon-wrap">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <defs><linearGradient id="vsGrad" x1="0" x2="1" y1="0" x2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
@@ -56,8 +57,8 @@
         <div class="link-zone-sub">We'll embed it on a shareable watch page.</div>
         <input type="url" class="link-input" data-el="linkInput"
                placeholder="https://youtu.be/… or https://vimeo.com/…"
-               autocomplete="off" spellcheck="false">
-        <div class="link-detected" data-el="linkDetected"></div>
+               autocomplete="off" spellcheck="false" aria-label="Video URL">
+        <div class="link-detected" data-el="linkDetected" aria-live="polite"></div>
       </div>
     </div>
 
@@ -90,7 +91,7 @@
 
     <button type="button" class="btn upload-btn" data-el="uploadBtn">Upload &amp; Get Link</button>
 
-    <div class="progress-area" data-el="progressArea">
+    <div class="progress-area" data-el="progressArea" role="status" aria-live="polite">
       <div class="progress-label">
         <span data-el="progressText">Uploading…</span>
         <span data-el="progressPct">0%</span>
@@ -100,9 +101,9 @@
       </div>
     </div>
 
-    <div class="error-msg" data-el="errorMsg"></div>
+    <div class="error-msg" data-el="errorMsg" role="alert" aria-live="assertive"></div>
 
-    <div class="success-area" data-el="successArea">
+    <div class="success-area" data-el="successArea" role="status" aria-live="polite">
       <div class="success-icon-wrap">
         <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="5 12 10 17 19 8"/>
@@ -308,6 +309,30 @@
     let parsedLink = null;        // { platform, videoId } | null
     let uploading = false;
 
+    const wid = 'uw' + (++widgetCounter);
+    panelFile.id = wid + '_file';
+    panelFile.setAttribute('role', 'tabpanel');
+    panelFile.setAttribute('aria-labelledby', wid + '_tabFile');
+    panelLink.id = wid + '_link';
+    panelLink.setAttribute('role', 'tabpanel');
+    panelLink.setAttribute('aria-labelledby', wid + '_tabLink');
+    tabFile.id = wid + '_tabFile';
+    tabFile.setAttribute('aria-controls', wid + '_file');
+    tabLink.id = wid + '_tabLink';
+    tabLink.setAttribute('aria-controls', wid + '_link');
+
+    titleInput.id = wid + '_title';
+    titleInput.closest('.field').querySelector('label').setAttribute('for', wid + '_title');
+    expirySelect.id = wid + '_expiry';
+    expirySelect.closest('.field').querySelector('label').setAttribute('for', wid + '_expiry');
+    passwordInput.id = wid + '_password';
+    passwordInput.closest('.field').querySelector('label').setAttribute('for', wid + '_password');
+
+    progressFill.setAttribute('role', 'progressbar');
+    progressFill.setAttribute('aria-valuemin', '0');
+    progressFill.setAttribute('aria-valuemax', '100');
+    progressFill.setAttribute('aria-valuenow', '0');
+
     const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(r => r.ok)
       .catch(() => false);
@@ -316,6 +341,7 @@
     function hideError() { errorMsg.classList.remove('visible'); }
     function setProgress(pct, label) {
       progressFill.style.width = pct + '%';
+      progressFill.setAttribute('aria-valuenow', String(pct));
       progressPct.textContent = pct + '%';
       progressText.textContent = label || 'Uploading…';
     }
