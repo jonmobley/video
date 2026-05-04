@@ -6,6 +6,14 @@
  *   vertical.html — .video-container.vertical (aspect-ratio rules in desktop breakpoints)
  *   oz.html      — .categories-dropdown (mobile), .tags-container & .content padding,
  *                   .navigation-section & .category-dropdown (@media max-width:600px)
+ *
+ * Audited but NOT imported by disc.html / dropbox.html:
+ *   disc.html uses a modal-based video player (.video-modal) and different responsive
+ *   breakpoints (single-column at 767px, auto-fit grid, 3-col at 1200px). Importing
+ *   would require overrides for .header, .tags-container, .content, and .video-grid
+ *   that exceed the rules it would replace.
+ *   dropbox.html has a different architecture (control panels, edit mode, platform
+ *   management) with almost no overlapping responsive patterns.
  */
 
 /* ===== VIDEO CLOSE BUTTON ===== */
