@@ -54,6 +54,11 @@ const verifyAttempts = new Map();
 const MAX_VERIFY_PER_WINDOW = 8;
 const VERIFY_WINDOW_MS = 5 * 60 * 1000;
 
+// CSP report throttle: prevents log flooding from noisy CSP violations
+const cspReportCounts = new Map();
+const MAX_CSP_REPORTS_PER_WINDOW = 50;
+const CSP_REPORT_WINDOW_MS = 15 * 60 * 1000;
+
 function checkAndIncrement(map, key, max, windowMs) {
   const now = Date.now();
   let entry = map.get(key);
@@ -80,6 +85,7 @@ function evictExpiredRateLimits() {
   for (const [k, v] of verifyAttempts) if (now > v.resetAt) verifyAttempts.delete(k);
   for (const [k, v] of codeRequestByEmail) if (now > v.resetAt) codeRequestByEmail.delete(k);
   for (const [k, v] of codeRequestByIp)    if (now > v.resetAt) codeRequestByIp.delete(k);
+  for (const [k, v] of cspReportCounts)    if (now > v.resetAt) cspReportCounts.delete(k);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -417,6 +423,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net https://www.youtube.com https://player.vimeo.com https://browser.sentry-cdn.com",
@@ -428,6 +435,7 @@ app.use((req, res, next) => {
     "media-src 'self' blob: https://*.wistia.com https://*.wistia.net https://embedwistia-a.akamaihd.net https://www.dropbox.com https://*.dropboxusercontent.com",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
+    "report-to csp-endpoint",
     "report-uri /api/csp-report"
   ].join('; '));
   res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
@@ -438,8 +446,13 @@ app.use((req, res, next) => {
 app.post('/api/csp-report',
   express.json({ type: ['application/json', 'application/csp-report', 'application/reports+json'] }),
   (req, res) => {
-    const report = req.body && (req.body['csp-report'] || req.body);
-    if (report) {
+    const ip = getIp(req);
+    if (checkAndIncrement(cspReportCounts, ip, MAX_CSP_REPORTS_PER_WINDOW, CSP_REPORT_WINDOW_MS)) {
+      return res.status(429).end();
+    }
+
+    function logViolation(report) {
+      if (!report) return;
       console.warn('[CSP Violation]', JSON.stringify({
         blockedUri: report['blocked-uri'] || report.blockedURL || 'unknown',
         violatedDirective: report['violated-directive'] || report.effectiveDirective || 'unknown',
@@ -449,9 +462,20 @@ app.post('/api/csp-report',
         timestamp: new Date().toISOString()
       }));
     }
+
+    if (Array.isArray(req.body)) {
+      for (const entry of req.body) {
+        const nested = entry.body || entry;
+        logViolation(nested);
+      }
+    } else {
+      logViolation(req.body && (req.body['csp-report'] || req.body));
+    }
+
     res.status(204).end();
   }
 );
+app.all('/api/csp-report', (req, res) => res.status(405).end());
 
 app.use(attachUser);
 
