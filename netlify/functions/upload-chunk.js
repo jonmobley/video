@@ -1,8 +1,10 @@
 const { getStore } = require('@netlify/blobs');
+const { checkRateLimit, getClientIp, rateLimitResponse } = require('./utils/rate-limit');
 
 const MAX_CHUNK_SIZE = 4 * 1024 * 1024; // 4MB raw chunk max
 const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
 const ALLOWED_VIDEO_TYPES = /^(video\/|application\/octet-stream$)/i;
+const MAX_UPLOADS_PER_HOUR = 10;
 
 function apiError(statusCode, headers, code, message) {
   return { statusCode, headers, body: JSON.stringify({ error: { code, message } }) };
@@ -34,11 +36,20 @@ exports.handler = async (event) => {
 
     const { videoId, chunkIndex, totalChunks, data, contentType } = body;
 
-    if (typeof videoId !== 'string' || !VIDEO_ID_RE.test(videoId)) {
-      return apiError(400, headers, 'BAD_VIDEO_ID', 'Invalid video id.');
-    }
     if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex > 100000) {
       return apiError(400, headers, 'BAD_CHUNK_INDEX', 'Invalid chunkIndex.');
+    }
+
+    if (chunkIndex === 0) {
+      const ip = getClientIp(event);
+      const result = await checkRateLimit(ip, 'upload', MAX_UPLOADS_PER_HOUR, 60);
+      if (result.limited) {
+        return rateLimitResponse(headers, result.retryAfter);
+      }
+    }
+
+    if (typeof videoId !== 'string' || !VIDEO_ID_RE.test(videoId)) {
+      return apiError(400, headers, 'BAD_VIDEO_ID', 'Invalid video id.');
     }
     if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 100000) {
       return apiError(400, headers, 'BAD_TOTAL_CHUNKS', 'Invalid totalChunks.');

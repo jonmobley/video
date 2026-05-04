@@ -9,10 +9,12 @@
  */
 
 const { getStore } = require('@netlify/blobs');
+const { checkRateLimit, getClientIp, rateLimitResponse } = require('./utils/rate-limit');
 
 const MAX_THUMBNAIL_BYTES = 500 * 1024;
 const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_THUMBNAILS_PER_HOUR = 20;
 
 function apiError(statusCode, headers, code, message) {
   return { statusCode, headers, body: JSON.stringify({ error: { code, message } }) };
@@ -29,6 +31,12 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') {
     return apiError(405, headers, 'METHOD_NOT_ALLOWED', 'Method not allowed.');
+  }
+
+  const ip = getClientIp(event);
+  const rlResult = await checkRateLimit(ip, 'thumbnail', MAX_THUMBNAILS_PER_HOUR, 60);
+  if (rlResult.limited) {
+    return rateLimitResponse(headers, rlResult.retryAfter);
   }
 
   let body;

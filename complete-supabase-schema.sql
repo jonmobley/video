@@ -107,6 +107,72 @@ INSERT INTO page_config (page, accent_color) VALUES
 ON CONFLICT (page) DO NOTHING;
 
 -- ============================================================================
+-- RATE LIMITS TABLE (used by Netlify serverless upload functions)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS vs_rate_limits (
+    key TEXT PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 0,
+    window_start TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION vs_check_rate_limit(
+    p_key TEXT,
+    p_max_requests INTEGER,
+    p_window_minutes INTEGER
+) RETURNS TABLE(is_limited BOOLEAN, current_count INTEGER, retry_after_seconds INTEGER)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_count INTEGER;
+    v_window_start TIMESTAMPTZ;
+    v_window_interval INTERVAL;
+BEGIN
+    v_window_interval := (p_window_minutes || ' minutes')::INTERVAL;
+
+    INSERT INTO vs_rate_limits (key, count, window_start)
+    VALUES (p_key, 1, now())
+    ON CONFLICT (key) DO UPDATE SET
+        count = CASE
+            WHEN vs_rate_limits.window_start + v_window_interval < now() THEN 1
+            ELSE vs_rate_limits.count + 1
+        END,
+        window_start = CASE
+            WHEN vs_rate_limits.window_start + v_window_interval < now() THEN now()
+            ELSE vs_rate_limits.window_start
+        END
+    RETURNING vs_rate_limits.count, vs_rate_limits.window_start
+    INTO v_count, v_window_start;
+
+    is_limited := v_count > p_max_requests;
+    current_count := v_count;
+    IF is_limited THEN
+        retry_after_seconds := GREATEST(1,
+            EXTRACT(EPOCH FROM (v_window_start + v_window_interval - now()))::INTEGER);
+    ELSE
+        retry_after_seconds := 0;
+    END IF;
+
+    RETURN NEXT;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_vs_rate_limits_window
+    ON vs_rate_limits(window_start);
+
+CREATE OR REPLACE FUNCTION vs_cleanup_expired_rate_limits(p_max_age_minutes INTEGER DEFAULT 120)
+RETURNS INTEGER
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_deleted INTEGER;
+BEGIN
+    DELETE FROM vs_rate_limits
+    WHERE window_start < now() - (p_max_age_minutes || ' minutes')::INTERVAL;
+    GET DIAGNOSTICS v_deleted = ROW_COUNT;
+    RETURN v_deleted;
+END;
+$$;
+
+-- ============================================================================
 -- INDEXES
 -- ============================================================================
 

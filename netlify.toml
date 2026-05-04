@@ -62,6 +62,10 @@
     X-Content-Type-Options = "nosniff"                    # Prevent MIME sniffing
     Referrer-Policy = "strict-origin-when-cross-origin"   # Control referrer info
 
+# Scheduled function: clean up expired rate-limit entries every 6 hours
+[functions."cleanup-rate-limits"]
+  schedule = "0 */6 * * *"
+
 # CORS headers for API functions
 [[headers]]
   for = "/.netlify/functions/*"

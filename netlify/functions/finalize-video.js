@@ -1,8 +1,10 @@
 const { getStore } = require('@netlify/blobs');
+const { checkRateLimit, getClientIp, rateLimitResponse } = require('./utils/rate-limit');
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB assembled cap
 const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
 const ALLOWED_VIDEO_TYPES = /^(video\/|application\/octet-stream$)/i;
+const MAX_FINALIZE_PER_HOUR = 10;
 
 function apiError(statusCode, headers, code, message) {
   return { statusCode, headers, body: JSON.stringify({ error: { code, message } }) };
@@ -37,6 +39,12 @@ exports.handler = async (event) => {
     let body;
     try { body = JSON.parse(event.body || '{}'); }
     catch { return apiError(400, headers, 'BAD_JSON', 'Request body is not valid JSON.'); }
+
+    const ip = getClientIp(event);
+    const rlResult = await checkRateLimit(ip, 'finalize', MAX_FINALIZE_PER_HOUR, 60);
+    if (rlResult.limited) {
+      return rateLimitResponse(headers, rlResult.retryAfter);
+    }
 
     const contentType = body.contentType;
     videoId = body.videoId;
