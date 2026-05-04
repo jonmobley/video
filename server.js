@@ -291,6 +291,8 @@ async function ensureSchema() {
       thumbnail_content_type TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE INDEX IF NOT EXISTS idx_link_thumbnails_created_at
+      ON vs_link_thumbnails (created_at);
 
     -- User accounts. Auth is magic-code via email (no passwords).
     CREATE TABLE IF NOT EXISTS vs_users (
