@@ -877,12 +877,17 @@ app.get('/api/video-thumbnail/:id', async (req, res) => {
 // ── Video metadata ────────────────────────────────────────────────────────────
 
 // In-memory cache of oEmbed availability checks. Keyed by `${platform}:${id}`.
-// Both YouTube and Vimeo expose a public oEmbed endpoint that returns 200 for
-// publicly-embeddable videos and 401/403/404 when the video is private,
+// All five supported platforms expose a lightweight endpoint that returns 200
+// for publicly-embeddable videos and 401/403/404 when the video is private,
 // removed, or has embedding disabled by the owner. Checking this server-side
 // (rather than trying to attach to the iframe client-side) is the only
 // reliable way to detect those states — the iframe itself just renders the
 // platform's "video unavailable" UI on success of the page load.
+//   YouTube:      oEmbed (200 public, 401 private, 404 removed)
+//   Vimeo:        player config endpoint (200 embeddable, 403/404 not)
+//   Dailymotion:  oEmbed (200 public, 404 private/removed)
+//   Loom:         HEAD on share URL (200 public, 404 private/removed)
+//   Wistia:       oEmbed (200 public, 404 private/removed)
 const embedAvailabilityCache = new Map();
 const EMBED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -892,28 +897,31 @@ async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = f
   const cached = embedAvailabilityCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.available;
 
-  // Use the most reliable per-platform endpoint:
-  //   YouTube: oEmbed returns 200 for public videos, 401 for private,
-  //            404 for removed/unknown, and works server-side without auth.
-  //   Vimeo:   oEmbed is rate-limited / blocked from many IPs; instead we
-  //            hit the player config endpoint that the embed iframe itself
-  //            calls — 200 = embeddable, 403 = embedding disabled, 404 = gone.
+  // Use the most reliable per-platform endpoint (see comment block above).
   let checkUrl;
+  let checkMethod = 'GET';
   if (platform === 'youtube') {
     checkUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + embedVideoId)}&format=json`;
   } else if (platform === 'vimeo') {
-    // Unlisted videos use the "ID/HASH" form; player.vimeo.com accepts that
-    // path directly without any extra query parameter.
     checkUrl = `https://player.vimeo.com/video/${embedVideoId}/config`;
+  } else if (platform === 'dailymotion') {
+    checkUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent('https://www.dailymotion.com/video/' + embedVideoId)}&format=json`;
+  } else if (platform === 'loom') {
+    checkUrl = `https://www.loom.com/share/${embedVideoId}`;
+    checkMethod = 'HEAD';
+  } else if (platform === 'wistia') {
+    checkUrl = `https://fast.wistia.com/oembed?url=${encodeURIComponent('https://fast.wistia.com/medias/' + embedVideoId)}&format=json`;
   } else {
     return true;
   }
 
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000);
-    const r = await fetch(checkUrl, { signal: ctrl.signal, redirect: 'follow' });
-    clearTimeout(t);
+    let r = await fetch(checkUrl, { method: checkMethod, signal: ctrl.signal, redirect: 'follow' });
+    if (!r.ok && r.status === 405 && checkMethod === 'HEAD') {
+      r = await fetch(checkUrl, { method: 'GET', signal: ctrl.signal, redirect: 'follow' });
+    }
     const available = r.ok; // 200 = embeddable, 401/403/404 = not embeddable
     embedAvailabilityCache.set(key, { available, expires: Date.now() + EMBED_CACHE_TTL_MS });
     return available;
@@ -925,6 +933,8 @@ async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = f
     // from "check failed" and surface a non-blocking note.
     if (throwOnError) throw e;
     return true;
+  } finally {
+    clearTimeout(t);
   }
 }
 
@@ -1765,4 +1775,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, pool, uploadCounts };
+module.exports = { app, pool, uploadCounts, embedAvailabilityCache };

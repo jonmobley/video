@@ -2,12 +2,13 @@ jest.mock('pg', () => require('./helpers/pg-mock').install());
 const pgMock = require('./helpers/pg-mock');
 
 const request = require('supertest');
-const { app, uploadCounts } = require('../../server');
+const { app, uploadCounts, embedAvailabilityCache } = require('../../server');
 
 const originalFetch = global.fetch;
 beforeEach(() => {
   global.fetch = jest.fn().mockResolvedValue({ ok: true });
   uploadCounts.clear();
+  embedAvailabilityCache.clear();
 });
 afterEach(() => {
   global.fetch = originalFetch;
@@ -478,37 +479,130 @@ describe('POST /api/create-link-video – embed availability check', () => {
     expect(insertCall).toBeDefined();
   });
 
-  test('Dailymotion links skip embed check and save directly', async () => {
-    global.fetch = jest.fn();
+  test('VIDEO_UNAVAILABLE when Dailymotion video is private (404)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.dailymotion.com/video/x7tgd1a'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toMatch(/Dailymotion/i);
+    expect(global.fetch).toHaveBeenCalled();
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('available Dailymotion video saves normally', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
     pgMock.enqueue({ rows: [] });
     const res = await request(app).post('/api/create-link-video').send(linkBody({
       url: 'https://www.dailymotion.com/video/x7tgd1a'
     }));
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res.body.warning).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalled();
+    const fetchUrl = global.fetch.mock.calls[0][0];
+    expect(fetchUrl).toContain('dailymotion.com/services/oembed');
   });
 
-  test('Loom links skip embed check and save directly', async () => {
-    global.fetch = jest.fn();
+  test('VIDEO_UNAVAILABLE when Loom video is private (404)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.loom.com/share/abcdef01234567890abcdef012345678'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toMatch(/Loom/i);
+    expect(global.fetch).toHaveBeenCalled();
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('available Loom video saves normally with HEAD request', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
     pgMock.enqueue({ rows: [] });
     const res = await request(app).post('/api/create-link-video').send(linkBody({
       url: 'https://www.loom.com/share/abcdef01234567890abcdef012345678'
     }));
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res.body.warning).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalled();
+    const fetchOpts = global.fetch.mock.calls[0][1];
+    expect(fetchOpts.method).toBe('HEAD');
   });
 
-  test('Wistia links skip embed check and save directly', async () => {
-    global.fetch = jest.fn();
+  test('VIDEO_UNAVAILABLE when Wistia video is private (404)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://fast.wistia.com/medias/abc123'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toMatch(/Wistia/i);
+    expect(global.fetch).toHaveBeenCalled();
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('available Wistia video saves normally', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
     pgMock.enqueue({ rows: [] });
     const res = await request(app).post('/api/create-link-video').send(linkBody({
       url: 'https://fast.wistia.com/medias/abc123'
     }));
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res.body.warning).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalled();
+    const fetchUrl = global.fetch.mock.calls[0][0];
+    expect(fetchUrl).toContain('fast.wistia.com/oembed');
+  });
+
+  test('Dailymotion save proceeds with warning on network error', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.dailymotion.com/video/x7tgd1a'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toMatch(/couldn.t verify/i);
+  });
+
+  test('Loom save proceeds with warning on timeout', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new DOMException('signal timed out', 'AbortError'));
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.loom.com/share/abcdef01234567890abcdef012345678'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toMatch(/couldn.t verify/i);
+  });
+
+  test('Wistia save proceeds with warning on network error', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('ENOTFOUND'));
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://fast.wistia.com/medias/abc123'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toMatch(/couldn.t verify/i);
+  });
+
+  test('Loom falls back to GET when HEAD returns 405', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 405 })
+      .mockResolvedValueOnce({ ok: true });
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.loom.com/share/abcdef01234567890abcdef012345678'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch.mock.calls[0][1].method).toBe('HEAD');
+    expect(global.fetch.mock.calls[1][1].method).toBe('GET');
   });
 
   test('available YouTube video saves normally without warning', async () => {
