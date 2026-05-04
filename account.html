@@ -399,6 +399,7 @@
     </div>
   </div>
 
+  <script src="/js/shared-platform-config.js"></script>
   <script>
     const content    = document.getElementById('content');
     const emailPill  = document.getElementById('emailPill');
@@ -563,21 +564,6 @@
       headerSub.textContent = `${videos.length} video${videos.length === 1 ? '' : 's'}`;
       content.innerHTML = '<div class="video-list">' + videos.map(renderCard).join('') + '</div>';
       attachCardHandlers();
-    }
-
-    const PLATFORM_CONFIG = {
-      youtube:     { label: 'YouTube',      color: '#ff0000' },
-      vimeo:       { label: 'Vimeo',        color: '#1ab7ea' },
-      dailymotion: { label: 'Dailymotion',  color: '#0d0d6e' },
-      loom:        { label: 'Loom',         color: '#625df5' },
-      wistia:      { label: 'Wistia',       color: '#54bbff' },
-      upload:      { label: 'Upload',       color: 'rgba(78,205,196,0.9)' },
-    };
-
-    function platformInfo(v) {
-      const p = (v.platform || 'upload').toLowerCase();
-      const cfg = PLATFORM_CONFIG[p] || PLATFORM_CONFIG.upload;
-      return { key: PLATFORM_CONFIG[p] ? p : 'upload', label: cfg.label };
     }
 
     const PLACEHOLDER_SVG = `

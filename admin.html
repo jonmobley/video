@@ -401,6 +401,7 @@
     </div>
   </div>
 
+  <script src="/js/shared-platform-config.js"></script>
   <script>
     let adminToken = sessionStorage.getItem('vs_admin_token') || '';
 
@@ -474,14 +475,8 @@
       return new Date(dt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
-    function sourceBadge(platform) {
-      const p = (platform || 'upload').toLowerCase();
-      if (p === 'youtube') return '<span class="source-badge youtube">YouTube</span>';
-      if (p === 'vimeo') return '<span class="source-badge vimeo">Vimeo</span>';
-      if (p === 'dailymotion') return '<span class="source-badge dailymotion">Dailymotion</span>';
-      if (p === 'loom') return '<span class="source-badge loom">Loom</span>';
-      if (p === 'wistia') return '<span class="source-badge wistia">Wistia</span>';
-      return '<span class="source-badge upload">Upload</span>';
+    function adminSourceBadge(platform) {
+      return sourceBadge(platform, 'source-badge');
     }
 
     function expiryBadge(expiresAt, ownerIsPaid) {
@@ -672,7 +667,7 @@
           row.className = 'video-row';
           row.innerHTML = `
             <div class="video-main">
-              <div class="video-title ${v.title ? '' : 'untitled'}"><span class="video-title-text">${v.title || 'Untitled'}</span>${sourceBadge(v.platform)}</div>
+              <div class="video-title ${v.title ? '' : 'untitled'}"><span class="video-title-text">${v.title || 'Untitled'}</span>${adminSourceBadge(v.platform)}</div>
               <div class="video-meta">
                 <span>${formatDate(v.uploaded_at)}</span>
                 <span>${formatBytes(v.file_size)}</span>
