@@ -85,7 +85,7 @@
   </style>
 </head>
 <body>
-  <nav class="nav">
+  <nav class="nav" id="pageNav" style="display:none">
     <div class="nav-inner">
       <div class="nav-left">
         <a href="/" class="logo">VidShare</a>
@@ -97,7 +97,7 @@
     </div>
   </nav>
 
-  <main>
+  <main id="pageMain" style="display:none">
     <div class="page-title">Upload a video</div>
     <div id="uploadRoot"></div>
   </main>
@@ -107,7 +107,34 @@
   <script src="/js/thumbnail-capture.js"></script>
   <script src="/js/upload-widget.js"></script>
   <script>
-    const uploadWidget = initUploadWidget(document.getElementById('uploadRoot'));
+    let uploadWidget = null;
+
+    async function initPage() {
+      let me;
+      try { me = await fetch('/api/auth/me'); }
+      catch {
+        document.getElementById('pageMain').style.display = '';
+        document.getElementById('uploadRoot').innerHTML =
+          '<div style="text-align:center;color:#959595;padding:40px 0">Network error. Please refresh.</div>';
+        return;
+      }
+      if (me.status === 401) {
+        window.location.replace('/login?next=/upload');
+        return;
+      }
+      if (!me.ok) {
+        document.getElementById('pageMain').style.display = '';
+        document.getElementById('uploadRoot').innerHTML =
+          '<div style="text-align:center;color:#959595;padding:40px 0">Something went wrong. Please refresh.</div>';
+        return;
+      }
+
+      document.getElementById('pageNav').style.display = '';
+      document.getElementById('pageMain').style.display = '';
+
+      uploadWidget = initUploadWidget(document.getElementById('uploadRoot'));
+    }
+
     window.addEventListener('beforeunload', e => {
       if (uploadWidget && typeof uploadWidget.isUploading === 'function' && uploadWidget.isUploading()) {
         e.preventDefault();
@@ -120,6 +147,8 @@
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/';
     });
+
+    initPage();
   </script>
 </body>
 </html>
