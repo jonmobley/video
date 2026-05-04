@@ -102,6 +102,7 @@
     .vc-meta { font-size: 0.8rem; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
     .vc-meta .lock { color: #4ecdc4; }
     .vc-meta .exp { color: #ffb86b; }
+    .vc-meta .no-expiry { color: #4ecdc4; }
     .vc-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
     .vc-btn {
       padding: 8px 14px; border-radius: 9px; font-size: 0.82rem; font-weight: 600;
@@ -631,7 +632,7 @@
               <span>${formatBytes(v.file_size)}</span>
               <span>${formatViews(v.view_count)}</span>
               ${v.has_password ? '<span class="lock">Password</span>' : ''}
-              ${exp ? `<span class="exp">${exp}</span>` : ''}
+              ${exp ? `<span class="exp">${exp}</span>` : (window.__isPaidUser ? '<span class="no-expiry">∞ No expiry</span>' : '')}
             </div>
           </div>
           <div class="vc-actions">
@@ -869,7 +870,7 @@
             <span>${formatBytes(v.file_size)}</span>
             <span>${formatViews(v.view_count)}</span>
             ${v.has_password ? '<span class="lock">Password</span>' : ''}
-            ${exp ? `<span class="exp">${exp}</span>` : ''}
+            ${exp ? `<span class="exp">${exp}</span>` : (window.__isPaidUser ? '<span class="no-expiry">∞ No expiry</span>' : '')}
           `;
         }
       }
