@@ -461,6 +461,35 @@
     let videosAbortController = null;
     let usersAbortController = null;
 
+    const VALID_STATUSES = ['all', 'active', 'expired', 'password'];
+    const VALID_PLATFORMS = ['all', 'upload', 'youtube', 'vimeo'];
+
+    function syncFiltersToUrl() {
+      const params = new URLSearchParams();
+      const trimmed = videoSearchState.trim();
+      if (trimmed) params.set('search', trimmed);
+      if (videoStatusState && videoStatusState !== 'all') params.set('status', videoStatusState);
+      if (videoPlatformState && videoPlatformState !== 'all') params.set('platform', videoPlatformState);
+      if (videoOffset > 0) params.set('page', Math.floor(videoOffset / PAGE_SIZE) + 1);
+      const qs = params.toString();
+      const newUrl = window.location.pathname + (qs ? '?' + qs : '');
+      history.replaceState(null, '', newUrl);
+    }
+
+    function readFiltersFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      videoSearchState = (params.get('search') || '').trim();
+      const status = params.get('status') || 'all';
+      videoStatusState = VALID_STATUSES.includes(status) ? status : 'all';
+      const platform = params.get('platform') || 'all';
+      videoPlatformState = VALID_PLATFORMS.includes(platform) ? platform : 'all';
+      const page = parseInt(params.get('page'), 10);
+      videoOffset = (page > 1 && !isNaN(page)) ? (page - 1) * PAGE_SIZE : 0;
+      videoSearchInput.value = videoSearchState;
+      videoStatusFilter.value = videoStatusState;
+      videoPlatformFilter.value = videoPlatformState;
+    }
+
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         tabBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
@@ -595,6 +624,7 @@
     }
 
     async function loadVideos() {
+      syncFiltersToUrl();
       if (videosAbortController) videosAbortController.abort();
       videosAbortController = new AbortController();
       const signal = videosAbortController.signal;
@@ -970,12 +1000,9 @@
       dashboard.style.display = 'block';
       logoutBtn.style.display = 'inline-block';
       usersLoaded = false;
-      videoOffset = 0;
       userOffset = 0;
-      videoSearchState = '';
-      videoStatusState = 'all';
-      videoPlatformState = 'all';
       pendingDeletes.clear();
+      readFiltersFromUrl();
       resetTabs();
       loadVideos();
     }
@@ -1010,6 +1037,7 @@
       videoPlatformFilter.value = 'all';
       videoFilterBar.style.display = 'none';
       videoCountEl.style.display = 'none';
+      history.replaceState(null, '', window.location.pathname);
       resetTabs();
     }
 
@@ -1025,6 +1053,7 @@
       videoSearchInput.value = '';
       videoStatusFilter.value = 'all';
       videoPlatformFilter.value = 'all';
+      syncFiltersToUrl();
       loadVideos();
     });
     clearVideoFiltersBtn.addEventListener('click', () => {
