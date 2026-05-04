@@ -14,8 +14,11 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     .nav {
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .nav-inner {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 18px 24px; border-bottom: 1px solid #1a1a1a;
+      max-width: 960px; margin: 0 auto; padding: 18px 24px;
     }
     .nav-left { display: flex; align-items: center; gap: 18px; }
     .logo {
@@ -295,7 +298,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 600px) {
-      .nav { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
+      .nav-inner { padding: 12px 14px; gap: 8px; flex-wrap: wrap; }
       .nav-left { gap: 8px; }
       .nav-link { display: none; } /* logo + upload + sign out is enough on phones */
       .upload-cta, .logout-btn { padding: 9px 12px; font-size: 0.82rem; }
@@ -315,13 +318,15 @@
 </head>
 <body>
   <nav class="nav">
-    <div class="nav-left">
-      <a href="/" class="logo">VidShare</a>
-      <a href="/account" class="nav-link">My videos</a>
-    </div>
-    <div class="nav-left">
-      <a href="/upload" class="upload-cta" id="navUploadBtn">+ Upload</a>
-      <button class="logout-btn" id="logoutBtn">Sign out</button>
+    <div class="nav-inner">
+      <div class="nav-left">
+        <a href="/" class="logo">VidShare</a>
+        <a href="/account" class="nav-link">My videos</a>
+      </div>
+      <div class="nav-left">
+        <a href="/upload" class="upload-cta" id="navUploadBtn">+ Upload</a>
+        <button class="logout-btn" id="logoutBtn">Sign out</button>
+      </div>
     </div>
   </nav>
 
