@@ -1090,6 +1090,12 @@ app.get('/api/video/:id', async (req, res) => {
 // ── Admin: list videos ────────────────────────────────────────────────────────
 app.get('/api/admin/videos', requireAdmin, async (req, res) => {
   try {
+    const limit  = Math.max(1, Math.min(200, parseInt(req.query.limit,  10) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM vs_uploads');
+    const total = countResult.rows[0].total;
+
     const result = await pool.query(
       `SELECT u.id, u.title, u.content_type, u.uploaded_at, u.expires_at,
               u.view_count, u.file_size,
@@ -1097,9 +1103,28 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
               COALESCE(usr.is_paid, FALSE) as owner_is_paid
        FROM vs_uploads u
        LEFT JOIN vs_users usr ON u.user_id = usr.id
-       ORDER BY u.uploaded_at DESC`
+       ORDER BY u.uploaded_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
-    res.json({ videos: result.rows });
+
+    const statsResult = await pool.query(
+      `SELECT COALESCE(SUM(file_size),0)::bigint AS total_size,
+              COALESCE(SUM(view_count),0)::int AS total_views,
+              COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at < NOW())::int AS expired_count
+       FROM vs_uploads`
+    );
+    const stats = statsResult.rows[0];
+
+    res.json({
+      videos: result.rows,
+      total,
+      limit,
+      offset,
+      total_size: Number(stats.total_size),
+      total_views: stats.total_views,
+      expired_count: stats.expired_count
+    });
   } catch (err) {
     console.error('admin list error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not load videos.');
@@ -1465,15 +1490,51 @@ app.patch('/api/admin/users/:id/tier', requireAdmin, express.json(), async (req,
 // ── Admin: list users ─────────────────────────────────────────────────────────
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
   try {
+    const limit  = Math.max(1, Math.min(200, parseInt(req.query.limit,  10) || 50));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
+    const tier   = req.query.tier === 'paid' ? 'paid' : req.query.tier === 'free' ? 'free' : '';
+
+    const conditions = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (search) {
+      conditions.push(`LOWER(u.email) LIKE $${paramIdx}`);
+      params.push('%' + search + '%');
+      paramIdx++;
+    }
+    if (tier === 'paid') {
+      conditions.push(`u.is_paid = TRUE`);
+    } else if (tier === 'free') {
+      conditions.push(`u.is_paid = FALSE`);
+    }
+
+    const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM vs_users u ${whereClause}`,
+      params
+    );
+    const total = countResult.rows[0].total;
+
+    params.push(limit);
+    const limitIdx = paramIdx++;
+    params.push(offset);
+    const offsetIdx = paramIdx++;
+
     const result = await pool.query(
       `SELECT u.id, u.email, u.is_paid, u.created_at,
               COUNT(v.id)::int AS video_count
        FROM vs_users u
        LEFT JOIN vs_uploads v ON v.user_id = u.id
+       ${whereClause}
        GROUP BY u.id
-       ORDER BY u.created_at DESC`
+       ORDER BY u.created_at DESC
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      params
     );
-    res.json({ users: result.rows });
+    res.json({ users: result.rows, total, limit, offset });
   } catch (err) {
     console.error('admin list users error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not list users.');

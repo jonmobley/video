@@ -218,6 +218,24 @@
       font-size: 0.78rem; color: #636366; margin-bottom: 14px;
     }
 
+    .pagination {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; margin-top: 24px; flex-wrap: wrap;
+    }
+    .pagination:empty { display: none; }
+    .page-btn {
+      background: #2c2c2e; color: #ccc; border: none; padding: 8px 14px;
+      border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: background 0.2s, color 0.2s;
+      min-width: 38px; text-align: center;
+    }
+    .page-btn:hover:not(:disabled):not(.page-btn-active) { background: #3A3A3C; color: #fff; }
+    .page-btn-active { background: #007AFF; color: #fff; cursor: default; }
+    .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .page-info {
+      font-size: 0.78rem; color: #959595; padding: 0 8px;
+    }
+
     .loading-spinner {
       width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1);
       border-top-color: #fff; border-radius: 50%; animation: spin 0.9s linear infinite;
@@ -287,6 +305,7 @@
       <div id="videosPanel" class="tab-panel active" role="tabpanel">
         <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
         <div class="video-list" id="videoList"></div>
+        <div class="pagination" id="videoPagination"></div>
       </div>
 
       <div id="usersPanel" class="tab-panel" role="tabpanel">
@@ -301,6 +320,7 @@
         </div>
         <div class="user-count" id="userCount" style="display:none"></div>
         <div class="video-list" id="userList"></div>
+        <div class="pagination" id="userPagination"></div>
       </div>
     </div>
   </div>
@@ -324,11 +344,16 @@
     const userTierFilter  = document.getElementById('userTierFilter');
     const userFilterBar   = document.getElementById('userFilterBar');
     const userCountEl     = document.getElementById('userCount');
+    const videoPagination = document.getElementById('videoPagination');
+    const userPagination  = document.getElementById('userPagination');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
 
     let usersLoaded = false;
-    let allUsers = [];
+    const PAGE_SIZE = 50;
+    let videoOffset = 0;
+    let userOffset = 0;
+    let userSearchDebounce = null;
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -365,12 +390,94 @@
       return `<span class="badge badge-ok">Expires in ${days}d</span>`;
     }
 
+    function renderPagination(container, total, limit, offset, onPageChange) {
+      container.innerHTML = '';
+      const totalPages = Math.ceil(total / limit);
+      if (totalPages <= 1) return;
+
+      const currentPage = Math.floor(offset / limit) + 1;
+
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'page-btn';
+      prevBtn.textContent = '‹ Prev';
+      prevBtn.disabled = currentPage <= 1;
+      prevBtn.addEventListener('click', () => onPageChange((currentPage - 2) * limit));
+      container.appendChild(prevBtn);
+
+      const maxVisible = 7;
+      let startPage = 1;
+      let endPage = totalPages;
+      if (totalPages > maxVisible) {
+        const half = Math.floor(maxVisible / 2);
+        startPage = Math.max(1, currentPage - half);
+        endPage = startPage + maxVisible - 1;
+        if (endPage > totalPages) {
+          endPage = totalPages;
+          startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+      }
+
+      if (startPage > 1) {
+        const first = document.createElement('button');
+        first.className = 'page-btn';
+        first.textContent = '1';
+        first.addEventListener('click', () => onPageChange(0));
+        container.appendChild(first);
+        if (startPage > 2) {
+          const dots = document.createElement('span');
+          dots.className = 'page-info';
+          dots.textContent = '…';
+          container.appendChild(dots);
+        }
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (p === currentPage ? ' page-btn-active' : '');
+        btn.textContent = p;
+        if (p !== currentPage) {
+          btn.addEventListener('click', () => onPageChange((p - 1) * limit));
+        }
+        container.appendChild(btn);
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          const dots = document.createElement('span');
+          dots.className = 'page-info';
+          dots.textContent = '…';
+          container.appendChild(dots);
+        }
+        const last = document.createElement('button');
+        last.className = 'page-btn';
+        last.textContent = totalPages;
+        last.addEventListener('click', () => onPageChange((totalPages - 1) * limit));
+        container.appendChild(last);
+      }
+
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'page-btn';
+      nextBtn.textContent = 'Next ›';
+      nextBtn.disabled = currentPage >= totalPages;
+      nextBtn.addEventListener('click', () => onPageChange(currentPage * limit));
+      container.appendChild(nextBtn);
+
+      const info = document.createElement('span');
+      info.className = 'page-info';
+      const from = offset + 1;
+      const to = Math.min(offset + limit, total);
+      info.textContent = from + '–' + to + ' of ' + total;
+      container.appendChild(info);
+    }
+
     async function loadVideos() {
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       statsRow.innerHTML = '';
+      videoPagination.innerHTML = '';
 
       try {
-        const res = await fetch('/api/admin/videos', {
+        const params = new URLSearchParams({ limit: PAGE_SIZE, offset: videoOffset });
+        const res = await fetch('/api/admin/videos?' + params, {
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
 
@@ -388,19 +495,23 @@
 
         const data = await res.json();
         const videos = data.videos || [];
+        const total = data.total || 0;
 
-        const totalSize = videos.reduce((s, v) => s + (v.file_size || 0), 0);
-        const totalViews = videos.reduce((s, v) => s + (v.view_count || 0), 0);
-        const expiredCount = videos.filter(v => v.expires_at && new Date(v.expires_at) < new Date()).length;
+        const maxOffset = Math.max(0, (Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE);
+        if (videoOffset > maxOffset) {
+          videoOffset = maxOffset;
+          loadVideos();
+          return;
+        }
 
         statsRow.innerHTML = `
-          <div class="stat-card"><div class="stat-val">${videos.length}</div><div class="stat-label">Total videos</div></div>
-          <div class="stat-card"><div class="stat-val">${formatBytes(totalSize)}</div><div class="stat-label">Storage used</div></div>
-          <div class="stat-card"><div class="stat-val">${totalViews.toLocaleString()}</div><div class="stat-label">Total views</div></div>
-          <div class="stat-card"><div class="stat-val">${expiredCount}</div><div class="stat-label">Expired</div></div>
+          <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total videos</div></div>
+          <div class="stat-card"><div class="stat-val">${formatBytes(data.total_size)}</div><div class="stat-label">Storage used</div></div>
+          <div class="stat-card"><div class="stat-val">${(data.total_views || 0).toLocaleString()}</div><div class="stat-label">Total views</div></div>
+          <div class="stat-card"><div class="stat-val">${data.expired_count || 0}</div><div class="stat-label">Expired</div></div>
         `;
 
-        if (!videos.length) {
+        if (!videos.length && total === 0) {
           videoList.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div>No videos uploaded yet.</div></div>`;
           return;
         }
@@ -435,7 +546,7 @@
                 headers: { 'Authorization': 'Bearer ' + adminToken }
               });
               if (dr.status === 401 || dr.status === 403) { logout({ expired: true }); return; }
-              if (dr.ok) row.remove();
+              if (dr.ok) { loadVideos(); return; }
               else {
                 this.disabled = false; this.textContent = 'Delete';
                 const data = await dr.json().catch(() => ({}));
@@ -446,6 +557,11 @@
           });
           videoList.appendChild(row);
         }
+
+        renderPagination(videoPagination, total, PAGE_SIZE, videoOffset, function(newOffset) {
+          videoOffset = newOffset;
+          loadVideos();
+        });
       } catch (err) {
         videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
       }
@@ -453,10 +569,16 @@
 
     async function loadUsers() {
       userList.innerHTML = '<div class="loading-spinner"></div>';
-      userFilterBar.style.display = 'none';
+      userPagination.innerHTML = '';
       userCountEl.style.display = 'none';
       try {
-        const res = await fetch('/api/admin/users', {
+        const params = new URLSearchParams({ limit: PAGE_SIZE, offset: userOffset });
+        const searchVal = userSearchInput.value.trim();
+        const tierVal = userTierFilter.value;
+        if (searchVal) params.set('search', searchVal);
+        if (tierVal && tierVal !== 'all') params.set('tier', tierVal);
+
+        const res = await fetch('/api/admin/users?' + params, {
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
         if (res.status === 401 || res.status === 403) { logout({ expired: true }); return; }
@@ -467,16 +589,125 @@
           return;
         }
         const data = await res.json();
-        allUsers = data.users || [];
+        const users = data.users || [];
+        const total = data.total || 0;
         usersLoaded = true;
 
-        if (!allUsers.length) {
+        userFilterBar.style.display = 'flex';
+
+        if (searchVal || tierVal !== 'all') {
+          userCountEl.textContent = total + ' user' + (total === 1 ? '' : 's') + ' found';
+          userCountEl.style.display = 'block';
+        }
+
+        if (!users.length && total === 0 && !searchVal && tierVal === 'all') {
           userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👤</div><div>No registered users yet.</div></div>`;
           return;
         }
 
-        userFilterBar.style.display = 'flex';
-        renderUsers();
+        if (!users.length) {
+          userList.innerHTML = '<div class="empty-state"><div>No users match your filters.</div></div>';
+          return;
+        }
+
+        const maxOffset = Math.max(0, (Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE);
+        if (userOffset > maxOffset) {
+          userOffset = maxOffset;
+          loadUsers();
+          return;
+        }
+
+        userList.innerHTML = '';
+        for (const u of users) {
+          const row = document.createElement('div');
+          row.className = 'user-row';
+
+          const main = document.createElement('div');
+          main.className = 'user-main';
+
+          const emailDiv = document.createElement('div');
+          emailDiv.className = 'user-email';
+          emailDiv.textContent = u.email;
+          main.appendChild(emailDiv);
+
+          const meta = document.createElement('div');
+          meta.className = 'user-meta';
+
+          const joinSpan = document.createElement('span');
+          joinSpan.textContent = 'Joined ' + formatDate(u.created_at);
+          meta.appendChild(joinSpan);
+
+          const countSpan = document.createElement('span');
+          countSpan.textContent = u.video_count + ' video' + (u.video_count === 1 ? '' : 's');
+          meta.appendChild(countSpan);
+
+          const badge = document.createElement('span');
+          badge.className = 'badge ' + (u.is_paid ? 'badge-paid' : 'badge-free');
+          badge.textContent = u.is_paid ? 'Paid' : 'Free';
+          meta.appendChild(badge);
+
+          main.appendChild(meta);
+          row.appendChild(main);
+
+          const toggleLabel = document.createElement('label');
+          toggleLabel.className = 'tier-toggle';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = u.is_paid;
+          checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
+          toggleLabel.appendChild(checkbox);
+
+          const slider = document.createElement('span');
+          slider.className = 'slider';
+          toggleLabel.appendChild(slider);
+
+          const label = document.createElement('span');
+          label.className = 'tier-label ' + (u.is_paid ? 'tier-label-paid' : 'tier-label-free');
+          label.textContent = u.is_paid ? 'Paid' : 'Free';
+          toggleLabel.appendChild(label);
+
+          row.appendChild(toggleLabel);
+
+          checkbox.addEventListener('change', async () => {
+            const newPaid = checkbox.checked;
+            checkbox.disabled = true;
+            try {
+              const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': 'Bearer ' + adminToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_paid: newPaid })
+              });
+              if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
+              if (!pr.ok) {
+                checkbox.checked = !newPaid;
+                const data = await pr.json().catch(() => ({}));
+                const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
+                alert(typeof msg === 'string' ? msg : 'Update failed.');
+              } else {
+                u.is_paid = newPaid;
+                label.textContent = newPaid ? 'Paid' : 'Free';
+                label.className = 'tier-label ' + (newPaid ? 'tier-label-paid' : 'tier-label-free');
+                badge.textContent = newPaid ? 'Paid' : 'Free';
+                badge.className = 'badge ' + (newPaid ? 'badge-paid' : 'badge-free');
+              }
+            } catch {
+              checkbox.checked = !newPaid;
+              alert('Network error. Could not update user tier.');
+            }
+            checkbox.disabled = false;
+          });
+
+          userList.appendChild(row);
+        }
+
+        renderPagination(userPagination, total, PAGE_SIZE, userOffset, function(newOffset) {
+          userOffset = newOffset;
+          loadUsers();
+        });
       } catch (err) {
         const errDiv = document.createElement('div');
         errDiv.className = 'empty-state';
@@ -485,114 +716,6 @@
         errDiv.appendChild(errMsg);
         userList.innerHTML = '';
         userList.appendChild(errDiv);
-      }
-    }
-
-    function renderUsers() {
-      const query = userSearchInput.value.trim().toLowerCase();
-      const tier = userTierFilter.value;
-
-      const filtered = allUsers.filter(u => {
-        if (query && !u.email.toLowerCase().includes(query)) return false;
-        if (tier === 'paid' && !u.is_paid) return false;
-        if (tier === 'free' && u.is_paid) return false;
-        return true;
-      });
-
-      if (query || tier !== 'all') {
-        userCountEl.textContent = filtered.length + ' of ' + allUsers.length + ' user' + (allUsers.length === 1 ? '' : 's');
-        userCountEl.style.display = 'block';
-      } else {
-        userCountEl.style.display = 'none';
-      }
-
-      if (!filtered.length) {
-        userList.innerHTML = '<div class="empty-state"><div>No users match your filters.</div></div>';
-        return;
-      }
-
-      userList.innerHTML = '';
-      for (const u of filtered) {
-        const row = document.createElement('div');
-        row.className = 'user-row';
-
-        const main = document.createElement('div');
-        main.className = 'user-main';
-
-        const emailDiv = document.createElement('div');
-        emailDiv.className = 'user-email';
-        emailDiv.textContent = u.email;
-        main.appendChild(emailDiv);
-
-        const meta = document.createElement('div');
-        meta.className = 'user-meta';
-
-        const joinSpan = document.createElement('span');
-        joinSpan.textContent = 'Joined ' + formatDate(u.created_at);
-        meta.appendChild(joinSpan);
-
-        const countSpan = document.createElement('span');
-        countSpan.textContent = u.video_count + ' video' + (u.video_count === 1 ? '' : 's');
-        meta.appendChild(countSpan);
-
-        const badge = document.createElement('span');
-        badge.className = 'badge ' + (u.is_paid ? 'badge-paid' : 'badge-free');
-        badge.textContent = u.is_paid ? 'Paid' : 'Free';
-        meta.appendChild(badge);
-
-        main.appendChild(meta);
-        row.appendChild(main);
-
-        const toggleLabel = document.createElement('label');
-        toggleLabel.className = 'tier-toggle';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = u.is_paid;
-        checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
-        toggleLabel.appendChild(checkbox);
-
-        const slider = document.createElement('span');
-        slider.className = 'slider';
-        toggleLabel.appendChild(slider);
-
-        const label = document.createElement('span');
-        label.className = 'tier-label ' + (u.is_paid ? 'tier-label-paid' : 'tier-label-free');
-        label.textContent = u.is_paid ? 'Paid' : 'Free';
-        toggleLabel.appendChild(label);
-
-        row.appendChild(toggleLabel);
-
-        checkbox.addEventListener('change', async () => {
-          const newPaid = checkbox.checked;
-          checkbox.disabled = true;
-          try {
-            const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
-              method: 'PATCH',
-              headers: {
-                'Authorization': 'Bearer ' + adminToken,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ is_paid: newPaid })
-            });
-            if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
-            if (!pr.ok) {
-              checkbox.checked = !newPaid;
-              const data = await pr.json().catch(() => ({}));
-              const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
-              alert(typeof msg === 'string' ? msg : 'Update failed.');
-            } else {
-              u.is_paid = newPaid;
-              renderUsers();
-            }
-          } catch {
-            checkbox.checked = !newPaid;
-            alert('Network error. Could not update user tier.');
-          }
-          checkbox.disabled = false;
-        });
-
-        userList.appendChild(row);
       }
     }
 
@@ -630,6 +753,8 @@
       dashboard.style.display = 'block';
       logoutBtn.style.display = 'inline-block';
       usersLoaded = false;
+      videoOffset = 0;
+      userOffset = 0;
       resetTabs();
       loadVideos();
     }
@@ -646,7 +771,8 @@
       loginNotice.classList.toggle('visible', !!expired);
       loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
       usersLoaded = false;
-      allUsers = [];
+      videoOffset = 0;
+      userOffset = 0;
       userSearchInput.value = '';
       userTierFilter.value = 'all';
       userFilterBar.style.display = 'none';
@@ -657,15 +783,19 @@
     loginBtn.addEventListener('click', tryLogin);
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
-    refreshBtn.addEventListener('click', loadVideos);
+    refreshBtn.addEventListener('click', () => { videoOffset = 0; loadVideos(); });
     refreshUsersBtn.addEventListener('click', () => {
       usersLoaded = false;
+      userOffset = 0;
       userSearchInput.value = '';
       userTierFilter.value = 'all';
       loadUsers();
     });
-    userSearchInput.addEventListener('input', renderUsers);
-    userTierFilter.addEventListener('change', renderUsers);
+    userSearchInput.addEventListener('input', () => {
+      clearTimeout(userSearchDebounce);
+      userSearchDebounce = setTimeout(() => { userOffset = 0; loadUsers(); }, 300);
+    });
+    userTierFilter.addEventListener('change', () => { userOffset = 0; loadUsers(); });
 
     if (adminToken) showDashboard();
     else loginScreen.style.display = 'flex';
