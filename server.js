@@ -426,7 +426,7 @@ app.use((req, res, next) => {
   res.setHeader('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net https://www.youtube.com https://player.vimeo.com https://browser.sentry-cdn.com",
+    "script-src 'self' https://fast.wistia.com https://fast.wistia.net https://www.youtube.com https://player.vimeo.com https://browser.sentry-cdn.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data: https://fast.wistia.com https://fast.wistia.net",

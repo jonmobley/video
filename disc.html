@@ -327,97 +327,12 @@
     <!-- Video Modal -->
     <div class="video-modal" id="video-modal">
         <div class="video-modal-content">
-            <button class="video-close" onclick="closeVideo()">×</button>
+            <button class="video-close">×</button>
             <div class="wistia-player" id="wistia-player"></div>
         </div>
     </div>
 
     <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
-    <script>
-        function loadWistiaVideo(wistiaId, title) {
-            const videoContainer = document.getElementById('wistia-player');
-            const modal = document.getElementById('video-modal');
-            
-            // Clear existing video
-            videoContainer.innerHTML = '';
-            
-            // Create new Wistia embed
-            videoContainer.innerHTML = `<div id="wistia_${wistiaId}" class="wistia_embed wistia_async_${wistiaId}" style="height:100%;width:100%">&nbsp;</div>`;
-            
-            // Show modal
-            modal.classList.add('active');
-            
-            // Set active video styling
-            document.querySelectorAll('.video-item').forEach(item => item.classList.remove('active'));
-            document.querySelector(`[data-wistia="${wistiaId}"]`).classList.add('active');
-            
-            // Initialize Wistia if available
-            if (window.Wistia) {
-                window.Wistia.api(wistiaId, function(video) {
-                    console.log('Wistia video ready:', wistiaId);
-                });
-            }
-        }
-
-        function closeVideo() {
-            const modal = document.getElementById('video-modal');
-            const videoContainer = document.getElementById('wistia-player');
-            
-            // Hide modal
-            modal.classList.remove('active');
-            
-            // Clear video
-            videoContainer.innerHTML = '';
-            
-            // Remove active styling
-            document.querySelectorAll('.video-item').forEach(item => item.classList.remove('active'));
-        }
-
-        function attachVideoListeners() {
-            document.querySelectorAll('.video-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    loadWistiaVideo(item.dataset.wistia, item.dataset.title);
-                });
-            });
-        }
-
-        function attachTagListeners() {
-            document.querySelectorAll('.tag').forEach(tag => {
-                tag.addEventListener('click', () => {
-                    document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
-                    tag.classList.add('active');
-
-                    const category = tag.dataset.category;
-                    document.querySelectorAll('.video-item').forEach(item => {
-                        if (category === 'all' || item.dataset.category === category) {
-                            item.classList.remove('hidden');
-                        } else {
-                            item.classList.add('hidden');
-                        }
-                    });
-                });
-            });
-        }
-
-        // Close modal when clicking outside
-        document.addEventListener('click', function(e) {
-            const modal = document.getElementById('video-modal');
-            if (e.target === modal) {
-                closeVideo();
-            }
-        });
-
-        // Close modal with Escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeVideo();
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            attachVideoListeners();
-            attachTagListeners();
-        });
-    </script>
+    <script src="js/disc-app.js"></script>
 </body>
 </html>

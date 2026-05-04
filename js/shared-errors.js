@@ -21,7 +21,7 @@ function showError(errorType) {
             <div style="font-size: 48px; margin-bottom: 16px;" aria-hidden="true">${icon}</div>
             <h3 style="color: #fff; font-size: 20px; font-weight: 600; margin: 0 0 8px 0;">${headline}</h3>
             <p style="color: #aaa; font-size: 15px; margin: 0 0 24px 0; max-width: 400px; margin-left: auto; margin-right: auto;">${subtitle}</p>
-            <button onclick="loadVideosFromServer()" style="padding: 10px 24px; background: var(--accent-color, #008f67); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">Try Again</button>
+            <button data-action="reload-videos" style="padding: 10px 24px; background: var(--accent-color, #008f67); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 500; transition: opacity 0.2s;">Try Again</button>
         </div>
     `;
 }

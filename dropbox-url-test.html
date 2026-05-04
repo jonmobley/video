@@ -205,7 +205,7 @@
         
         <div class="input-group">
             <input type="text" id="dropbox-url" placeholder="https://www.dropbox.com/s/xxxxx/video.mp4?dl=0" />
-            <button onclick="testDropboxUrl()">Test URL</button>
+            <button id="test-url-btn">Test URL</button>
         </div>
         
         <div class="examples">
@@ -269,107 +269,6 @@
     </div>
     
     <script src="js/dropbox-url-handler.js"></script>
-    <script>
-        async function testDropboxUrl() {
-            const input = document.getElementById('dropbox-url');
-            const url = input.value.trim();
-            
-            if (!url) {
-                showStatus('error', 'Please enter a Dropbox URL');
-                return;
-            }
-            
-            showStatus('info', 'Processing URL...<span class="loading"></span>');
-            
-            try {
-                // Convert URL
-                const converted = DropboxURLHandler.convertToDirectUrl(url);
-                console.log('Converted:', converted);
-                
-                // Display URL info
-                document.getElementById('url-info').style.display = 'block';
-                document.getElementById('original-url').textContent = converted.originalUrl;
-                document.getElementById('direct-url').textContent = converted.directUrl;
-                document.getElementById('filename').textContent = converted.filename;
-                document.getElementById('title').textContent = converted.title;
-                
-                // Check if it's a supported video format
-                if (!DropboxURLHandler.isSupportedVideoFormat(url)) {
-                    showStatus('error', 'Warning: This may not be a supported video format');
-                }
-                
-                // Extract full metadata
-                const metadata = DropboxURLHandler.extractMetadata(url);
-                console.log('Metadata:', metadata);
-                
-                // Load video
-                const videoSection = document.getElementById('video-section');
-                const video = document.getElementById('test-video');
-                
-                videoSection.style.display = 'block';
-                video.src = converted.directUrl;
-                
-                // Set up video event handlers
-                video.onloadedmetadata = async () => {
-                    showStatus('success', 'Video loaded successfully!');
-                    
-                    // Display video info
-                    document.getElementById('video-info').style.display = 'block';
-                    document.getElementById('video-duration').textContent = formatDuration(video.duration);
-                    document.getElementById('video-resolution').textContent = `${video.videoWidth} × ${video.videoHeight}`;
-                    document.getElementById('video-id').textContent = metadata.id;
-                    
-                    // Try to get more video info (including thumbnail)
-                    showStatus('info', 'Generating thumbnail...<span class="loading"></span>');
-                    const videoInfo = await DropboxURLHandler.getVideoInfo(converted.directUrl);
-                    
-                    if (videoInfo.thumbnail) {
-                        document.getElementById('thumbnail-preview').style.display = 'block';
-                        document.getElementById('thumbnail-img').src = videoInfo.thumbnail;
-                        showStatus('success', 'Video loaded and thumbnail generated successfully!');
-                    } else {
-                        showStatus('success', 'Video loaded successfully! (Thumbnail generation failed)');
-                    }
-                };
-                
-                video.onerror = (e) => {
-                    console.error('Video error:', e);
-                    showStatus('error', 'Failed to load video. The URL may be invalid or the video may not be publicly accessible.');
-                };
-                
-            } catch (error) {
-                console.error('Error:', error);
-                showStatus('error', error.message || 'Failed to process URL');
-            }
-        }
-        
-        function formatDuration(seconds) {
-            if (!seconds || isNaN(seconds)) return 'Unknown';
-            
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = Math.floor(seconds % 60);
-            
-            if (hours > 0) {
-                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            } else {
-                return `${minutes}:${secs.toString().padStart(2, '0')}`;
-            }
-        }
-        
-        function showStatus(type, message) {
-            const statusEl = document.getElementById('status-message');
-            statusEl.className = `status ${type}`;
-            statusEl.innerHTML = message;
-            statusEl.style.display = 'block';
-        }
-        
-        // Allow Enter key to submit
-        document.getElementById('dropbox-url').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                testDropboxUrl();
-            }
-        });
-    </script>
+    <script src="js/dropbox-url-test-app.js"></script>
 </body>
 </html>
