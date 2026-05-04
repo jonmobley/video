@@ -198,7 +198,8 @@
       border-radius: 10px; font-size: 0.85rem; font-weight: 600;
       cursor: pointer; font-family: inherit; margin-bottom: 24px;
     }
-    .refresh-btn:hover { background: #3A3A3C; }
+    .refresh-btn:hover:not(:disabled) { background: #3A3A3C; }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .filter-bar {
       display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
@@ -502,6 +503,8 @@
     }
 
     async function loadVideos() {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Loading…';
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoFilterBar.style.display = 'none';
       videoCountEl.style.display = 'none';
@@ -538,7 +541,7 @@
         const maxOffset = Math.max(0, (Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE);
         if (videoOffset > maxOffset) {
           videoOffset = maxOffset;
-          loadVideos();
+          await loadVideos();
           return;
         }
 
@@ -617,10 +620,15 @@
         });
       } catch (err) {
         videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = '↻ Refresh';
       }
     }
 
     async function loadUsers() {
+      refreshUsersBtn.disabled = true;
+      refreshUsersBtn.textContent = 'Loading…';
       userList.innerHTML = '<div class="loading-spinner"></div>';
       userPagination.innerHTML = '';
       userCountEl.style.display = 'none';
@@ -666,7 +674,7 @@
         const maxOffset = Math.max(0, (Math.ceil(total / PAGE_SIZE) - 1) * PAGE_SIZE);
         if (userOffset > maxOffset) {
           userOffset = maxOffset;
-          loadUsers();
+          await loadUsers();
           return;
         }
 
@@ -773,6 +781,9 @@
         errDiv.appendChild(errMsg);
         userList.innerHTML = '';
         userList.appendChild(errDiv);
+      } finally {
+        refreshUsersBtn.disabled = false;
+        refreshUsersBtn.textContent = '↻ Refresh';
       }
     }
 
@@ -852,6 +863,7 @@
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
     refreshBtn.addEventListener('click', () => {
+      if (refreshBtn.disabled) return;
       videoOffset = 0;
       videoSearchState = '';
       videoStatusState = 'all';
@@ -860,6 +872,7 @@
       loadVideos();
     });
     refreshUsersBtn.addEventListener('click', () => {
+      if (refreshUsersBtn.disabled) return;
       usersLoaded = false;
       userOffset = 0;
       userSearchInput.value = '';
