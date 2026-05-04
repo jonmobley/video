@@ -128,6 +128,15 @@
         .hero-drop input[type="file"] {
             position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
         }
+        .hero-drop.reject {
+            border-color: #ff6b6b;
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
 
         .trust-row {
             display: flex;
@@ -190,8 +199,8 @@
             <p class="sub">
                 Upload your video and get a clean shareable link. No signup required, no app to install — just drop a file and send the link.
             </p>
-            <div class="hero-drop" id="heroDropZone" style="position:relative;">
-                <input type="file" accept="video/*" id="heroFileInput">
+            <div class="hero-drop" id="heroDropZone" role="button" aria-label="Upload a video — click to browse or drag and drop" tabindex="0" style="position:relative;">
+                <input type="file" accept="video/*" id="heroFileInput" tabindex="-1">
                 <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
                     <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
@@ -243,6 +252,16 @@
           var file = e.dataTransfer.files[0];
           if (file && file.type.startsWith('video/')) {
             window.openUploadModal(file);
+          } else if (file) {
+            dropZone.classList.add('reject');
+            setTimeout(function () { dropZone.classList.remove('reject'); }, 500);
+          }
+        });
+
+        dropZone.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInput.click();
           }
         });
       })();
