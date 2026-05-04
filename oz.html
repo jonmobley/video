@@ -2840,9 +2840,8 @@ Main page structure with:
     <script src="js/shared-color-utils.js"></script>
     <script src="js/shared-page-config.js"></script>
     <script src="js/shared-url-utils.js"></script>
+    <script src="js/shared-cache-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
-    <!-- oz.html uses all functions from shared-thumbnail-utils.js, passing ozCacheOptions
-         for caching support via getCachedMetadata/setCachedMetadata/getOptimizedThumbnailUrl -->
     
     <!-- 
     ========================================================================
@@ -3413,7 +3412,7 @@ Main page structure with:
                     <div class="video-item" data-category="${video.category.replace(/"/g, '&quot;')}" data-tags="${tagsString.replace(/"/g, '&quot;')}" data-title="${video.title.replace(/"/g, '&quot;')}" data-wistia="${video.wistiaId}">
                         <button class="video-delete-btn" onclick="deleteVideo(event, '${video.wistiaId}')" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${video.wistiaId}">
-                            <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}', ozCacheOptions)">
+                            <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}', defaultCacheOptions)">
                             <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
@@ -3475,16 +3474,13 @@ Main page structure with:
             }
         }
 
-        // Cache for video metadata to avoid repeat API calls
-        const videoMetadataCache = new Map();
-        const METADATA_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
         // Initialize lazy loading with Intersection Observer
         function initializeLazyLoading(videos) {
             // Load immediately visible videos (above the fold)
             const immediateVideos = videos.slice(0, 6); // First 6 videos load immediately
             immediateVideos.forEach(video => {
-                loadVideoDuration(video.wistiaId, ozCacheOptions);
+                loadVideoDuration(video.wistiaId, defaultCacheOptions);
             });
 
             // Set up lazy loading for remaining videos
@@ -3507,7 +3503,7 @@ Main page structure with:
                     if (entry.isIntersecting) {
                         const wistiaId = entry.target.dataset.wistia;
                         if (wistiaId) {
-                            loadVideoDuration(wistiaId, ozCacheOptions);
+                            loadVideoDuration(wistiaId, defaultCacheOptions);
                             observer.unobserve(entry.target); // Stop observing once loaded
                         }
                     }
@@ -3523,53 +3519,6 @@ Main page structure with:
             });
         }
 
-        // Get cached metadata or return null
-        function getCachedMetadata(wistiaId) {
-            const cacheKey = `wistia_${wistiaId}`;
-            try {
-                const cached = localStorage.getItem(cacheKey);
-                if (cached) {
-                    const data = JSON.parse(cached);
-                    const now = Date.now();
-                    if (now - data.timestamp < METADATA_CACHE_DURATION) {
-                        return data.metadata;
-                    } else {
-                        // Cache expired, remove it
-                        localStorage.removeItem(cacheKey);
-                    }
-                }
-            } catch (error) {
-                console.warn('Cache read error:', error);
-            }
-            return null;
-        }
-
-        // Cache metadata
-        function setCachedMetadata(wistiaId, metadata) {
-            const cacheKey = `wistia_${wistiaId}`;
-            try {
-                const cacheData = {
-                    metadata: metadata,
-                    timestamp: Date.now()
-                };
-                localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-            } catch (error) {
-                console.warn('Cache write error:', error);
-            }
-        }
-
-        function getOptimizedThumbnailUrl(url) {
-            if (url && url.includes('embed-ssl.wistia.com')) {
-                return url.replace('image.png', 'image.png?image_resize=640');
-            }
-            return url;
-        }
-
-        const ozCacheOptions = {
-            getCached: getCachedMetadata,
-            setCached: setCachedMetadata,
-            transformUrl: getOptimizedThumbnailUrl
-        };
 
         // Hide category dropdown if all videos have 'all' category
         function hideCategoryDropdownIfAllVideosAreAll(videos) {
@@ -6243,7 +6192,7 @@ Main page structure with:
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${video.wistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}', ozCacheOptions)">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" style="width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; background: #2a2a2a;" onerror="loadWistiaThumbnail('${video.wistiaId}', defaultCacheOptions)">
                     <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
@@ -6278,8 +6227,8 @@ Main page structure with:
             
             // Load thumbnail and duration (don't await to avoid blocking popup closure)
             try {
-                loadWistiaThumbnail(video.wistiaId, ozCacheOptions);
-                loadVideoDuration(video.wistiaId, ozCacheOptions);
+                loadWistiaThumbnail(video.wistiaId, defaultCacheOptions);
+                loadVideoDuration(video.wistiaId, defaultCacheOptions);
                 console.log('🎬 DEBUG: Thumbnail and duration loading initiated');
             } catch (error) {
                 console.warn('🎬 WARNING: Non-critical error loading video metadata:', error);
