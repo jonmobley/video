@@ -377,6 +377,7 @@
     let userOffset = 0;
     let userSearchDebounce = null;
     const pendingTierToggles = new Set();
+    const pendingDeletes = new Set();
     let videoSearchDebounce = null;
     let videoSearchState = '';
     let videoStatusState = 'all';
@@ -583,27 +584,29 @@
             </div>
             <div class="video-actions">
               <a class="watch-lnk" href="/watch?id=${encodeURIComponent(v.id)}" target="_blank">Watch</a>
-              <button class="del-btn" data-id="${v.id}">Delete</button>
+              <button class="del-btn" data-id="${v.id}"${pendingDeletes.has(v.id) ? ' disabled' : ''}>${pendingDeletes.has(v.id) ? '…' : 'Delete'}</button>
             </div>
           `;
           row.querySelector('.del-btn').addEventListener('click', async function() {
             if (this.disabled) return;
             if (!confirm('Delete this video? This cannot be undone.')) return;
             this.disabled = true; this.textContent = '…';
+            pendingDeletes.add(v.id);
             try {
               const dr = await fetch('/api/admin/video/' + encodeURIComponent(v.id), {
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer ' + adminToken }
               });
-              if (dr.status === 401 || dr.status === 403) { logout({ expired: true }); return; }
-              if (dr.ok) { loadVideos(); return; }
+              if (dr.status === 401 || dr.status === 403) { pendingDeletes.delete(v.id); logout({ expired: true }); return; }
+              if (dr.ok) { pendingDeletes.delete(v.id); loadVideos(); return; }
               else {
+                pendingDeletes.delete(v.id);
                 this.disabled = false; this.textContent = 'Delete';
                 const data = await dr.json().catch(() => ({}));
                 const msg = (data && data.error && (data.error.message || data.error)) || 'Delete failed.';
                 alert(typeof msg === 'string' ? msg : 'Delete failed.');
               }
-            } catch { this.disabled = false; this.textContent = 'Delete'; }
+            } catch { pendingDeletes.delete(v.id); this.disabled = false; this.textContent = 'Delete'; }
           });
           videoList.appendChild(row);
         }
@@ -811,6 +814,7 @@
       userOffset = 0;
       videoSearchState = '';
       videoStatusState = 'all';
+      pendingDeletes.clear();
       resetTabs();
       loadVideos();
     }
@@ -829,6 +833,8 @@
       usersLoaded = false;
       videoOffset = 0;
       userOffset = 0;
+      pendingDeletes.clear();
+      pendingTierToggles.clear();
       userSearchInput.value = '';
       userTierFilter.value = 'all';
       userFilterBar.style.display = 'none';
