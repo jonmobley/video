@@ -368,6 +368,7 @@
     let videoOffset = 0;
     let userOffset = 0;
     let userSearchDebounce = null;
+    const pendingTierToggles = new Set();
     let videoSearchDebounce = null;
     let videoSearchState = '';
     let videoStatusState = 'all';
@@ -697,6 +698,7 @@
           checkbox.type = 'checkbox';
           checkbox.checked = u.is_paid;
           checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
+          if (pendingTierToggles.has(u.id)) checkbox.disabled = true;
           toggleLabel.appendChild(checkbox);
 
           const slider = document.createElement('span');
@@ -713,6 +715,7 @@
           checkbox.addEventListener('change', async () => {
             const newPaid = checkbox.checked;
             checkbox.disabled = true;
+            pendingTierToggles.add(u.id);
             try {
               const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
                 method: 'PATCH',
@@ -735,8 +738,10 @@
             } catch {
               checkbox.checked = !newPaid;
               alert('Network error. Could not update user tier.');
+            } finally {
+              pendingTierToggles.delete(u.id);
+              checkbox.disabled = false;
             }
-            checkbox.disabled = false;
           });
 
           userList.appendChild(row);
