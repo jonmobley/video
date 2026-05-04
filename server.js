@@ -265,6 +265,8 @@ async function ensureSchema() {
     );
     ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_vs_uploads_uploaded_at ON vs_uploads(uploaded_at);
+    CREATE INDEX IF NOT EXISTS idx_vs_upload_chunks_created_at ON vs_upload_chunks(created_at);
 
     -- Embed-link videos (YouTube/Vimeo). platform = 'upload' for legacy/native
     -- uploads, 'youtube' or 'vimeo' for pasted links. embed_video_id holds the
