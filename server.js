@@ -1091,9 +1091,13 @@ app.get('/api/video/:id', async (req, res) => {
 app.get('/api/admin/videos', requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
-              (password_hash IS NOT NULL) as has_password
-       FROM vs_uploads ORDER BY uploaded_at DESC`
+      `SELECT u.id, u.title, u.content_type, u.uploaded_at, u.expires_at,
+              u.view_count, u.file_size,
+              (u.password_hash IS NOT NULL) as has_password,
+              COALESCE(usr.is_paid, FALSE) as owner_is_paid
+       FROM vs_uploads u
+       LEFT JOIN vs_users usr ON u.user_id = usr.id
+       ORDER BY u.uploaded_at DESC`
     );
     res.json({ videos: result.rows });
   } catch (err) {

@@ -45,7 +45,7 @@ The application's architecture separates frontend and backend concerns.
     - **User Accounts**: Optional user registration to manage personal video uploads.
     - **Video Upload & Sharing**: Dedicated `/upload` page for chunked video uploads with progress tracking, auto-copy share links, QR code generation, and optional password protection.
     - **Watch Page**: Displays video, title, expiry countdown, view count, and mobile-native share sheet.
-    - **Admin Page (`/admin`)**: Provides statistics, video management, and user tier management for administrators. The dashboard has tabbed navigation: a "Videos" tab (default) lists all uploaded videos with stats and delete actions, and a "Users" tab lists all registered users with their email, join date, video count, and a toggle switch to change each user between Free and Paid tiers. The `GET /api/admin/users` endpoint returns all users with video counts, and the existing `PATCH /api/admin/users/:id/tier` endpoint handles tier changes.
+    - **Admin Page (`/admin`)**: Provides statistics, video management, and user tier management for administrators. The dashboard has tabbed navigation: a "Videos" tab (default) lists all uploaded videos with stats and delete actions, and a "Users" tab lists all registered users with their email, join date, video count, and a toggle switch to change each user between Free and Paid tiers. The `GET /api/admin/users` endpoint returns all users with video counts, and the existing `PATCH /api/admin/users/:id/tier` endpoint handles tier changes. The admin video list shows "∞ No expiry" badges (teal) for paid users' videos and plain "No expiry" badges (green) for non-paid users' videos, consistent with the account dashboard indicator.
 
 ## External Dependencies
 
