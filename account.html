@@ -900,6 +900,7 @@
 
     let tpState = null; // { videoId, selection, frames: [{base64,contentType}], custom }
     const tpFrameCache = new Map();
+    const TP_FRAME_CACHE_MAX = 20;
 
     function setTpError(msg) { tpError.textContent = msg || ''; }
 
@@ -1085,6 +1086,8 @@
 
       const cached = tpFrameCache.get(videoId);
       if (cached) {
+        tpFrameCache.delete(videoId);
+        tpFrameCache.set(videoId, cached);
         tpState.frames = cached;
         let any = false;
         cached.forEach((f, idx) => {
@@ -1111,6 +1114,10 @@
       if (!tpState || tpState.videoId !== videoId) return;
       tpState.frames = frames;
       tpFrameCache.set(videoId, frames);
+      while (tpFrameCache.size > TP_FRAME_CACHE_MAX) {
+        const oldest = tpFrameCache.keys().next().value;
+        tpFrameCache.delete(oldest);
+      }
 
       const any = frames.some(f => !!f);
       if (!any) {
