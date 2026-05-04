@@ -255,13 +255,6 @@
             text-transform: uppercase;
         }
 
-        .platform-badge.wistia {
-            background: rgba(77, 144, 219, 0.9);
-        }
-
-        .platform-badge.dropbox {
-            background: rgba(0, 143, 103, 0.9);
-        }
 
         .video-info {
             padding: 12px 16px;
@@ -517,8 +510,10 @@
     <script src="js/dropbox-url-handler.js"></script>
     <script src="js/video-platform.js"></script>
     <script src="js/thumbnail-capture.js"></script>
+    <script src="js/shared-platform-config.js"></script>
     
     <script>
+        injectPlatformBadgeStyles('platform-badge');
         // Global variables
         let videos = [];
         let isEditMode = false;
@@ -812,10 +807,10 @@
                     <div class="video-item ${isActive ? 'active' : ''}" data-id="${video.id}" onclick="playVideo('${video.id}')">
                         <div class="thumbnail">
                             ${(video.platform === 'dropbox' && !video.thumbnailUrl) ?
-                                `<div class="thumbnail-placeholder">Dropbox Video</div>` :
+                                `<div class="thumbnail-placeholder">${platformInfo(video).label} Video</div>` :
                                 `<img src="${thumbnailUrl}" alt="${video.title}" onerror="this.style.display='none'">`
                             }
-                            <div class="platform-badge ${video.platform}">${video.platform}</div>
+                            <div class="platform-badge ${platformInfo(video).key}">${platformInfo(video).label}</div>
                         </div>
                         <div class="video-controls">
                             <button onclick="editVideo(event, '${video.id}')">Edit</button>

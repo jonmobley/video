@@ -4,6 +4,7 @@ var PLATFORM_CONFIG = {
   dailymotion: { label: 'Dailymotion',  color: '#0d0d6e' },
   loom:        { label: 'Loom',         color: '#625df5' },
   wistia:      { label: 'Wistia',       color: '#54bbff' },
+  dropbox:     { label: 'Dropbox',      color: 'rgba(0,143,103,0.9)' },
   upload:      { label: 'Upload',       color: 'rgba(78,205,196,0.9)' },
 };
 
