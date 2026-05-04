@@ -85,6 +85,27 @@
     .stat-val { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
     .stat-label { font-size: 0.78rem; color: #959595; text-transform: uppercase; letter-spacing: 0.05em; }
 
+    .stat-card.shimmer .stat-val,
+    .stat-card.shimmer .stat-label {
+      background: linear-gradient(90deg, #2c2c2e 25%, #3a3a3c 50%, #2c2c2e 75%);
+      background-size: 200% 100%;
+      animation: stat-shimmer 1.5s ease-in-out infinite;
+      border-radius: 6px;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      user-select: none;
+    }
+    .stat-card.shimmer .stat-val { width: 60%; min-height: 1.8rem; }
+    .stat-card.shimmer .stat-label { width: 80%; min-height: 0.78rem; margin-top: 4px; }
+    @keyframes stat-shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stat-card.shimmer .stat-val,
+      .stat-card.shimmer .stat-label { animation: none; opacity: 0.7; }
+    }
+
     .section-title {
       font-size: 0.78rem; font-weight: 600; color: #959595;
       text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
@@ -570,7 +591,12 @@
       videoFilterStatus.textContent = 'Loading videos…';
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoCountEl.style.display = 'none';
-      statsRow.innerHTML = '';
+      statsRow.innerHTML = `
+        <div class="stat-card shimmer"><div class="stat-val">&nbsp;</div><div class="stat-label">&nbsp;</div></div>
+        <div class="stat-card shimmer"><div class="stat-val">&nbsp;</div><div class="stat-label">&nbsp;</div></div>
+        <div class="stat-card shimmer"><div class="stat-val">&nbsp;</div><div class="stat-label">&nbsp;</div></div>
+        <div class="stat-card shimmer"><div class="stat-val">&nbsp;</div><div class="stat-label">&nbsp;</div></div>
+      `;
       videoPagination.innerHTML = '';
 
       try {
@@ -597,6 +623,7 @@
           const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load videos';
           videoList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load videos'}</div></div>`;
           videoFilterStatus.textContent = 'Loading failed';
+          statsRow.innerHTML = '';
           return;
         }
 
@@ -691,6 +718,7 @@
         if (err.name === 'AbortError') return;
         videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
         videoFilterStatus.textContent = 'Loading failed';
+        statsRow.innerHTML = '';
       } finally {
         if (!signal.aborted) {
           refreshBtn.disabled = false;
