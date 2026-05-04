@@ -92,6 +92,12 @@ function getIp(req) {
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
+async function isUserPaid(userId) {
+  if (!userId) return false;
+  const r = await pool.query('SELECT is_paid FROM vs_users WHERE id = $1', [userId]);
+  return r.rows.length > 0 && r.rows[0].is_paid === true;
+}
+
 function requireAdmin(req, res, next) {
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
   if (!ADMIN_TOKEN) return apiError(res, 500, 'ADMIN_NOT_CONFIGURED', 'ADMIN_TOKEN not configured on the server.');
@@ -518,7 +524,8 @@ app.post('/api/finalize-video', async (req, res) => {
       );
     }
 
-    const expiresAt = expiryDays && expiryDays !== 'never'
+    const paidUser = await isUserPaid(req.userId);
+    const expiresAt = (!paidUser && expiryDays && expiryDays !== 'never')
       ? new Date(Date.now() + parseInt(expiryDays) * 24 * 60 * 60 * 1000)
       : null;
     const passwordHash = password ? hashPassword(password) : null;
@@ -929,7 +936,8 @@ app.post('/api/create-link-video', async (req, res) => {
       return apiError(res, 429, 'RATE_LIMITED', 'Too many uploads. Please try again in an hour.');
     }
 
-    const expiresAt = expiryDays && expiryDays !== 'never'
+    const paidUser = await isUserPaid(req.userId);
+    const expiresAt = (!paidUser && expiryDays && expiryDays !== 'never')
       ? new Date(Date.now() + parseInt(expiryDays, 10) * 24 * 60 * 60 * 1000)
       : null;
     const passwordHash = password ? hashPassword(password) : null;
@@ -1359,7 +1367,11 @@ app.patch('/api/my-videos/:id', requireUser, express.json(), async (req, res) =>
     }
 
     if (expiryDays !== undefined) {
-      if (expiryDays === null || expiryDays === 'never') {
+      const paidUser = await isUserPaid(req.userId);
+      if (paidUser) {
+        sets.push(`expires_at = $${idx++}`);
+        vals.push(null);
+      } else if (expiryDays === null || expiryDays === 'never') {
         sets.push(`expires_at = $${idx++}`);
         vals.push(null);
       } else {
