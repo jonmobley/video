@@ -28,7 +28,7 @@ body {
         min-height: 44px;
     }
     input, select, textarea {
-        font-size: 16px; /* Prevent iOS auto-zoom on focus */
+        font-size: 16px !important; /* Prevent iOS auto-zoom on focus — !important needed to override inline styles */
     }
 }
 
@@ -107,10 +107,6 @@ body {
 
 /* Responsive design helpers */
 @media (max-width: 768px) {
-    body {
-        padding: 16px;
-    }
-    
     .btn {
         width: 100%;
         justify-content: center;

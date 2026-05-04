@@ -70,6 +70,8 @@
             font-size: 24px;
             cursor: pointer;
             padding: 10px;
+            min-width: 44px;
+            min-height: 44px;
         }
 
         .wistia-player {
@@ -79,6 +81,7 @@
 
         .tags-container {
             padding: 0 40px 20px;
+            overflow-x: auto;
         }
 
         .tags {
@@ -196,11 +199,28 @@
             .page-title {
                 font-size: 24px;
             }
+            .tags-container {
+                padding: 0 20px 16px;
+            }
             .content {
                 padding: 15px 20px 40px;
             }
             .video-grid {
                 grid-template-columns: 1fr;
+            }
+            .video-close {
+                top: 6px;
+                right: 6px;
+                background: rgba(0, 0, 0, 0.7);
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .video-modal-content {
+                width: 95%;
             }
         }
     </style>

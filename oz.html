@@ -376,6 +376,15 @@ Last Updated: 2024
             }
         }
 
+        /* Always show close button on mobile */
+        @media (max-width: 767px) {
+            .video-container.active .video-close-button {
+                opacity: 1;
+                width: 44px;
+                height: 44px;
+            }
+        }
+
         /* Thumbnail close overlay for active videos */
         .thumbnail-close-overlay {
             position: absolute;
@@ -748,6 +757,13 @@ Last Updated: 2024
             gap: 12px;
         }
 
+        /* Single column on small phones */
+        @media (max-width: 480px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Ensure desktop never shows 1 column - minimum 2 columns */
         /* Desktop: 2+ columns starting at 768px */
         @media screen and (min-width: 768px) {
@@ -1080,6 +1096,45 @@ Last Updated: 2024
             display: flex;
             gap: 12px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 600px) {
+            .admin-banner-content {
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 10px 14px;
+            }
+            .admin-banner-buttons {
+                gap: 8px;
+                width: 100%;
+            }
+            .admin-banner-buttons button {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            .admin-save-btn {
+                padding: 8px 14px;
+            }
+            .page-header {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 6px;
+                padding: 12px 14px 0;
+            }
+            .vidshare-logo {
+                justify-self: center;
+            }
+            .page-title {
+                justify-self: center;
+            }
+            .navigation-section {
+                padding: 8px 0;
+            }
+            .category-dropdown {
+                width: 100%;
+                min-width: 0;
+            }
         }
 
         .admin-add-video-btn {
@@ -1137,9 +1192,11 @@ Last Updated: 2024
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 80vw;
+            max-width: 500px;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .add-video-popup h3 {
@@ -1192,6 +1249,7 @@ Last Updated: 2024
             display: flex;
             gap: 12px;
             margin-top: 24px;
+            flex-wrap: wrap;
         }
 
         .btn-add-video, .btn-cancel-add {
@@ -1236,6 +1294,19 @@ Last Updated: 2024
             flex-wrap: wrap;
             gap: 8px;
             padding: 8px 0;
+        }
+
+        @media (max-width: 480px) {
+            .add-video-popup,
+            .edit-video-popup {
+                padding: 22px 16px;
+            }
+            .btn-save-video, .btn-delete-video, .btn-cancel-edit {
+                flex: 1 1 45%;
+            }
+            .btn-add-video, .btn-cancel-add {
+                flex: 1 1 45%;
+            }
         }
 
         .tag-selector {
@@ -1288,9 +1359,11 @@ Last Updated: 2024
             border-radius: 12px;
             padding: 32px;
             width: 90%;
-            max-width: 80vw;
+            max-width: 500px;
             border: 1px solid #333;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .edit-video-popup h3 {
@@ -1305,6 +1378,7 @@ Last Updated: 2024
             display: flex;
             gap: 8px;
             margin-top: 24px;
+            flex-wrap: wrap;
         }
 
         .btn-save-video, .btn-delete-video, .btn-cancel-edit {
@@ -1316,6 +1390,7 @@ Last Updated: 2024
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            min-width: 0;
         }
 
         .btn-save-video {

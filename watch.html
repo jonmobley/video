@@ -125,9 +125,17 @@
       background: none; border: 1px solid #2c2c2e; color: #ddd;
       padding: 6px 14px; border-radius: 999px; font-size: 0.82rem;
       font-weight: 600; cursor: pointer; font-family: inherit;
-      margin-left: 14px; transition: all 0.2s;
+      margin-left: 6px; transition: all 0.2s;
+      min-height: 44px;
     }
     .footer-upload-btn:hover { background: #1c1c1e; border-color: #3a3a3c; color: #fff; }
+    @media (max-width: 360px) {
+      .footer-upload-btn {
+        display: block;
+        margin: 8px auto 0;
+        margin-left: auto;
+      }
+    }
 
     /* ── Loading / error states ──────────────────────────────────────────── */
     .state-overlay {
