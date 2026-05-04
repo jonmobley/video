@@ -1508,6 +1508,47 @@ app.post('/api/my-videos/claim', requireUser, async (req, res) => {
   }
 });
 
+app.post('/api/my-videos/embed-check', requireUser, express.json(), async (req, res) => {
+  try {
+    const { videoIds } = req.body || {};
+    if (!Array.isArray(videoIds) || videoIds.length === 0) {
+      return res.json({ results: {} });
+    }
+    const ids = videoIds
+      .filter(v => typeof v === 'string' && isValidVideoId(v))
+      .slice(0, 50);
+    if (ids.length === 0) return res.json({ results: {} });
+
+    const result = await pool.query(
+      `SELECT id, platform, embed_video_id
+         FROM vs_uploads
+        WHERE id = ANY($1::text[])
+          AND user_id = $2
+          AND embed_video_id IS NOT NULL`,
+      [ids, req.userId]
+    );
+
+    const checks = await Promise.allSettled(
+      result.rows.map(async (v) => {
+        const platform = v.platform || 'upload';
+        const available = await checkEmbedAvailability(platform, v.embed_video_id);
+        return { id: v.id, available };
+      })
+    );
+
+    const results = {};
+    for (const c of checks) {
+      if (c.status === 'fulfilled') {
+        results[c.value.id] = { embedAvailable: c.value.available };
+      }
+    }
+    res.json({ results });
+  } catch (err) {
+    console.error('my-videos embed-check error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not check embed availability.');
+  }
+});
+
 app.delete('/api/my-videos/:id', requireUser, async (req, res) => {
   try {
     const { id } = req.params;

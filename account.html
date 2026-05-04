@@ -95,6 +95,18 @@
     .vc-meta .lock { color: #4ecdc4; }
     .vc-meta .exp { color: #ffb86b; }
     .vc-meta .no-expiry { color: #4ecdc4; }
+    .vc-unavailable {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 999px; font-size: 0.72rem;
+      font-weight: 600; letter-spacing: 0.01em;
+      background: rgba(255,107,107,0.12); color: #ff8e8e;
+      border: 1px solid rgba(255,107,107,0.25);
+      margin-left: 8px; flex-shrink: 0; white-space: nowrap;
+      text-decoration: none; cursor: default;
+    }
+    a.vc-unavailable { cursor: pointer; }
+    a.vc-unavailable:hover { background: rgba(255,107,107,0.2); border-color: rgba(255,107,107,0.4); }
+    .vc-unavailable svg { width: 12px; height: 12px; flex-shrink: 0; }
     .vc-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
     .vc-btn {
       padding: 8px 14px; border-radius: 9px; font-size: 0.82rem; font-weight: 600;
@@ -473,9 +485,7 @@
       }
       const { videos } = await res.json();
       renderVideos(videos);
-      // Fire-and-forget: fill in real frames for older uploads that pre-date
-      // the on-upload thumbnail capture. Runs after the cards are on-screen
-      // so the dashboard never waits on it.
+      checkEmbedStatus(videos);
       backfillThumbnails(videos);
     }
 
@@ -537,6 +547,57 @@
         wrap.insertBefore(img, wrap.firstChild);
         return;
       }
+    }
+
+    const EMBED_PLATFORMS = ['youtube', 'vimeo', 'dailymotion', 'loom', 'wistia'];
+    const WARN_SVG = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 0 1 .87.5l7 12A1 1 0 0 1 17 16H3a1 1 0 0 1-.87-1.5l7-12A1 1 0 0 1 10 2zm0 5a.75.75 0 0 0-.75.75v3.5a.75.75 0 0 0 1.5 0v-3.5A.75.75 0 0 0 10 7zm0 7a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg>';
+
+    function platformSettingsUrl(v) {
+      const eid = v.embed_video_id;
+      if (!eid) return null;
+      const p = (v.platform || '').toLowerCase();
+      if (p === 'youtube') return 'https://www.youtube.com/watch?v=' + encodeURIComponent(eid);
+      if (p === 'vimeo') return 'https://vimeo.com/' + encodeURIComponent(eid.split('/')[0]) + '/settings';
+      if (p === 'dailymotion') return 'https://www.dailymotion.com/video/' + encodeURIComponent(eid);
+      if (p === 'loom') return 'https://www.loom.com/share/' + encodeURIComponent(eid);
+      if (p === 'wistia') return null;
+      return null;
+    }
+
+    async function checkEmbedStatus(videos) {
+      const linked = videos.filter(v =>
+        v.embed_video_id && EMBED_PLATFORMS.includes((v.platform || '').toLowerCase())
+      );
+      if (!linked.length) return;
+      try {
+        const r = await fetch('/api/my-videos/embed-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoIds: linked.map(v => v.id) })
+        });
+        if (!r.ok) return;
+        const { results } = await r.json();
+        for (const v of linked) {
+          const status = results[v.id];
+          if (status && status.embedAvailable === false) {
+            const card = document.querySelector(`.video-card[data-id="${cssEscape(v.id)}"]`);
+            if (!card) continue;
+            const titleEl = card.querySelector('.vc-title');
+            if (!titleEl || titleEl.querySelector('.vc-unavailable')) continue;
+            const url = platformSettingsUrl(v);
+            const badge = document.createElement(url ? 'a' : 'span');
+            badge.className = 'vc-unavailable';
+            badge.setAttribute('title', 'This embed is no longer available. Check the video\u2019s settings on ' + (PLATFORM_CONFIG[(v.platform || '').toLowerCase()] || { label: 'the source' }).label + '.');
+            badge.innerHTML = WARN_SVG + ' Unavailable';
+            if (url) {
+              badge.href = url;
+              badge.target = '_blank';
+              badge.rel = 'noopener';
+            }
+            titleEl.appendChild(badge);
+          }
+        }
+      } catch (_) {}
     }
 
     // Lookup so the thumbnail dialog can read metadata (e.g. password
