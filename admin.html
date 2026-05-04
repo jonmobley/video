@@ -513,21 +513,31 @@
     let videoSearchState = '';
     let videoStatusState = 'all';
     let videoPlatformState = 'all';
+    let userSearchState = '';
+    let userTierState = 'all';
+    let activeTab = 'videos';
     let videosAbortController = null;
     let usersAbortController = null;
 
     const VALID_STATUSES = ['all', 'active', 'expired', 'password'];
     const VALID_PLATFORMS = ['all', 'upload', 'youtube', 'vimeo'];
+    const VALID_TIERS = ['all', 'paid', 'free'];
+    const VALID_TABS = ['videos', 'users'];
 
     let isPopstateNav = false;
 
     function buildFilterUrl() {
       const params = new URLSearchParams();
+      if (activeTab !== 'videos') params.set('tab', activeTab);
       const trimmed = videoSearchState.trim();
       if (trimmed) params.set('search', trimmed);
       if (videoStatusState && videoStatusState !== 'all') params.set('status', videoStatusState);
       if (videoPlatformState && videoPlatformState !== 'all') params.set('platform', videoPlatformState);
       if (videoOffset > 0) params.set('page', Math.floor(videoOffset / PAGE_SIZE) + 1);
+      const userTrimmed = userSearchState.trim();
+      if (userTrimmed) params.set('usearch', userTrimmed);
+      if (userTierState && userTierState !== 'all') params.set('tier', userTierState);
+      if (userOffset > 0) params.set('upage', Math.floor(userOffset / PAGE_SIZE) + 1);
       const qs = params.toString();
       return window.location.pathname + (qs ? '?' + qs : '');
     }
@@ -545,6 +555,8 @@
 
     function readFiltersFromUrl() {
       const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') || 'videos';
+      activeTab = VALID_TABS.includes(tab) ? tab : 'videos';
       videoSearchState = (params.get('search') || '').trim();
       const status = params.get('status') || 'all';
       videoStatusState = VALID_STATUSES.includes(status) ? status : 'all';
@@ -555,6 +567,13 @@
       videoSearchInput.value = videoSearchState;
       videoStatusFilter.value = videoStatusState;
       videoPlatformFilter.value = videoPlatformState;
+      userSearchState = (params.get('usearch') || '').trim();
+      const tier = params.get('tier') || 'all';
+      userTierState = VALID_TIERS.includes(tier) ? tier : 'all';
+      const upage = parseInt(params.get('upage'), 10);
+      userOffset = (upage > 1 && !isNaN(upage)) ? (upage - 1) * PAGE_SIZE : 0;
+      userSearchInput.value = userSearchState;
+      userTierFilter.value = userTierState;
     }
 
     tabBtns.forEach(btn => {
@@ -565,11 +584,17 @@
         btn.setAttribute('aria-selected', 'true');
         const panel = document.getElementById(btn.getAttribute('aria-controls'));
         panel.classList.add('active');
+        activeTab = btn.dataset.tab;
+        syncFiltersToUrl();
         if (btn.dataset.tab === 'users' && !usersLoaded) loadUsers();
         if (btn.dataset.tab === 'videos') {
           videoSearchInput.value = videoSearchState;
           videoStatusFilter.value = videoStatusState;
           videoPlatformFilter.value = videoPlatformState;
+        }
+        if (btn.dataset.tab === 'users') {
+          userSearchInput.value = userSearchState;
+          userTierFilter.value = userTierState;
         }
       });
     });
@@ -867,6 +892,7 @@
     }
 
     async function loadUsers() {
+      syncFiltersToUrl();
       if (usersAbortController) usersAbortController.abort();
       usersAbortController = new AbortController();
       const signal = usersAbortController.signal;
@@ -883,8 +909,8 @@
       userCountEl.style.display = 'none';
       try {
         const params = new URLSearchParams({ limit: PAGE_SIZE, offset: userOffset });
-        const searchVal = userSearchInput.value.trim();
-        const tierVal = userTierFilter.value;
+        const searchVal = userSearchState.trim();
+        const tierVal = userTierState;
         if (searchVal) params.set('search', searchVal);
         if (tierVal && tierVal !== 'all') params.set('tier', tierVal);
 
@@ -1074,8 +1100,8 @@
     }
 
     function resetTabs() {
-      tabBtns.forEach(b => { b.classList.toggle('active', b.dataset.tab === 'videos'); b.setAttribute('aria-selected', b.dataset.tab === 'videos' ? 'true' : 'false'); });
-      tabPanels.forEach(p => p.classList.toggle('active', p.id === 'videosPanel'));
+      tabBtns.forEach(b => { b.classList.toggle('active', b.dataset.tab === activeTab); b.setAttribute('aria-selected', b.dataset.tab === activeTab ? 'true' : 'false'); });
+      tabPanels.forEach(p => p.classList.toggle('active', p.id === (activeTab === 'users' ? 'usersPanel' : 'videosPanel')));
     }
 
     function showDashboard() {
@@ -1083,11 +1109,11 @@
       dashboard.style.display = 'block';
       logoutBtn.style.display = 'inline-block';
       usersLoaded = false;
-      userOffset = 0;
       pendingDeletes.clear();
       readFiltersFromUrl();
       resetTabs();
       loadVideos();
+      if (activeTab === 'users') loadUsers();
     }
 
     function logout(opts) {
@@ -1108,6 +1134,8 @@
       userOffset = 0;
       pendingDeletes.clear();
       pendingTierToggles.clear();
+      userSearchState = '';
+      userTierState = 'all';
       userSearchInput.value = '';
       userTierFilter.value = 'all';
       userFilterBar.style.display = 'none';
@@ -1120,6 +1148,7 @@
       videoPlatformFilter.value = 'all';
       videoFilterBar.style.display = 'none';
       videoCountEl.style.display = 'none';
+      activeTab = 'videos';
       history.replaceState(null, '', window.location.pathname);
       resetTabs();
     }
@@ -1154,15 +1183,22 @@
       if (refreshUsersBtn.disabled) return;
       usersLoaded = false;
       userOffset = 0;
+      userSearchState = '';
+      userTierState = 'all';
       userSearchInput.value = '';
       userTierFilter.value = 'all';
       loadUsers();
     });
     userSearchInput.addEventListener('input', () => {
+      userSearchState = userSearchInput.value;
       clearTimeout(userSearchDebounce);
       userSearchDebounce = setTimeout(() => { userOffset = 0; loadUsers(); }, 300);
     });
-    userTierFilter.addEventListener('change', () => { userOffset = 0; loadUsers(); });
+    userTierFilter.addEventListener('change', () => {
+      userTierState = userTierFilter.value;
+      userOffset = 0;
+      loadUsers();
+    });
     videoSearchInput.addEventListener('input', () => {
       videoSearchState = videoSearchInput.value;
       updateVideoFilterIndicator();
