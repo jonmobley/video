@@ -419,13 +419,13 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net",
+    "script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net https://www.youtube.com https://player.vimeo.com https://browser.sentry-cdn.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data: https://fast.wistia.com https://fast.wistia.net",
-    "connect-src 'self' https://*.supabase.co https://*.wistia.com https://*.wistia.net https://embedwistia-a.akamaihd.net https://vimeo.com https://api.qrserver.com",
+    "connect-src 'self' https://*.supabase.co https://*.wistia.com https://*.wistia.net https://embedwistia-a.akamaihd.net https://vimeo.com https://api.qrserver.com https://www.dropbox.com https://*.dropboxusercontent.com https://*.sentry.io",
     "frame-src https://player.vimeo.com https://www.youtube.com https://www.youtube-nocookie.com https://www.dailymotion.com https://geo.dailymotion.com https://www.loom.com https://fast.wistia.com https://fast.wistia.net",
-    "media-src 'self' blob: https://*.wistia.com https://*.wistia.net https://embedwistia-a.akamaihd.net",
+    "media-src 'self' blob: https://*.wistia.com https://*.wistia.net https://embedwistia-a.akamaihd.net https://www.dropbox.com https://*.dropboxusercontent.com",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "report-uri /api/csp-report"
