@@ -781,7 +781,7 @@
       a.remove();
     });
 
-    return { reset, root, isUploading: () => uploading, setFile };
+    return { reset, root, isUploading: () => uploading, setFile, setMode };
   }
 
   if (typeof window !== 'undefined') {

@@ -71,7 +71,7 @@
     }
   }
 
-  function openUploadModal(file) {
+  function openUploadModal(fileOrOpts) {
     buildModal();
     if (!widget && typeof window.initUploadWidget === 'function') {
       widget = window.initUploadWidget(root);
@@ -86,9 +86,16 @@
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
-    if (file && widget && typeof widget.setFile === 'function') {
-      widget.setFile(file);
+
+    var isFile = fileOrOpts instanceof File;
+    var mode = (!isFile && fileOrOpts && fileOrOpts.mode) ? fileOrOpts.mode : null;
+
+    if (isFile && widget && typeof widget.setFile === 'function') {
+      widget.setFile(fileOrOpts);
+    } else if (mode && widget && typeof widget.setMode === 'function') {
+      widget.setMode(mode);
     }
+
     setTimeout(() => {
       const f = focusables();
       if (f.length) f[0].focus();
