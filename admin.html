@@ -260,6 +260,23 @@
       cursor: not-allowed;
     }
     .filter-bar .tier-filter option { background: #1c1c1e; color: #fff; }
+    .clear-filters-btn {
+      background: none; border: 1px solid #3A3A3C; color: #959595;
+      padding: 8px 14px; border-radius: 10px; font-size: 0.82rem;
+      font-weight: 600; cursor: pointer; font-family: inherit;
+      display: none; align-items: center; gap: 6px;
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .clear-filters-btn:hover:not(:disabled) { color: #fff; border-color: #959595; }
+    .clear-filters-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .clear-filters-btn.visible { display: inline-flex; }
+    .filter-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 9px; font-size: 0.7rem; font-weight: 700;
+      background: #007AFF; color: #fff;
+    }
     .user-count {
       font-size: 0.78rem; color: #636366; margin-bottom: 14px;
     }
@@ -368,6 +385,9 @@
             <option value="youtube">YouTube</option>
             <option value="vimeo">Vimeo</option>
           </select>
+          <button class="clear-filters-btn" id="clearVideoFilters" type="button" aria-label="Clear all filters">
+            <span class="filter-count" id="videoFilterCount">0</span> Clear filters
+          </button>
         </div>
         <div id="videoFilterStatus" class="sr-only" aria-live="polite" role="status"></div>
         <div class="user-count" id="videoCount" style="display:none"></div>
@@ -422,6 +442,8 @@
     const videoCountEl    = document.getElementById('videoCount');
     const videoFilterStatus = document.getElementById('videoFilterStatus');
     const userFilterStatus  = document.getElementById('userFilterStatus');
+    const clearVideoFiltersBtn = document.getElementById('clearVideoFilters');
+    const videoFilterCountEl   = document.getElementById('videoFilterCount');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
 
@@ -563,6 +585,15 @@
       container.appendChild(info);
     }
 
+    function updateVideoFilterIndicator() {
+      let count = 0;
+      if (videoSearchState.trim()) count++;
+      if (videoStatusState !== 'all') count++;
+      if (videoPlatformState !== 'all') count++;
+      videoFilterCountEl.textContent = count;
+      clearVideoFiltersBtn.classList.toggle('visible', count > 0);
+    }
+
     async function loadVideos() {
       if (videosAbortController) videosAbortController.abort();
       videosAbortController = new AbortController();
@@ -576,6 +607,7 @@
       videoPlatformFilter.disabled = true;
       videoFilterBar.setAttribute('aria-busy', 'true');
       videoFilterStatus.textContent = 'Loading videos…';
+      clearVideoFiltersBtn.disabled = true;
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoCountEl.style.display = 'none';
       statsRow.innerHTML = `
@@ -636,6 +668,7 @@
         videoFilterBar.classList.remove('loading');
         videoFilterBar.setAttribute('aria-busy', 'false');
         videoFilterStatus.textContent = 'Loading complete';
+        updateVideoFilterIndicator();
 
         if (searchVal || statusVal !== 'all' || platformVal !== 'all') {
           videoCountEl.textContent = total + ' video' + (total === 1 ? '' : 's') + ' found';
@@ -713,6 +746,7 @@
           videoSearchInput.disabled = false;
           videoStatusFilter.disabled = false;
           videoPlatformFilter.disabled = false;
+          clearVideoFiltersBtn.disabled = false;
         }
         videoFilterBar.classList.remove('loading');
         videoFilterBar.setAttribute('aria-busy', 'false');
@@ -993,6 +1027,17 @@
       videoPlatformFilter.value = 'all';
       loadVideos();
     });
+    clearVideoFiltersBtn.addEventListener('click', () => {
+      videoOffset = 0;
+      videoSearchState = '';
+      videoStatusState = 'all';
+      videoPlatformState = 'all';
+      videoSearchInput.value = '';
+      videoStatusFilter.value = 'all';
+      videoPlatformFilter.value = 'all';
+      updateVideoFilterIndicator();
+      loadVideos();
+    });
     refreshUsersBtn.addEventListener('click', () => {
       if (refreshUsersBtn.disabled) return;
       usersLoaded = false;
@@ -1008,16 +1053,19 @@
     userTierFilter.addEventListener('change', () => { userOffset = 0; loadUsers(); });
     videoSearchInput.addEventListener('input', () => {
       videoSearchState = videoSearchInput.value;
+      updateVideoFilterIndicator();
       clearTimeout(videoSearchDebounce);
       videoSearchDebounce = setTimeout(() => { videoOffset = 0; loadVideos(); }, 300);
     });
     videoStatusFilter.addEventListener('change', () => {
       videoStatusState = videoStatusFilter.value;
+      updateVideoFilterIndicator();
       videoOffset = 0;
       loadVideos();
     });
     videoPlatformFilter.addEventListener('change', () => {
       videoPlatformState = videoPlatformFilter.value;
+      updateVideoFilterIndicator();
       videoOffset = 0;
       loadVideos();
     });
