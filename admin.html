@@ -99,7 +99,7 @@
     .video-row:hover { background: #242424; }
 
     .video-main { flex: 1; overflow: hidden; min-width: 0; }
-    .video-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .video-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; min-width: 0; }
     .video-title.untitled { color: #959595; font-style: italic; }
     .video-meta { display: flex; gap: 12px; flex-wrap: wrap; }
     .video-meta span { font-size: 0.76rem; color: #959595; }
@@ -111,6 +111,22 @@
     .video-meta .badge-exp { background: rgba(255,59,48,0.15); color: #ff6b6b; }
     .video-meta .badge-ok { background: rgba(48,209,88,0.15); color: #30d158; }
     .video-meta .badge-no-expiry { background: rgba(78,205,196,0.15); color: #4ecdc4; }
+
+    .video-title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .source-badge {
+      display: inline-block; vertical-align: middle;
+      padding: 1px 6px; border-radius: 3px;
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,0.75); color: #fff;
+      margin-left: 6px; flex-shrink: 0;
+    }
+    .source-badge.youtube { background: #ff0000; }
+    .source-badge.vimeo { background: #1ab7ea; }
+    .source-badge.upload { background: rgba(78,205,196,0.9); }
+    .source-badge.dailymotion { background: #0d0d6e; }
+    .source-badge.loom { background: #625df5; }
+    .source-badge.wistia { background: #54bbff; }
 
     .video-actions { display: flex; gap: 8px; flex-shrink: 0; }
     .watch-lnk {
@@ -417,6 +433,16 @@
       return new Date(dt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
+    function sourceBadge(platform) {
+      const p = (platform || 'upload').toLowerCase();
+      if (p === 'youtube') return '<span class="source-badge youtube">YouTube</span>';
+      if (p === 'vimeo') return '<span class="source-badge vimeo">Vimeo</span>';
+      if (p === 'dailymotion') return '<span class="source-badge dailymotion">Dailymotion</span>';
+      if (p === 'loom') return '<span class="source-badge loom">Loom</span>';
+      if (p === 'wistia') return '<span class="source-badge wistia">Wistia</span>';
+      return '<span class="source-badge upload">Upload</span>';
+    }
+
     function expiryBadge(expiresAt, ownerIsPaid) {
       if (!expiresAt) {
         if (ownerIsPaid) return '<span class="badge badge-no-expiry">∞ No expiry</span>';
@@ -590,7 +616,7 @@
           row.className = 'video-row';
           row.innerHTML = `
             <div class="video-main">
-              <div class="video-title ${v.title ? '' : 'untitled'}">${v.title || 'Untitled'}</div>
+              <div class="video-title ${v.title ? '' : 'untitled'}"><span class="video-title-text">${v.title || 'Untitled'}</span>${sourceBadge(v.platform)}</div>
               <div class="video-meta">
                 <span>${formatDate(v.uploaded_at)}</span>
                 <span>${formatBytes(v.file_size)}</span>

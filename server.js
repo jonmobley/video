@@ -1221,7 +1221,7 @@ app.get('/api/admin/videos', requireAdmin, async (req, res) => {
     const offsetParam = paramIdx++;
     const result = await pool.query(
       `SELECT u.id, u.title, u.content_type, u.uploaded_at, u.expires_at,
-              u.view_count, u.file_size,
+              u.view_count, u.file_size, u.platform,
               (u.password_hash IS NOT NULL) as has_password,
               COALESCE(usr.is_paid, FALSE) as owner_is_paid
        FROM vs_uploads u
