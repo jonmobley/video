@@ -179,6 +179,14 @@
     .tier-toggle input:checked + .slider { background: #007AFF; }
     .tier-toggle input:checked + .slider::after { transform: translateX(20px); }
     .tier-toggle input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+    @keyframes tier-spinner { to { transform: rotate(360deg); } }
+    .tier-toggle.loading .slider::before {
+      content: ''; position: absolute; top: 4px; left: 14px; z-index: 2;
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #fff; border-radius: 50%;
+      animation: tier-spinner 0.6s linear infinite;
+    }
+    .tier-toggle.loading .slider::after { opacity: 0; }
     .tier-toggle .tier-label {
       font-size: 0.78rem; font-weight: 600; min-width: 32px;
     }
@@ -693,6 +701,7 @@
 
           const toggleLabel = document.createElement('label');
           toggleLabel.className = 'tier-toggle';
+          if (pendingTierToggles.has(u.id)) toggleLabel.classList.add('loading');
 
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
@@ -715,6 +724,7 @@
           checkbox.addEventListener('change', async () => {
             const newPaid = checkbox.checked;
             checkbox.disabled = true;
+            toggleLabel.classList.add('loading');
             pendingTierToggles.add(u.id);
             try {
               const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
@@ -740,6 +750,7 @@
               alert('Network error. Could not update user tier.');
             } finally {
               pendingTierToggles.delete(u.id);
+              toggleLabel.classList.remove('loading');
               checkbox.disabled = false;
             }
           });
