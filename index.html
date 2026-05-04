@@ -243,6 +243,10 @@
         .hero-link-detected:empty {
             display: none;
         }
+        .hero-link-detected.dismissing {
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
         .hero-drop input[type="file"] {
             position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
         }
@@ -388,6 +392,7 @@
         var heroLinkDetected = document.getElementById('heroLinkDetected');
         var heroPasteBtn = document.getElementById('heroPasteBtn');
         var isLinkMode = false;
+        var clipboardDismissTimer = null;
 
         var clipboardAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
         if (clipboardAvailable) {
@@ -466,16 +471,26 @@
             heroLinkInput.value = trimmed;
             heroLinkInput.dispatchEvent(new Event('input'));
           }).catch(function () {
-            heroLinkDetected.textContent = 'Clipboard access unavailable — please paste manually';
+            heroLinkDetected.textContent = 'Clipboard access denied — please paste manually';
             heroLinkDetected.classList.add('error');
+            heroLinkDetected.classList.remove('dismissing');
             heroPasteBtn.classList.remove('visible');
+            clearTimeout(clipboardDismissTimer);
+            clipboardDismissTimer = setTimeout(function () {
+              heroLinkDetected.classList.add('dismissing');
+              setTimeout(function () {
+                heroLinkDetected.textContent = '';
+                heroLinkDetected.classList.remove('error', 'dismissing');
+              }, 400);
+            }, 4000);
           });
         });
 
         heroLinkInput.addEventListener('input', function () {
           var val = heroLinkInput.value.trim();
+          clearTimeout(clipboardDismissTimer);
           heroLinkDetected.textContent = '';
-          heroLinkDetected.classList.remove('error');
+          heroLinkDetected.classList.remove('error', 'dismissing');
           if (!val) return;
 
           var res = window.LinkParser ? window.LinkParser.parse(val) : null;
