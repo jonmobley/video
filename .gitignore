@@ -9,3 +9,7 @@ replit.nix
 .config/
 .cache/
 .upm/
+
+# Playwright
+test-results/
+playwright-report/
