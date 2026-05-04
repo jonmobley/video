@@ -16,7 +16,7 @@ The application's architecture separates frontend and backend concerns.
 
 ### Frontend
 - **Pages**: Static HTML files (`index.html`, `oz.html`, `disc.html`, `vertical.html`, `dropbox.html`, `upload.html`, `watch.html`, `login.html`, `account.html`, `admin.html`) form the core user interface.
-- **Styling**: Global CSS is managed in `/styles/common.css`, supplemented by inline styles for specific components.
+- **Styling**: Global CSS is managed in `/styles/common.css` (provides CSS reset, base typography, body background/color, focus-visible outlines, @keyframes spin, button/form defaults, source badges, and responsive helpers), supplemented by inline styles for page-specific components.
 - **Interactivity**: JavaScript files in the `/js/` directory handle client-side logic, including Wistia API integration for video playback. Shared utility modules imported by oz.html, vertical.html, and test.html include:
     - `js/shared-errors.js` — friendly error display for video grids
     - `js/shared-color-utils.js` — `darkenColor`, `hexToRgba`, `applyAccentColor` for dynamic accent theming

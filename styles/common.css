@@ -138,6 +138,8 @@ body {
 .source-badge.loom { background: #625df5; }
 .source-badge.wistia { background: #54bbff; }
 
+@keyframes spin { to { transform: rotate(360deg); } }
+
 :focus-visible {
     outline: 2px solid #4ecdc4;
     outline-offset: 2px;
