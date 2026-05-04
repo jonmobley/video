@@ -192,6 +192,32 @@
     }
     .refresh-btn:hover { background: #3A3A3C; }
 
+    .filter-bar {
+      display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .filter-bar .search-input {
+      flex: 1; min-width: 180px; padding: 10px 14px; background: #1c1c1e;
+      border: 1px solid #2c2c2e; border-radius: 10px; color: #fff;
+      font-size: 0.88rem; font-family: inherit;
+    }
+    .filter-bar .search-input::placeholder { color: #636366; }
+    .filter-bar .search-input:focus { border-color: #007AFF; outline: none; }
+    .filter-bar .search-input:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }
+    .filter-bar .tier-filter {
+      padding: 10px 14px; background: #1c1c1e; border: 1px solid #2c2c2e;
+      border-radius: 10px; color: #fff; font-size: 0.88rem; font-family: inherit;
+      cursor: pointer; appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23959595' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 34px;
+    }
+    .filter-bar .tier-filter:focus { border-color: #007AFF; outline: none; }
+    .filter-bar .tier-filter:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }
+    .filter-bar .tier-filter option { background: #1c1c1e; color: #fff; }
+    .user-count {
+      font-size: 0.78rem; color: #636366; margin-bottom: 14px;
+    }
+
     .loading-spinner {
       width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1);
       border-top-color: #fff; border-radius: 50%; animation: spin 0.9s linear infinite;
@@ -265,6 +291,15 @@
 
       <div id="usersPanel" class="tab-panel" role="tabpanel">
         <button class="refresh-btn" id="refreshUsersBtn">↻ Refresh</button>
+        <div class="filter-bar" id="userFilterBar" style="display:none">
+          <input class="search-input" id="userSearchInput" type="text" placeholder="Search by email…" aria-label="Search users by email">
+          <select class="tier-filter" id="userTierFilter" aria-label="Filter by tier">
+            <option value="all">All tiers</option>
+            <option value="paid">Paid only</option>
+            <option value="free">Free only</option>
+          </select>
+        </div>
+        <div class="user-count" id="userCount" style="display:none"></div>
         <div class="video-list" id="userList"></div>
       </div>
     </div>
@@ -285,10 +320,15 @@
     const refreshBtn     = document.getElementById('refreshBtn');
     const userList       = document.getElementById('userList');
     const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+    const userSearchInput = document.getElementById('userSearchInput');
+    const userTierFilter  = document.getElementById('userTierFilter');
+    const userFilterBar   = document.getElementById('userFilterBar');
+    const userCountEl     = document.getElementById('userCount');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
 
     let usersLoaded = false;
+    let allUsers = [];
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -413,6 +453,8 @@
 
     async function loadUsers() {
       userList.innerHTML = '<div class="loading-spinner"></div>';
+      userFilterBar.style.display = 'none';
+      userCountEl.style.display = 'none';
       try {
         const res = await fetch('/api/admin/users', {
           headers: { 'Authorization': 'Bearer ' + adminToken }
@@ -425,100 +467,16 @@
           return;
         }
         const data = await res.json();
-        const users = data.users || [];
+        allUsers = data.users || [];
         usersLoaded = true;
 
-        if (!users.length) {
+        if (!allUsers.length) {
           userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👤</div><div>No registered users yet.</div></div>`;
           return;
         }
 
-        userList.innerHTML = '';
-        for (const u of users) {
-          const row = document.createElement('div');
-          row.className = 'user-row';
-
-          const main = document.createElement('div');
-          main.className = 'user-main';
-
-          const emailDiv = document.createElement('div');
-          emailDiv.className = 'user-email';
-          emailDiv.textContent = u.email;
-          main.appendChild(emailDiv);
-
-          const meta = document.createElement('div');
-          meta.className = 'user-meta';
-
-          const joinSpan = document.createElement('span');
-          joinSpan.textContent = 'Joined ' + formatDate(u.created_at);
-          meta.appendChild(joinSpan);
-
-          const countSpan = document.createElement('span');
-          countSpan.textContent = u.video_count + ' video' + (u.video_count === 1 ? '' : 's');
-          meta.appendChild(countSpan);
-
-          const badge = document.createElement('span');
-          badge.className = 'badge ' + (u.is_paid ? 'badge-paid' : 'badge-free');
-          badge.textContent = u.is_paid ? 'Paid' : 'Free';
-          meta.appendChild(badge);
-
-          main.appendChild(meta);
-          row.appendChild(main);
-
-          const toggleLabel = document.createElement('label');
-          toggleLabel.className = 'tier-toggle';
-
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.checked = u.is_paid;
-          checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
-          toggleLabel.appendChild(checkbox);
-
-          const slider = document.createElement('span');
-          slider.className = 'slider';
-          toggleLabel.appendChild(slider);
-
-          const label = document.createElement('span');
-          label.className = 'tier-label ' + (u.is_paid ? 'tier-label-paid' : 'tier-label-free');
-          label.textContent = u.is_paid ? 'Paid' : 'Free';
-          toggleLabel.appendChild(label);
-
-          row.appendChild(toggleLabel);
-
-          checkbox.addEventListener('change', async () => {
-            const newPaid = checkbox.checked;
-            checkbox.disabled = true;
-            try {
-              const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
-                method: 'PATCH',
-                headers: {
-                  'Authorization': 'Bearer ' + adminToken,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ is_paid: newPaid })
-              });
-              if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
-              if (!pr.ok) {
-                checkbox.checked = !newPaid;
-                const data = await pr.json().catch(() => ({}));
-                const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
-                alert(typeof msg === 'string' ? msg : 'Update failed.');
-              } else {
-                u.is_paid = newPaid;
-                label.textContent = newPaid ? 'Paid' : 'Free';
-                label.className = 'tier-label ' + (newPaid ? 'tier-label-paid' : 'tier-label-free');
-                badge.textContent = newPaid ? 'Paid' : 'Free';
-                badge.className = 'badge ' + (newPaid ? 'badge-paid' : 'badge-free');
-              }
-            } catch {
-              checkbox.checked = !newPaid;
-              alert('Network error. Could not update user tier.');
-            }
-            checkbox.disabled = false;
-          });
-
-          userList.appendChild(row);
-        }
+        userFilterBar.style.display = 'flex';
+        renderUsers();
       } catch (err) {
         const errDiv = document.createElement('div');
         errDiv.className = 'empty-state';
@@ -527,6 +485,114 @@
         errDiv.appendChild(errMsg);
         userList.innerHTML = '';
         userList.appendChild(errDiv);
+      }
+    }
+
+    function renderUsers() {
+      const query = userSearchInput.value.trim().toLowerCase();
+      const tier = userTierFilter.value;
+
+      const filtered = allUsers.filter(u => {
+        if (query && !u.email.toLowerCase().includes(query)) return false;
+        if (tier === 'paid' && !u.is_paid) return false;
+        if (tier === 'free' && u.is_paid) return false;
+        return true;
+      });
+
+      if (query || tier !== 'all') {
+        userCountEl.textContent = filtered.length + ' of ' + allUsers.length + ' user' + (allUsers.length === 1 ? '' : 's');
+        userCountEl.style.display = 'block';
+      } else {
+        userCountEl.style.display = 'none';
+      }
+
+      if (!filtered.length) {
+        userList.innerHTML = '<div class="empty-state"><div>No users match your filters.</div></div>';
+        return;
+      }
+
+      userList.innerHTML = '';
+      for (const u of filtered) {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+
+        const main = document.createElement('div');
+        main.className = 'user-main';
+
+        const emailDiv = document.createElement('div');
+        emailDiv.className = 'user-email';
+        emailDiv.textContent = u.email;
+        main.appendChild(emailDiv);
+
+        const meta = document.createElement('div');
+        meta.className = 'user-meta';
+
+        const joinSpan = document.createElement('span');
+        joinSpan.textContent = 'Joined ' + formatDate(u.created_at);
+        meta.appendChild(joinSpan);
+
+        const countSpan = document.createElement('span');
+        countSpan.textContent = u.video_count + ' video' + (u.video_count === 1 ? '' : 's');
+        meta.appendChild(countSpan);
+
+        const badge = document.createElement('span');
+        badge.className = 'badge ' + (u.is_paid ? 'badge-paid' : 'badge-free');
+        badge.textContent = u.is_paid ? 'Paid' : 'Free';
+        meta.appendChild(badge);
+
+        main.appendChild(meta);
+        row.appendChild(main);
+
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = 'tier-toggle';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = u.is_paid;
+        checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
+        toggleLabel.appendChild(checkbox);
+
+        const slider = document.createElement('span');
+        slider.className = 'slider';
+        toggleLabel.appendChild(slider);
+
+        const label = document.createElement('span');
+        label.className = 'tier-label ' + (u.is_paid ? 'tier-label-paid' : 'tier-label-free');
+        label.textContent = u.is_paid ? 'Paid' : 'Free';
+        toggleLabel.appendChild(label);
+
+        row.appendChild(toggleLabel);
+
+        checkbox.addEventListener('change', async () => {
+          const newPaid = checkbox.checked;
+          checkbox.disabled = true;
+          try {
+            const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
+              method: 'PATCH',
+              headers: {
+                'Authorization': 'Bearer ' + adminToken,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ is_paid: newPaid })
+            });
+            if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
+            if (!pr.ok) {
+              checkbox.checked = !newPaid;
+              const data = await pr.json().catch(() => ({}));
+              const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
+              alert(typeof msg === 'string' ? msg : 'Update failed.');
+            } else {
+              u.is_paid = newPaid;
+              renderUsers();
+            }
+          } catch {
+            checkbox.checked = !newPaid;
+            alert('Network error. Could not update user tier.');
+          }
+          checkbox.disabled = false;
+        });
+
+        userList.appendChild(row);
       }
     }
 
@@ -580,6 +646,11 @@
       loginNotice.classList.toggle('visible', !!expired);
       loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
       usersLoaded = false;
+      allUsers = [];
+      userSearchInput.value = '';
+      userTierFilter.value = 'all';
+      userFilterBar.style.display = 'none';
+      userCountEl.style.display = 'none';
       resetTabs();
     }
 
@@ -587,7 +658,14 @@
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
     refreshBtn.addEventListener('click', loadVideos);
-    refreshUsersBtn.addEventListener('click', () => { usersLoaded = false; loadUsers(); });
+    refreshUsersBtn.addEventListener('click', () => {
+      usersLoaded = false;
+      userSearchInput.value = '';
+      userTierFilter.value = 'all';
+      loadUsers();
+    });
+    userSearchInput.addEventListener('input', renderUsers);
+    userTierFilter.addEventListener('change', renderUsers);
 
     if (adminToken) showDashboard();
     else loginScreen.style.display = 'flex';
