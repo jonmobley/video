@@ -387,6 +387,8 @@
     let videoSearchDebounce = null;
     let videoSearchState = '';
     let videoStatusState = 'all';
+    let videosAbortController = null;
+    let usersAbortController = null;
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -508,6 +510,10 @@
     }
 
     async function loadVideos() {
+      if (videosAbortController) videosAbortController.abort();
+      videosAbortController = new AbortController();
+      const signal = videosAbortController.signal;
+
       refreshBtn.disabled = true;
       refreshBtn.textContent = 'Loading…';
       videoSearchInput.disabled = true;
@@ -526,7 +532,8 @@
         if (statusVal && statusVal !== 'all') params.set('status', statusVal);
 
         const res = await fetch('/api/admin/videos?' + params, {
-          headers: { 'Authorization': 'Bearer ' + adminToken }
+          headers: { 'Authorization': 'Bearer ' + adminToken },
+          signal
         });
 
         if (res.status === 401 || res.status === 403) {
@@ -626,16 +633,23 @@
           loadVideos();
         });
       } catch (err) {
+        if (err.name === 'AbortError') return;
         videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
       } finally {
-        refreshBtn.disabled = false;
-        refreshBtn.textContent = '↻ Refresh';
-        videoSearchInput.disabled = false;
-        videoStatusFilter.disabled = false;
+        if (!signal.aborted) {
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = '↻ Refresh';
+          videoSearchInput.disabled = false;
+          videoStatusFilter.disabled = false;
+        }
       }
     }
 
     async function loadUsers() {
+      if (usersAbortController) usersAbortController.abort();
+      usersAbortController = new AbortController();
+      const signal = usersAbortController.signal;
+
       refreshUsersBtn.disabled = true;
       refreshUsersBtn.textContent = 'Loading…';
       userSearchInput.disabled = true;
@@ -651,7 +665,8 @@
         if (tierVal && tierVal !== 'all') params.set('tier', tierVal);
 
         const res = await fetch('/api/admin/users?' + params, {
-          headers: { 'Authorization': 'Bearer ' + adminToken }
+          headers: { 'Authorization': 'Bearer ' + adminToken },
+          signal
         });
         if (res.status === 401 || res.status === 403) { logout({ expired: true }); return; }
         if (!res.ok) {
@@ -785,6 +800,7 @@
           loadUsers();
         });
       } catch (err) {
+        if (err.name === 'AbortError') return;
         const errDiv = document.createElement('div');
         errDiv.className = 'empty-state';
         const errMsg = document.createElement('div');
@@ -793,10 +809,12 @@
         userList.innerHTML = '';
         userList.appendChild(errDiv);
       } finally {
-        refreshUsersBtn.disabled = false;
-        refreshUsersBtn.textContent = '↻ Refresh';
-        userSearchInput.disabled = false;
-        userTierFilter.disabled = false;
+        if (!signal.aborted) {
+          refreshUsersBtn.disabled = false;
+          refreshUsersBtn.textContent = '↻ Refresh';
+          userSearchInput.disabled = false;
+          userTierFilter.disabled = false;
+        }
       }
     }
 
@@ -845,6 +863,8 @@
 
     function logout(opts) {
       const expired = opts && opts.expired;
+      if (videosAbortController) { videosAbortController.abort(); videosAbortController = null; }
+      if (usersAbortController) { usersAbortController.abort(); usersAbortController = null; }
       adminToken = '';
       sessionStorage.removeItem('vs_admin_token');
       loginScreen.style.display = 'flex';
