@@ -2,7 +2,16 @@ jest.mock('pg', () => require('./helpers/pg-mock').install());
 const pgMock = require('./helpers/pg-mock');
 
 const request = require('supertest');
-const { app } = require('../../server');
+const { app, uploadCounts } = require('../../server');
+
+const originalFetch = global.fetch;
+beforeEach(() => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true });
+  uploadCounts.clear();
+});
+afterEach(() => {
+  global.fetch = originalFetch;
+});
 
 function linkBody(overrides = {}) {
   return {
@@ -402,5 +411,117 @@ describe('POST /api/create-link-video – malformed / borderline video IDs', () 
       expectErrorShape(res, 'URL_REQUIRED');
       expect(pgMock.calls()).toEqual([]);
     });
+  });
+});
+
+describe('POST /api/create-link-video – embed availability check', () => {
+  beforeEach(() => pgMock.reset());
+
+  test('VIDEO_UNAVAILABLE when YouTube video is private (401)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.youtube.com/watch?v=PRIVATE_VD01'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toMatch(/YouTube/i);
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('VIDEO_UNAVAILABLE when YouTube video is removed (404)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.youtube.com/watch?v=REMOVED_VD01'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toContain('privacy settings on YouTube');
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('VIDEO_UNAVAILABLE when Vimeo video has embedding disabled (403)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 403 });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://vimeo.com/999888777'
+    }));
+    expect(res.status).toBe(422);
+    expectErrorShape(res, 'VIDEO_UNAVAILABLE');
+    expect(res.body.error.message).toContain('embedding is enabled on Vimeo');
+    expect(pgMock.calls()).toEqual([]);
+  });
+
+  test('save proceeds with warning when embed check times out (AbortError)', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new DOMException('signal timed out', 'AbortError'));
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.youtube.com/watch?v=TIMEOUT_VD01'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toBeDefined();
+    expect(res.body.warning).toMatch(/couldn.t verify/i);
+    const insertCall = pgMock.calls().find(c => c.sql.includes('INSERT'));
+    expect(insertCall).toBeDefined();
+  });
+
+  test('save proceeds with warning when embed check has network error', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.youtube.com/watch?v=NETERR_VD01'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toBeDefined();
+    expect(res.body.warning).toMatch(/couldn.t verify/i);
+    const insertCall = pgMock.calls().find(c => c.sql.includes('INSERT'));
+    expect(insertCall).toBeDefined();
+  });
+
+  test('Dailymotion links skip embed check and save directly', async () => {
+    global.fetch = jest.fn();
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.dailymotion.com/video/x7tgd1a'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('Loom links skip embed check and save directly', async () => {
+    global.fetch = jest.fn();
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.loom.com/share/abcdef01234567890abcdef012345678'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('Wistia links skip embed check and save directly', async () => {
+    global.fetch = jest.fn();
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://fast.wistia.com/medias/abc123'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('available YouTube video saves normally without warning', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    pgMock.enqueue({ rows: [] });
+    const res = await request(app).post('/api/create-link-video').send(linkBody({
+      url: 'https://www.youtube.com/watch?v=PUBLIC_VD001'
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.warning).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalled();
+    const insertCall = pgMock.calls().find(c => c.sql.includes('INSERT'));
+    expect(insertCall).toBeDefined();
   });
 });

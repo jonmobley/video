@@ -667,13 +667,18 @@
           body: JSON.stringify({ url, title, expiryDays, password })
         });
         if (!res.ok) {
-          const err = await parseErrJson(res);
-          throw new Error(err.message || 'Failed to create link video');
+          const errData = await parseErrJson(res);
+          const err = new Error(errData.message || 'Failed to create link video');
+          err._errorCode = errData.code;
+          throw err;
         }
         const data = await res.json();
         setProgress(100, 'Done!');
         uploading = false;
         finishSuccess(data.videoId, { title, expiryDays, password, isLink: true, platform: data.platform });
+        if (data.warning) {
+          showError(data.warning);
+        }
       } catch (err) {
         uploading = false;
         progressArea.classList.remove('visible');
@@ -682,7 +687,8 @@
         fieldsArea.style.display = 'flex';
         if (modeTabs) modeTabs.style.display = '';
         root.dispatchEvent(new CustomEvent('upload:reset'));
-        showError('Submission failed: ' + err.message);
+        const isUnavailable = err._errorCode === 'VIDEO_UNAVAILABLE';
+        showError(isUnavailable ? err.message : 'Submission failed: ' + err.message);
       }
     }
 

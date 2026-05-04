@@ -886,7 +886,7 @@ app.get('/api/video-thumbnail/:id', async (req, res) => {
 const embedAvailabilityCache = new Map();
 const EMBED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-async function checkEmbedAvailability(platform, embedVideoId) {
+async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = false } = {}) {
   if (!embedVideoId) return true;
   const key = `${platform}:${embedVideoId}`;
   const cached = embedAvailabilityCache.get(key);
@@ -917,10 +917,13 @@ async function checkEmbedAvailability(platform, embedVideoId) {
     const available = r.ok; // 200 = embeddable, 401/403/404 = not embeddable
     embedAvailabilityCache.set(key, { available, expires: Date.now() + EMBED_CACHE_TTL_MS });
     return available;
-  } catch {
+  } catch (e) {
     // Network failure or timeout: assume available so we don't false-negative
     // a working embed because of a transient outage. The client still has its
     // own safety-net timeout for the truly unreachable case.
+    // When throwOnError is set, callers can distinguish "confirmed available"
+    // from "check failed" and surface a non-blocking note.
+    if (throwOnError) throw e;
     return true;
   }
 }
@@ -1029,6 +1032,24 @@ app.post('/api/create-link-video', async (req, res) => {
       return apiError(res, 429, 'RATE_LIMITED', 'Too many uploads. Please try again in an hour.');
     }
 
+    let embedCheckUncertain = false;
+    try {
+      const embedAvailable = await checkEmbedAvailability(parsed.platform, parsed.videoId, { throwOnError: true });
+      if (!embedAvailable) {
+        const platformMessages = {
+          youtube: 'This video appears to be private or unavailable. Check its privacy settings on YouTube and try again.',
+          vimeo: 'This video appears to be private or unavailable. Make sure embedding is enabled on Vimeo and try again.',
+          dailymotion: 'This video appears to be private or unavailable. Check its settings on Dailymotion and try again.',
+          loom: 'This video appears to be private or unavailable. Check its sharing settings on Loom and try again.',
+          wistia: 'This video appears to be private or unavailable. Check its sharing settings on Wistia and try again.'
+        };
+        const msg = platformMessages[parsed.platform] || 'This video appears to be private or unavailable.';
+        return apiError(res, 422, 'VIDEO_UNAVAILABLE', msg);
+      }
+    } catch {
+      embedCheckUncertain = true;
+    }
+
     const paidUser = await isUserPaid(req.userId);
     const expiresAt = (!paidUser && expiryDays && expiryDays !== 'never')
       ? new Date(Date.now() + parseInt(expiryDays, 10) * 24 * 60 * 60 * 1000)
@@ -1047,13 +1068,17 @@ app.post('/api/create-link-video', async (req, res) => {
       [videoId, contentType, trimmedTitle, expiresAt, passwordHash, req.userId || null, parsed.platform, parsed.videoId]
     );
 
-    res.json({
+    const response = {
       success: true,
       videoId,
       platform: parsed.platform,
       embedVideoId: parsed.videoId,
       watchUrl: `/watch?id=${encodeURIComponent(videoId)}`
-    });
+    };
+    if (embedCheckUncertain) {
+      response.warning = 'We couldn\u2019t verify whether this video is publicly embeddable right now. It has been saved, but double-check that the video\u2019s sharing settings allow embedding.';
+    }
+    res.json(response);
   } catch (err) {
     console.error('create-link-video error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not create the link. Please try again.');
@@ -1699,4 +1724,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, pool };
+module.exports = { app, pool, uploadCounts };
