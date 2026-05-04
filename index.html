@@ -196,42 +196,6 @@
         .hero-link-input:focus {
             border-color: rgba(78,205,196,0.6);
         }
-        .hero-paste-btn {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            padding: 8px 12px;
-            background: rgba(78,205,196,0.12);
-            border: 1px solid rgba(78,205,196,0.3);
-            border-radius: 10px;
-            color: #4ecdc4;
-            font-size: 0.82rem;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.2s, border-color 0.2s;
-            flex-shrink: 0;
-        }
-        .hero-paste-btn.visible {
-            display: inline-flex;
-        }
-        .hero-paste-btn:hover {
-            background: rgba(78,205,196,0.2);
-            border-color: rgba(78,205,196,0.5);
-        }
-        .hero-paste-btn:focus-visible {
-            outline: 2px solid #4ecdc4;
-            outline-offset: 2px;
-        }
-        .hero-paste-btn:active {
-            transform: scale(0.96);
-        }
-        .hero-paste-btn svg {
-            width: 14px;
-            height: 14px;
-        }
         .hero-link-detected {
             font-size: 0.82rem;
             margin-top: 6px;
@@ -242,10 +206,6 @@
         }
         .hero-link-detected:empty {
             display: none;
-        }
-        .hero-link-detected.dismissing {
-            opacity: 0;
-            transition: opacity 0.4s ease;
         }
         .hero-drop input[type="file"] {
             position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
@@ -345,21 +305,13 @@
                 </div>
                 <div class="hero-link-content">
                     <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/>
-                        <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>
+                        <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                     <div class="hero-drop-label">Paste a video link</div>
                     <div class="hero-link-row">
                         <input type="url" class="hero-link-input" id="heroLinkInput"
                                placeholder="YouTube, Vimeo, Dailymotion, Loom, or Wistia URL"
                                autocomplete="off" spellcheck="false" aria-label="Video URL">
-                        <button type="button" class="hero-paste-btn" id="heroPasteBtn" aria-label="Paste link from clipboard">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                            </svg>
-                            Paste
-                        </button>
                     </div>
                     <div class="hero-link-detected" id="heroLinkDetected" aria-live="polite"></div>
                 </div>
@@ -390,14 +342,7 @@
         var heroLinkBtn = document.getElementById('heroLinkBtn');
         var heroLinkInput = document.getElementById('heroLinkInput');
         var heroLinkDetected = document.getElementById('heroLinkDetected');
-        var heroPasteBtn = document.getElementById('heroPasteBtn');
         var isLinkMode = false;
-        var clipboardDismissTimer = null;
-
-        var clipboardAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
-        if (clipboardAvailable) {
-          heroPasteBtn.classList.add('visible');
-        }
 
         function resetToUploadMode() {
           isLinkMode = false;
@@ -463,34 +408,10 @@
           }
         });
 
-        heroPasteBtn.addEventListener('click', function () {
-          if (!navigator.clipboard || !navigator.clipboard.readText) return;
-          navigator.clipboard.readText().then(function (text) {
-            var trimmed = (text || '').trim();
-            if (!trimmed) return;
-            heroLinkInput.value = trimmed;
-            heroLinkInput.dispatchEvent(new Event('input'));
-          }).catch(function () {
-            heroLinkDetected.textContent = 'Clipboard access denied — please paste manually';
-            heroLinkDetected.classList.add('error');
-            heroLinkDetected.classList.remove('dismissing');
-            heroPasteBtn.classList.remove('visible');
-            clearTimeout(clipboardDismissTimer);
-            clipboardDismissTimer = setTimeout(function () {
-              heroLinkDetected.classList.add('dismissing');
-              setTimeout(function () {
-                heroLinkDetected.textContent = '';
-                heroLinkDetected.classList.remove('error', 'dismissing');
-              }, 400);
-            }, 4000);
-          });
-        });
-
         heroLinkInput.addEventListener('input', function () {
           var val = heroLinkInput.value.trim();
-          clearTimeout(clipboardDismissTimer);
           heroLinkDetected.textContent = '';
-          heroLinkDetected.classList.remove('error', 'dismissing');
+          heroLinkDetected.classList.remove('error');
           if (!val) return;
 
           var res = window.LinkParser ? window.LinkParser.parse(val) : null;
