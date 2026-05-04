@@ -1458,6 +1458,24 @@ app.patch('/api/admin/users/:id/tier', requireAdmin, express.json(), async (req,
   }
 });
 
+// ── Admin: list users ─────────────────────────────────────────────────────────
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.email, u.is_paid, u.created_at,
+              COUNT(v.id)::int AS video_count
+       FROM vs_users u
+       LEFT JOIN vs_uploads v ON v.user_id = u.id
+       GROUP BY u.id
+       ORDER BY u.created_at DESC`
+    );
+    res.json({ users: result.rows });
+  } catch (err) {
+    console.error('admin list users error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not list users.');
+  }
+});
+
 // ── Clean URL routes ──────────────────────────────────────────────────────────
 app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html')));
 app.get('/watch',   (req, res) => res.sendFile(path.join(__dirname, 'watch.html')));

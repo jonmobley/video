@@ -131,6 +131,59 @@
     .empty-state { text-align: center; padding: 60px 20px; color: #959595; }
     .empty-icon { font-size: 3rem; margin-bottom: 14px; }
 
+    /* Tabs */
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 28px;
+      border-bottom: 1px solid #2c2c2e;
+    }
+    .tab-btn {
+      background: none; border: none; color: #959595; font-size: 0.9rem;
+      font-weight: 600; font-family: inherit; padding: 12px 20px;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active { color: #fff; border-bottom-color: #007AFF; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* User rows */
+    .user-row {
+      background: #1c1c1e; border-radius: 14px; padding: 16px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .user-row:hover { background: #242424; }
+    .user-main { flex: 1; overflow: hidden; min-width: 0; }
+    .user-email { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+    .user-meta span { font-size: 0.76rem; color: #959595; }
+    .badge-paid { background: rgba(0,122,255,0.15); color: #007AFF; }
+    .badge-free { background: rgba(150,150,150,0.15); color: #959595; }
+
+    /* Toggle switch */
+    .tier-toggle {
+      position: relative; display: inline-flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+    }
+    .tier-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .tier-toggle .slider {
+      width: 44px; height: 24px; background: #3A3A3C; border-radius: 12px;
+      cursor: pointer; transition: background 0.25s; position: relative;
+    }
+    .tier-toggle .slider::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; background: #fff; border-radius: 50%;
+      transition: transform 0.25s;
+    }
+    .tier-toggle input:checked + .slider { background: #007AFF; }
+    .tier-toggle input:checked + .slider::after { transform: translateX(20px); }
+    .tier-toggle input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+    .tier-toggle .tier-label {
+      font-size: 0.78rem; font-weight: 600; min-width: 32px;
+    }
+    .tier-label-paid { color: #007AFF; }
+    .tier-label-free { color: #959595; }
+
     .refresh-btn {
       background: #2c2c2e; color: #fff; border: none; padding: 10px 18px;
       border-radius: 10px; font-size: 0.85rem; font-weight: 600;
@@ -153,19 +206,20 @@
       }
       .stat-card { padding: 14px 16px; min-width: 0; }
       .stat-val { font-size: 1.4rem; }
-      .video-row {
+      .video-row, .user-row {
         flex-direction: column; align-items: stretch;
         gap: 10px; padding: 14px;
       }
-      .video-main { width: 100%; }
+      .video-main, .user-main { width: 100%; }
       .video-title { font-size: 0.95rem; }
-      .video-meta { gap: 8px 10px; }
+      .video-meta, .user-meta { gap: 8px 10px; }
       .video-actions { justify-content: stretch; gap: 8px; }
       .video-actions .watch-lnk,
       .video-actions .del-btn {
         flex: 1; padding: 11px 10px; font-size: 0.85rem;
         text-align: center;
       }
+      .tier-toggle { align-self: flex-start; }
       #loginScreen { min-height: calc(100vh - 56px); padding: 24px 16px; }
       .login-card { padding: 28px 22px; border-radius: 16px; }
     }
@@ -197,25 +251,55 @@
   <div id="dashboard">
     <div class="container">
       <div class="stats-row" id="statsRow"></div>
-      <div class="section-title">All Videos</div>
-      <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
-      <div class="video-list" id="videoList"></div>
+
+      <div class="tab-bar" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="videosPanel" data-tab="videos">Videos</button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="usersPanel" data-tab="users">Users</button>
+      </div>
+
+      <div id="videosPanel" class="tab-panel active" role="tabpanel">
+        <button class="refresh-btn" id="refreshBtn">↻ Refresh</button>
+        <div class="video-list" id="videoList"></div>
+      </div>
+
+      <div id="usersPanel" class="tab-panel" role="tabpanel">
+        <button class="refresh-btn" id="refreshUsersBtn">↻ Refresh</button>
+        <div class="video-list" id="userList"></div>
+      </div>
     </div>
   </div>
 
   <script>
     let adminToken = sessionStorage.getItem('vs_admin_token') || '';
 
-    const loginScreen = document.getElementById('loginScreen');
-    const dashboard   = document.getElementById('dashboard');
-    const tokenInput  = document.getElementById('tokenInput');
-    const loginBtn    = document.getElementById('loginBtn');
-    const loginError  = document.getElementById('loginError');
-    const loginNotice = document.getElementById('loginNotice');
-    const logoutBtn   = document.getElementById('logoutBtn');
-    const statsRow    = document.getElementById('statsRow');
-    const videoList   = document.getElementById('videoList');
-    const refreshBtn  = document.getElementById('refreshBtn');
+    const loginScreen    = document.getElementById('loginScreen');
+    const dashboard      = document.getElementById('dashboard');
+    const tokenInput     = document.getElementById('tokenInput');
+    const loginBtn       = document.getElementById('loginBtn');
+    const loginError     = document.getElementById('loginError');
+    const loginNotice    = document.getElementById('loginNotice');
+    const logoutBtn      = document.getElementById('logoutBtn');
+    const statsRow       = document.getElementById('statsRow');
+    const videoList      = document.getElementById('videoList');
+    const refreshBtn     = document.getElementById('refreshBtn');
+    const userList       = document.getElementById('userList');
+    const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+    const tabBtns        = document.querySelectorAll('.tab-btn');
+    const tabPanels      = document.querySelectorAll('.tab-panel');
+
+    let usersLoaded = false;
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+        tabPanels.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        const panel = document.getElementById(btn.getAttribute('aria-controls'));
+        panel.classList.add('active');
+        if (btn.dataset.tab === 'users' && !usersLoaded) loadUsers();
+      });
+    });
 
     function formatBytes(b) {
       if (!b) return '—';
@@ -246,8 +330,6 @@
           headers: { 'Authorization': 'Bearer ' + adminToken }
         });
 
-        // 401 = missing token (stale session), 403 = wrong token. Both should
-        // bounce back to the login form so the user can paste a fresh token.
         if (res.status === 401 || res.status === 403) {
           logout({ expired: true });
           return;
@@ -263,7 +345,6 @@
         const data = await res.json();
         const videos = data.videos || [];
 
-        // Stats
         const totalSize = videos.reduce((s, v) => s + (v.file_size || 0), 0);
         const totalViews = videos.reduce((s, v) => s + (v.view_count || 0), 0);
         const expiredCount = videos.filter(v => v.expires_at && new Date(v.expires_at) < new Date()).length;
@@ -301,7 +382,7 @@
             </div>
           `;
           row.querySelector('.del-btn').addEventListener('click', async function() {
-            if (this.disabled) return; // debounce double-click
+            if (this.disabled) return;
             if (!confirm('Delete this video? This cannot be undone.')) return;
             this.disabled = true; this.textContent = '…';
             try {
@@ -326,8 +407,126 @@
       }
     }
 
+    async function loadUsers() {
+      userList.innerHTML = '<div class="loading-spinner"></div>';
+      try {
+        const res = await fetch('/api/admin/users', {
+          headers: { 'Authorization': 'Bearer ' + adminToken }
+        });
+        if (res.status === 401 || res.status === 403) { logout({ expired: true }); return; }
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load users';
+          userList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load users'}</div></div>`;
+          return;
+        }
+        const data = await res.json();
+        const users = data.users || [];
+        usersLoaded = true;
+
+        if (!users.length) {
+          userList.innerHTML = `<div class="empty-state"><div class="empty-icon">👤</div><div>No registered users yet.</div></div>`;
+          return;
+        }
+
+        userList.innerHTML = '';
+        for (const u of users) {
+          const row = document.createElement('div');
+          row.className = 'user-row';
+
+          const main = document.createElement('div');
+          main.className = 'user-main';
+
+          const emailDiv = document.createElement('div');
+          emailDiv.className = 'user-email';
+          emailDiv.textContent = u.email;
+          main.appendChild(emailDiv);
+
+          const meta = document.createElement('div');
+          meta.className = 'user-meta';
+
+          const joinSpan = document.createElement('span');
+          joinSpan.textContent = 'Joined ' + formatDate(u.created_at);
+          meta.appendChild(joinSpan);
+
+          const countSpan = document.createElement('span');
+          countSpan.textContent = u.video_count + ' video' + (u.video_count === 1 ? '' : 's');
+          meta.appendChild(countSpan);
+
+          const badge = document.createElement('span');
+          badge.className = 'badge ' + (u.is_paid ? 'badge-paid' : 'badge-free');
+          badge.textContent = u.is_paid ? 'Paid' : 'Free';
+          meta.appendChild(badge);
+
+          main.appendChild(meta);
+          row.appendChild(main);
+
+          const toggleLabel = document.createElement('label');
+          toggleLabel.className = 'tier-toggle';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = u.is_paid;
+          checkbox.setAttribute('aria-label', 'Toggle paid status for ' + u.email);
+          toggleLabel.appendChild(checkbox);
+
+          const slider = document.createElement('span');
+          slider.className = 'slider';
+          toggleLabel.appendChild(slider);
+
+          const label = document.createElement('span');
+          label.className = 'tier-label ' + (u.is_paid ? 'tier-label-paid' : 'tier-label-free');
+          label.textContent = u.is_paid ? 'Paid' : 'Free';
+          toggleLabel.appendChild(label);
+
+          row.appendChild(toggleLabel);
+
+          checkbox.addEventListener('change', async () => {
+            const newPaid = checkbox.checked;
+            checkbox.disabled = true;
+            try {
+              const pr = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/tier', {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': 'Bearer ' + adminToken,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_paid: newPaid })
+              });
+              if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
+              if (!pr.ok) {
+                checkbox.checked = !newPaid;
+                const data = await pr.json().catch(() => ({}));
+                const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
+                alert(typeof msg === 'string' ? msg : 'Update failed.');
+              } else {
+                u.is_paid = newPaid;
+                label.textContent = newPaid ? 'Paid' : 'Free';
+                label.className = 'tier-label ' + (newPaid ? 'tier-label-paid' : 'tier-label-free');
+                badge.textContent = newPaid ? 'Paid' : 'Free';
+                badge.className = 'badge ' + (newPaid ? 'badge-paid' : 'badge-free');
+              }
+            } catch {
+              checkbox.checked = !newPaid;
+              alert('Network error. Could not update user tier.');
+            }
+            checkbox.disabled = false;
+          });
+
+          userList.appendChild(row);
+        }
+      } catch (err) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'empty-state';
+        const errMsg = document.createElement('div');
+        errMsg.textContent = 'Failed to load users: ' + err.message;
+        errDiv.appendChild(errMsg);
+        userList.innerHTML = '';
+        userList.appendChild(errDiv);
+      }
+    }
+
     async function tryLogin() {
-      // Debounce: ignore extra clicks while a check is in flight.
       if (loginBtn.disabled) return;
       const token = tokenInput.value.trim();
       if (!token) return;
@@ -351,10 +550,17 @@
       }
     }
 
+    function resetTabs() {
+      tabBtns.forEach(b => { b.classList.toggle('active', b.dataset.tab === 'videos'); b.setAttribute('aria-selected', b.dataset.tab === 'videos' ? 'true' : 'false'); });
+      tabPanels.forEach(p => p.classList.toggle('active', p.id === 'videosPanel'));
+    }
+
     function showDashboard() {
       loginScreen.style.display = 'none';
       dashboard.style.display = 'block';
       logoutBtn.style.display = 'inline-block';
+      usersLoaded = false;
+      resetTabs();
       loadVideos();
     }
 
@@ -369,14 +575,16 @@
       loginError.classList.remove('visible');
       loginNotice.classList.toggle('visible', !!expired);
       loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
+      usersLoaded = false;
+      resetTabs();
     }
 
     loginBtn.addEventListener('click', tryLogin);
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
     refreshBtn.addEventListener('click', loadVideos);
+    refreshUsersBtn.addEventListener('click', () => { usersLoaded = false; loadUsers(); });
 
-    // Auto-login if token saved
     if (adminToken) showDashboard();
     else loginScreen.style.display = 'flex';
   </script>
