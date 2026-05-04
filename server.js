@@ -376,6 +376,12 @@ async function cleanupExpired() {
           OR (expires_at < NOW() - INTERVAL '1 day')
     `);
     if (codes.rowCount) console.log(`Pruned ${codes.rowCount} expired auth code(s)`);
+
+    const thumbs = await pool.query(`
+      DELETE FROM vs_link_thumbnails
+       WHERE created_at < NOW() - INTERVAL '30 days'
+    `);
+    if (thumbs.rowCount) console.log(`Pruned ${thumbs.rowCount} stale link thumbnail(s)`);
   } catch (err) {
     console.error('Cleanup error:', err.message);
   }
