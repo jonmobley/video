@@ -222,6 +222,11 @@
     }
     .filter-bar .tier-filter:focus { border-color: #007AFF; outline: none; }
     .filter-bar .tier-filter:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }
+    .filter-bar .search-input:disabled,
+    .filter-bar .tier-filter:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     .filter-bar .tier-filter option { background: #1c1c1e; color: #fff; }
     .user-count {
       font-size: 0.78rem; color: #636366; margin-bottom: 14px;
@@ -505,6 +510,8 @@
     async function loadVideos() {
       refreshBtn.disabled = true;
       refreshBtn.textContent = 'Loading…';
+      videoSearchInput.disabled = true;
+      videoStatusFilter.disabled = true;
       videoList.innerHTML = '<div class="loading-spinner"></div>';
       videoFilterBar.style.display = 'none';
       videoCountEl.style.display = 'none';
@@ -623,12 +630,16 @@
       } finally {
         refreshBtn.disabled = false;
         refreshBtn.textContent = '↻ Refresh';
+        videoSearchInput.disabled = false;
+        videoStatusFilter.disabled = false;
       }
     }
 
     async function loadUsers() {
       refreshUsersBtn.disabled = true;
       refreshUsersBtn.textContent = 'Loading…';
+      userSearchInput.disabled = true;
+      userTierFilter.disabled = true;
       userList.innerHTML = '<div class="loading-spinner"></div>';
       userPagination.innerHTML = '';
       userCountEl.style.display = 'none';
@@ -784,6 +795,8 @@
       } finally {
         refreshUsersBtn.disabled = false;
         refreshUsersBtn.textContent = '↻ Refresh';
+        userSearchInput.disabled = false;
+        userTierFilter.disabled = false;
       }
     }
 
