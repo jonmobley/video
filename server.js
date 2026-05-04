@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool, types } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -410,6 +411,75 @@ app.use((err, req, res, next) => {
   next();
 });
 app.use(attachUser);
+
+// ── Watch page with dynamic OG tags (must be before static middleware) ───────
+app.get('/watch', async (req, res) => {
+  try {
+    const videoId = req.query.id;
+    const origin = req.protocol + '://' + req.get('host');
+    let ogTags = '';
+
+    if (videoId && isValidVideoId(videoId)) {
+      const result = await pool.query(
+        `SELECT title, platform, embed_video_id, expires_at,
+                (thumbnail_data IS NOT NULL) AS has_thumb
+           FROM vs_uploads WHERE id = $1`,
+        [videoId]
+      );
+      if (result.rows.length) {
+        const v = result.rows[0];
+        const expired = v.expires_at && new Date(v.expires_at) < new Date();
+        if (!expired) {
+          const title = (v.title || 'Untitled video').replace(/[<>"&]/g, c =>
+            ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', '&': '&amp;' }[c]));
+          const platform = v.platform || 'upload';
+
+          let imageUrl = `${origin}/assets/vidshare-og.png`;
+          if (platform === 'youtube' && v.embed_video_id) {
+            imageUrl = `https://img.youtube.com/vi/${encodeURIComponent(v.embed_video_id)}/hqdefault.jpg`;
+          } else if (platform === 'vimeo' && v.embed_video_id) {
+            imageUrl = `https://vumbnail.com/${encodeURIComponent(v.embed_video_id)}.jpg`;
+          } else if (v.has_thumb) {
+            imageUrl = `${origin}/api/video-thumbnail/${encodeURIComponent(videoId)}`;
+          }
+
+          const watchUrl = `${origin}/watch?id=${encodeURIComponent(videoId)}`;
+          ogTags = [
+            `<meta property="og:type" content="video.other">`,
+            `<meta property="og:url" content="${watchUrl}">`,
+            `<meta property="og:title" content="${title} — VidShare">`,
+            `<meta property="og:description" content="Watch this video on VidShare">`,
+            `<meta property="og:image" content="${imageUrl}">`,
+            `<meta name="twitter:card" content="summary_large_image">`,
+            `<meta name="twitter:title" content="${title} — VidShare">`,
+            `<meta name="twitter:image" content="${imageUrl}">`
+          ].join('\n    ');
+        }
+      }
+    }
+
+    if (!ogTags) {
+      ogTags = [
+        `<meta property="og:type" content="website">`,
+        `<meta property="og:title" content="Watch — VidShare">`,
+        `<meta property="og:description" content="Watch a video on VidShare">`,
+        `<meta property="og:image" content="${origin}/assets/vidshare-og.png">`,
+        `<meta name="twitter:card" content="summary_large_image">`,
+        `<meta name="twitter:title" content="Watch — VidShare">`,
+        `<meta name="twitter:image" content="${origin}/assets/vidshare-og.png">`
+      ].join('\n    ');
+    }
+
+    const html = fs.readFileSync(path.join(__dirname, 'watch.html'), 'utf8');
+    const injected = html.replace('</head>', `    ${ogTags}\n</head>`);
+    res.type('html').send(injected);
+  } catch (err) {
+    console.error('watch OG injection error:', err);
+    res.sendFile(path.join(__dirname, 'watch.html'));
+  }
+});
+
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -1585,7 +1655,6 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 
 // ── Clean URL routes ──────────────────────────────────────────────────────────
 app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html')));
-app.get('/watch',   (req, res) => res.sendFile(path.join(__dirname, 'watch.html')));
 app.get('/admin',   (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));

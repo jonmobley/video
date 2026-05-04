@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Aj0ssivE4B-KKGFfrhF7y"
+uri = "file://assets/vidshare-og.png"
+type = "image"
+title = "generated_image"
