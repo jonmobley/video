@@ -88,48 +88,42 @@
             margin: 0 auto 32px;
             font-weight: 300;
         }
-        .cta-row {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 18px;
+        .hero-drop {
+            border: 2px dashed #3a3a3c;
+            border-radius: 18px;
+            padding: 36px 32px;
+            max-width: 420px;
+            margin: 0 auto 18px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            text-align: center;
         }
-        /* Higher-specificity selectors (.btn.btn-primary) defeat
-           common.css's .btn:hover { background: #0056CC } default. */
-        .btn.btn-primary,
-        .btn.btn-primary:hover {
-            font-size: 1.05rem;
-            padding: 16px 32px;
-            border-radius: 14px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        .hero-drop:hover,
+        .hero-drop.drag-over {
+            border-color: rgba(78,205,196,0.6);
+            background: rgba(78,205,196,0.04);
+        }
+        .hero-drop-icon {
+            width: 36px; height: 36px;
+            margin: 0 auto 14px;
+            opacity: 0.5;
+        }
+        .hero-drop:hover .hero-drop-icon,
+        .hero-drop.drag-over .hero-drop-icon {
+            opacity: 0.8;
+        }
+        .hero-drop-label {
+            font-size: 1.1rem;
+            font-weight: 700;
             color: #fff;
-            border: none;
-            font-weight: 600;
-            box-shadow: 0 10px 30px rgba(78,205,196,0.25);
-            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            margin-bottom: 6px;
         }
-        .btn.btn-primary:hover {
-            filter: brightness(1.08);
-            transform: translateY(-2px);
-            box-shadow: 0 14px 36px rgba(78,205,196,0.35);
+        .hero-drop-sub {
+            font-size: 0.85rem;
+            color: #888;
         }
-        .btn.btn-primary:active { transform: translateY(0); filter: brightness(0.96); }
-
-        .btn.btn-secondary,
-        .btn.btn-secondary:hover {
-            font-size: 1rem;
-            padding: 16px 28px;
-            border-radius: 14px;
-            background: #1c1c1e;
-            color: #fff;
-            border: 1px solid #2c2c2e;
-            transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-        }
-        .btn.btn-secondary:hover {
-            background: #2c2c2e;
-            border-color: #3a3a3c;
-            transform: translateY(-1px);
+        .hero-drop input[type="file"] {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
         }
 
         .trust-row {
@@ -147,11 +141,6 @@
             font-weight: 700;
         }
 
-        .hero.drag-active {
-            outline: 2px dashed rgba(78,205,196,0.5);
-            outline-offset: 12px;
-            border-radius: 20px;
-        }
 
         /* Footer */
         footer {
@@ -170,11 +159,8 @@
             .hero { margin-top: 18px; }
             .hero h1 { margin-bottom: 16px; }
             .hero .sub { margin-bottom: 24px; }
-            .cta-row { flex-direction: column; align-items: stretch; }
-            .btn.btn-primary,
-            .btn.btn-primary:hover {
-                width: 100%; padding: 16px 24px;
-            }
+            .hero-drop { padding: 28px 20px; }
+            .hero-drop-sub { display: none; }
             .trust-row { gap: 12px; font-size: 0.85rem; }
             footer { padding: 30px 16px max(20px, env(safe-area-inset-bottom)); }
         }
@@ -201,8 +187,14 @@
             <p class="sub">
                 Upload your video and get a clean shareable link. No signup required, no app to install — just drop a file and send the link.
             </p>
-            <div class="cta-row">
-                <a href="/upload" class="btn btn-primary" id="openUploadBtn">Upload a Video</a>
+            <div class="hero-drop" id="heroDropZone" style="position:relative;">
+                <input type="file" accept="video/*" id="heroFileInput">
+                <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
+                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                </svg>
+                <div class="hero-drop-label">Upload a Video</div>
+                <div class="hero-drop-sub">Click to browse or drag and drop a video file</div>
             </div>
             <div class="trust-row">
                 <span>No signup required</span>
@@ -224,23 +216,27 @@
     <script src="/js/upload-modal.js"></script>
     <script>
       (function () {
-        const openBtn = document.getElementById('openUploadBtn');
-        openBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          window.openUploadModal();
+        var dropZone = document.getElementById('heroDropZone');
+        var fileInput = document.getElementById('heroFileInput');
+
+        fileInput.addEventListener('change', function () {
+          var f = fileInput.files[0];
+          if (f && f.type.startsWith('video/')) {
+            window.openUploadModal(f);
+          }
+          fileInput.value = '';
         });
 
-        var hero = document.querySelector('.hero');
-        hero.addEventListener('dragover', function (e) {
+        dropZone.addEventListener('dragover', function (e) {
           e.preventDefault();
-          hero.classList.add('drag-active');
+          dropZone.classList.add('drag-over');
         });
-        hero.addEventListener('dragleave', function (e) {
-          if (!hero.contains(e.relatedTarget)) hero.classList.remove('drag-active');
+        dropZone.addEventListener('dragleave', function (e) {
+          if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
         });
-        hero.addEventListener('drop', function (e) {
+        dropZone.addEventListener('drop', function (e) {
           e.preventDefault();
-          hero.classList.remove('drag-active');
+          dropZone.classList.remove('drag-over');
           var file = e.dataTransfer.files[0];
           if (file && file.type.startsWith('video/')) {
             window.openUploadModal(file);
