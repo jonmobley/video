@@ -625,6 +625,56 @@ describe('parse', () => {
       });
     });
   });
+
+  describe('edge cases: ID length upper bounds', () => {
+    test('YouTube ID at 64 chars (parser max) is accepted', () => {
+      const id = 'A'.repeat(64);
+      expect(parse(`https://youtube.com/watch?v=${id}`)).toEqual({
+        platform: 'youtube',
+        videoId: id
+      });
+    });
+
+    test('YouTube ID at 65 chars exceeds parser max and returns null', () => {
+      expect(parse(`https://youtube.com/watch?v=${'A'.repeat(65)}`)).toBeNull();
+    });
+
+    test('Vimeo ID at 20 digits (parser max) is accepted', () => {
+      const id = '1'.repeat(20);
+      expect(parse(`https://vimeo.com/${id}`)).toEqual({
+        platform: 'vimeo',
+        videoId: id
+      });
+    });
+
+    test('Vimeo ID at 21 digits exceeds parser max and returns null', () => {
+      expect(parse(`https://vimeo.com/${'1'.repeat(21)}`)).toBeNull();
+    });
+
+    test('Vimeo unlisted hash at 64 chars (parser max) is accepted', () => {
+      const hash = 'a'.repeat(64);
+      expect(parse(`https://vimeo.com/123456789/${hash}`)).toEqual({
+        platform: 'vimeo',
+        videoId: `123456789/${hash}`
+      });
+    });
+
+    test('Vimeo unlisted hash at 65 chars exceeds parser max and returns null', () => {
+      expect(parse(`https://vimeo.com/123456789/${'a'.repeat(65)}`)).toBeNull();
+    });
+
+    test('player.vimeo.com/video with oversized ID returns null', () => {
+      expect(parse(`https://player.vimeo.com/video/${'9'.repeat(21)}`)).toBeNull();
+    });
+
+    test('Vimeo channels path with oversized ID returns null', () => {
+      expect(parse(`https://vimeo.com/channels/staffpicks/${'9'.repeat(21)}`)).toBeNull();
+    });
+
+    test('Vimeo groups path with oversized ID returns null', () => {
+      expect(parse(`https://vimeo.com/groups/dance/videos/${'9'.repeat(21)}`)).toBeNull();
+    });
+  });
 });
 
 describe('buildEmbedUrl', () => {

@@ -1000,6 +1000,17 @@ app.post('/api/create-link-video', async (req, res) => {
     if (!parsed) {
       return apiError(res, 400, 'BAD_LINK', "That doesn't look like a supported video link we can embed.");
     }
+    const MAX_YT_ID_LEN = 16;
+    const MAX_VIMEO_DIGITS = 15;
+    if (parsed.platform === 'youtube' && parsed.videoId.length > MAX_YT_ID_LEN) {
+      return apiError(res, 400, 'BAD_VIDEO_ID', 'That YouTube video ID looks too long to be valid.');
+    }
+    if (parsed.platform === 'vimeo') {
+      const numericPart = parsed.videoId.split('/')[0];
+      if (numericPart.length > MAX_VIMEO_DIGITS) {
+        return apiError(res, 400, 'BAD_VIDEO_ID', 'That Vimeo video ID looks too long to be valid.');
+      }
+    }
     if (password != null && typeof password !== 'string') {
       return apiError(res, 400, 'BAD_PASSWORD', 'Invalid password format.');
     }

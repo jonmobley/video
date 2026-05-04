@@ -36,11 +36,11 @@
  * Works in both browser and Node (no DOM dependencies).
  */
 (function (root) {
-  const YT_ID = /^[A-Za-z0-9_-]{6,}$/;        // 11 in practice, but be lenient
-  const VIMEO_ID = /^\d+(\/[A-Za-z0-9]+)?$/;  // numeric, optional unlisted hash
-  const DM_ID = /^[A-Za-z0-9]+$/;             // alphanumeric, typically x… prefix
-  const LOOM_ID = /^[0-9a-f]{32}$/i;            // 32-char hex string (case-insensitive)
-  const WISTIA_ID = /^[A-Za-z0-9]+$/;         // alphanumeric, typically 10 chars
+  const YT_ID = /^[A-Za-z0-9_-]{6,64}$/;
+  const VIMEO_ID = /^\d{1,20}(\/[A-Za-z0-9]{1,64})?$/;
+  const DM_ID = /^[A-Za-z0-9]+$/;
+  const LOOM_ID = /^[0-9a-f]{32}$/i;
+  const WISTIA_ID = /^[A-Za-z0-9]+$/;
 
   // Hosts we explicitly call out so the UI can show a helpful message
   // ("upload the file directly") instead of a generic "not recognised".
@@ -90,25 +90,25 @@
     // ── Vimeo ──────────────────────────────────────────────────────────────
     if (host === 'vimeo.com' || host === 'player.vimeo.com') {
       // player.vimeo.com/video/ID
-      let m = path.match(/^\/video\/(\d+)(?:\/([A-Za-z0-9]+))?/);
+      let m = path.match(/^\/video\/(\d{1,20})(?!\d)(?:\/([A-Za-z0-9]{1,64})(?![A-Za-z0-9]))?/);
       if (m) {
         const id = m[2] ? `${m[1]}/${m[2]}` : m[1];
         return { platform: 'vimeo', videoId: id };
       }
       // /channels/NAME/ID
-      m = path.match(/^\/channels\/[^/]+\/(\d+)(?:\/([A-Za-z0-9]+))?/);
+      m = path.match(/^\/channels\/[^/]+\/(\d{1,20})(?!\d)(?:\/([A-Za-z0-9]{1,64})(?![A-Za-z0-9]))?/);
       if (m) {
         const id = m[2] ? `${m[1]}/${m[2]}` : m[1];
         return { platform: 'vimeo', videoId: id };
       }
       // /groups/NAME/videos/ID
-      m = path.match(/^\/groups\/[^/]+\/videos\/(\d+)(?:\/([A-Za-z0-9]+))?/);
+      m = path.match(/^\/groups\/[^/]+\/videos\/(\d{1,20})(?!\d)(?:\/([A-Za-z0-9]{1,64})(?![A-Za-z0-9]))?/);
       if (m) {
         const id = m[2] ? `${m[1]}/${m[2]}` : m[1];
         return { platform: 'vimeo', videoId: id };
       }
       // /ID or /ID/HASH (unlisted)
-      m = path.match(/^\/(\d+)(?:\/([A-Za-z0-9]+))?\/?$/);
+      m = path.match(/^\/(\d{1,20})(?:\/([A-Za-z0-9]{1,64}))?\/?$/);
       if (m) {
         const id = m[2] ? `${m[1]}/${m[2]}` : m[1];
         return VIMEO_ID.test(id) ? { platform: 'vimeo', videoId: id } : null;
