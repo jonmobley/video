@@ -1046,77 +1046,9 @@
         }
 
         function editCategoryIcon(categoryElement) {
-            const categoryId = categoryElement.dataset.category;
-            const currentIcon = categoryElement.dataset.icon || '';
-            
-            // Create icon selection popup
-            const popup = document.createElement('div');
-            popup.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: #2a2a2a;
-                border: 2px solid var(--accent-color);
-                border-radius: 12px;
-                padding: 20px;
-                z-index: 1000;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-                color: white;
-                min-width: 300px;
-            `;
-            
-            popup.innerHTML = `
-                <h3 class="oz-icon-picker-title">Choose Category Icon</h3>
-                <div class="oz-icon-grid">
-                    <button class="icon-option oz-icon-option${currentIcon === '' ? ' selected' : ''}" data-icon="">None</button>
-                    ${Object.entries(availableIcons).map(([key, icon]) => 
-                        `<button class="icon-option oz-icon-option oz-icon-option-lg${currentIcon === key ? ' selected' : ''}" data-icon="${key}">${icon} ${key.replace('-', ' ')}</button>`
-                    ).join('')}
-                </div>
-                <div class="oz-icon-picker-actions">
-                    <button id="cancelIconEdit" class="oz-icon-picker-btn-cancel">Cancel</button>
-                    <button id="saveIconEdit" class="oz-icon-picker-btn-save">Save</button>
-                </div>
-            `;
-            
-            document.body.appendChild(popup);
-            
-            let selectedIcon = currentIcon;
-            
-            // Handle icon selection
-            popup.querySelectorAll('.icon-option').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    popup.querySelectorAll('.icon-option').forEach(b => b.style.borderColor = 'transparent');
-                    this.style.borderColor = 'var(--accent-color)';
-                    selectedIcon = this.dataset.icon;
-                });
-            });
-            
-            // Handle save
-            popup.querySelector('#saveIconEdit').addEventListener('click', function() {
-                categoryElement.dataset.icon = selectedIcon;
-                
-                // Update category display (for future dropdown integration)
-                const iconDisplay = selectedIcon && availableIcons[selectedIcon] ? availableIcons[selectedIcon] + ' ' : '';
-                
-                // Mark as changed
+            openIconPickerDialog(categoryElement, availableIcons, function(selectedIcon, categoryId) {
                 markUnsavedChanges();
                 console.log(`Category ${categoryId} icon updated to: ${selectedIcon}`);
-                
-                document.body.removeChild(popup);
-            });
-            
-            // Handle cancel
-            popup.querySelector('#cancelIconEdit').addEventListener('click', function() {
-                document.body.removeChild(popup);
-            });
-            
-            // Close on outside click
-            popup.addEventListener('click', function(e) {
-                if (e.target === popup) {
-                    document.body.removeChild(popup);
-                }
             });
         }
 
@@ -1208,48 +1140,13 @@
                 `<option value="${cat.id}">${cat.name}</option>`
             ).join('');
             
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); display: flex; align-items: center;
-                justify-content: center; z-index: 1001; backdrop-filter: blur(4px);
-            `;
-            
-            dialog.innerHTML = `
-                <div class="oz-dialog-panel">
-                    <h3 class="oz-dialog-title">Delete Tag</h3>
-                    <p class="oz-dialog-text">
-                        "${categoryName}" has ${videosInCategory.length} video(s). 
-                        Choose a tag to reassign them to:
-                    </p>
-                    <select id="reassignSelect" class="oz-dialog-select">
-                        <option value="">Select tag...</option>
-                        ${reassignmentOptions}
-                    </select>
-                    <div class="oz-dialog-actions">
-                        <button id="confirmDelete" class="oz-btn-danger">Delete & Reassign</button>
-                        <button id="cancelDelete" class="oz-btn-cancel">Cancel</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(dialog);
-            
-            dialog.querySelector('#confirmDelete').addEventListener('click', function() {
-                const newCategoryId = dialog.querySelector('#reassignSelect').value;
-                if (!newCategoryId) {
-                    alert('Please select a category for reassignment.');
-                    return;
-                }
-                
+            openDeleteTagDialog(categoryName, videosInCategory.length, reassignmentOptions, function(newCategoryId) {
                 const newCategoryName = availableCategories.find(cat => cat.id === newCategoryId).name;
                 
-                // Reassign all videos
                 videosInCategory.forEach(item => {
                     item.dataset.category = newCategoryId;
                     const tagsContainer = item.querySelector('.item-tags');
                     if (tagsContainer) {
-                        // Find and update the specific tag pill
                         const tagPills = tagsContainer.querySelectorAll('.item-tag-pill');
                         tagPills.forEach(pill => {
                             if (pill.textContent.toLowerCase() === categoryName.toLowerCase()) {
@@ -1258,7 +1155,6 @@
                         });
                     }
                     
-                    // Update edit button data attributes
                     const editBtn = item.querySelector('.video-edit-btn');
                     if (editBtn) {
                         const wistiaId = item.dataset.wistia;
@@ -1269,16 +1165,12 @@
                     }
                 });
                 
-                // Remove category
                 categoryElement.remove();
                 markUnsavedChanges();
                 
                 console.log(`Tag "${categoryName}" deleted, ${videosInCategory.length} videos reassigned to "${newCategoryName}"`);
-                document.body.removeChild(dialog);
-            });
-            
-            dialog.querySelector('#cancelDelete').addEventListener('click', function() {
-                document.body.removeChild(dialog);
+            }, {
+                validationMessage: 'Please select a category for reassignment.'
             });
         }
 
@@ -1640,82 +1532,21 @@
             const video = videos.find(v => v.wistiaId === wistiaId);
             if (!video) return;
             
-            // Create confirmation dialog
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.8);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 1000;
-                backdrop-filter: blur(4px);
-            `;
-            
-            dialog.innerHTML = `
-                <div class="oz-dialog-panel-center">
-                    <h3 class="oz-dialog-title-lg">Delete Video</h3>
-                    <p class="oz-dialog-text-lg">
-                        Are you sure you want to delete "${video.title}"?
-                    </p>
-                    <div class="oz-dialog-actions-center">
-                        <button id="confirmDelete" class="oz-btn-danger-lg">Delete</button>
-                        <button id="cancelDelete" class="oz-btn-cancel-lg">Cancel</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(dialog);
-            
-            // Handle button hover effects
-            const confirmBtn = dialog.querySelector('#confirmDelete');
-            const cancelBtn = dialog.querySelector('#cancelDelete');
-            
-            confirmBtn.onmouseover = () => confirmBtn.style.background = '#d70015';
-            confirmBtn.onmouseout = () => confirmBtn.style.background = '#ff3b30';
-            cancelBtn.onmouseover = () => cancelBtn.style.background = '#444';
-            cancelBtn.onmouseout = () => cancelBtn.style.background = '#333';
-            
-            // Handle confirmation
-            confirmBtn.addEventListener('click', async () => {
-                // Remove from videos array
+            openDeleteVideoDialog(video.title, async function() {
                 const index = videos.findIndex(v => v.wistiaId === wistiaId);
                 if (index !== -1) {
                     videos.splice(index, 1);
                 }
                 
-                // If this was the featured video, clear featured status
                 if (featuredContent.videoId === wistiaId) {
                     featuredContent.videoId = null;
                     featuredContent.category = null;
                 }
                 
-                // Mark as changed
                 markUnsavedChanges();
-                
-                // Re-render the video grid
                 renderVideoGrid(videos);
                 
-                // Remove dialog
-                document.body.removeChild(dialog);
-                
                 console.log(`Video "${video.title}" deleted`);
-            });
-            
-            // Handle cancellation
-            cancelBtn.addEventListener('click', () => {
-                document.body.removeChild(dialog);
-            });
-            
-            // Close on background click
-            dialog.addEventListener('click', (e) => {
-                if (e.target === dialog) {
-                    document.body.removeChild(dialog);
-                }
             });
         }
 
@@ -2085,109 +1916,10 @@
         }
 
         function openSetFeaturedDialog() {
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.8); display: flex; align-items: center;
-                justify-content: center; z-index: 1001; backdrop-filter: blur(4px);
-            `;
-            
-            dialog.innerHTML = `
-                <div class="oz-dialog-panel-wide">
-                    <h3 class="oz-dialog-title-featured">Set Featured Content</h3>
-                    
-                    <div class="oz-featured-section">
-                        <label class="oz-featured-label">
-                            <input type="radio" name="featuredType" value="video" ${featuredContent.type === 'video' ? 'checked' : ''}>
-                            <span>Featured Video</span>
-                        </label>
-                        <label class="oz-featured-label-last">
-                            <input type="radio" name="featuredType" value="image" ${featuredContent.type === 'image' ? 'checked' : ''}>
-                            <span>Featured Image</span>
-                        </label>
-                    </div>
-                    
-                    <div id="videoOptions" class="oz-featured-field${featuredContent.type === 'video' ? '' : ' hidden'}">
-                        <label class="oz-featured-field-label">Select Video:</label>
-                        <select id="featuredVideoSelect" class="oz-featured-input">
-                            <option value="">Choose a video...</option>
-                        </select>
-                    </div>
-                    
-                    <div id="imageOptions" class="oz-featured-field${featuredContent.type === 'image' ? '' : ' hidden'}">
-                        <label class="oz-featured-field-label">Image URL:</label>
-                        <input type="url" id="featuredImageUrl" placeholder="https://example.com/image.jpg" 
-                               value="${featuredContent.imageUrl || ''}"
-                               class="oz-featured-input">
-                    </div>
-                    
-                    <div class="oz-featured-actions">
-                        <button id="setFeaturedConfirm" class="oz-featured-btn-confirm">Set Featured</button>
-                        <button id="clearFeatured" class="oz-featured-btn-clear">Clear Featured</button>
-                        <button id="cancelFeatured" class="oz-featured-btn-cancel">Cancel</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(dialog);
-            
-            // Populate video dropdown
-            const videoSelect = dialog.querySelector('#featuredVideoSelect');
-            const videos = Array.from(document.querySelectorAll('.video-item')).map(item => ({
-                id: item.dataset.wistia,
-                title: item.dataset.title
-            }));
-            
-            videos.forEach(video => {
-                const option = document.createElement('option');
-                option.value = video.id;
-                option.textContent = video.title;
-                option.selected = video.id === featuredContent.videoId;
-                videoSelect.appendChild(option);
-            });
-            
-            // Handle radio button changes
-            dialog.querySelectorAll('input[name="featuredType"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const videoOptions = dialog.querySelector('#videoOptions');
-                    const imageOptions = dialog.querySelector('#imageOptions');
-                    
-                    if (this.value === 'video') {
-                        videoOptions.style.display = 'block';
-                        imageOptions.style.display = 'none';
-                    } else {
-                        videoOptions.style.display = 'none';
-                        imageOptions.style.display = 'block';
-                    }
-                });
-            });
-            
-            // Handle buttons
-            dialog.querySelector('#setFeaturedConfirm').addEventListener('click', function() {
-                const type = dialog.querySelector('input[name="featuredType"]:checked').value;
-                
-                if (type === 'video') {
-                    const selectedVideoId = videoSelect.value;
-                    if (selectedVideoId) {
-                        setFeaturedVideo(selectedVideoId);
-                    }
-                } else {
-                    const imageUrl = dialog.querySelector('#featuredImageUrl').value.trim();
-                    if (imageUrl) {
-                        setFeaturedImage(imageUrl);
-                    }
-                }
-                
-                document.body.removeChild(dialog);
-            });
-            
-            dialog.querySelector('#clearFeatured').addEventListener('click', function() {
-                clearFeaturedContent();
-                document.body.removeChild(dialog);
-            });
-            
-            dialog.querySelector('#cancelFeatured').addEventListener('click', function() {
-                document.body.removeChild(dialog);
+            openFeaturedContentDialog(featuredContent, {
+                onSetVideo: function(videoId) { setFeaturedVideo(videoId); },
+                onSetImage: function(imageUrl) { setFeaturedImage(imageUrl); },
+                onClear: function() { clearFeaturedContent(); }
             });
         }
 
