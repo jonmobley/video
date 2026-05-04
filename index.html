@@ -110,6 +110,8 @@
             cursor: pointer;
             transition: border-color 0.2s, background 0.2s;
             text-align: center;
+            min-height: 176px;
+            box-sizing: border-box;
         }
         .hero-drop:hover,
         .hero-drop.drag-over {
@@ -134,6 +136,64 @@
         .hero-drop-sub {
             font-size: 0.85rem;
             color: #888;
+        }
+        .hero-upload-content,
+        .hero-link-content {
+            animation: heroFadeIn 0.18s ease both;
+        }
+        .hero-link-content {
+            display: none;
+        }
+        .hero-link-content .hero-drop-icon {
+            margin-bottom: 6px;
+        }
+        .hero-link-content .hero-drop-label {
+            margin-bottom: 0;
+        }
+        .hero-drop.hero-link-mode .hero-upload-content {
+            display: none;
+        }
+        .hero-drop.hero-link-mode .hero-link-content {
+            display: block;
+        }
+        .hero-drop.hero-link-mode {
+            cursor: default;
+        }
+        @keyframes heroFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .hero-link-input {
+            width: 100%;
+            max-width: 320px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.92rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+        .hero-link-input::placeholder {
+            color: #666;
+        }
+        .hero-link-input:focus {
+            border-color: rgba(78,205,196,0.6);
+        }
+        .hero-link-detected {
+            font-size: 0.82rem;
+            margin-top: 6px;
+            color: #888;
+        }
+        .hero-link-detected.error {
+            color: #ff6b6b;
+        }
+        .hero-link-detected:empty {
+            display: none;
         }
         .hero-drop input[type="file"] {
             position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
@@ -193,7 +253,7 @@
             main { padding: 16px 16px 40px; }
             .hero { margin-top: 18px; }
             .hero h1 { margin-bottom: 16px; }
-            .hero-drop { padding: 28px 20px; }
+            .hero-drop { padding: 28px 20px; min-height: 156px; }
             .hero-drop-sub { display: none; }
             .trust-row { gap: 12px; font-size: 0.85rem; }
             footer { padding: 30px 16px max(20px, env(safe-area-inset-bottom)); }
@@ -222,13 +282,26 @@
                 ... or paste a link from sites like YouTube or Dropbox.
             </p>
             <div class="hero-drop" id="heroDropZone" role="button" aria-label="Upload a video — click to browse or drag and drop" tabindex="0" style="position:relative;">
-                <input type="file" accept="video/*" id="heroFileInput" tabindex="-1">
-                <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
-                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
-                </svg>
-                <div class="hero-drop-label">Upload a Video</div>
-                <div class="hero-drop-sub">Click to browse or drag and drop a video file</div>
+                <div class="hero-upload-content">
+                    <input type="file" accept="video/*" id="heroFileInput" tabindex="-1">
+                    <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 16V4M12 4l-5 5M12 4l5 5"/>
+                        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                    </svg>
+                    <div class="hero-drop-label">Upload a Video</div>
+                    <div class="hero-drop-sub">Click to browse or drag and drop a video file</div>
+                </div>
+                <div class="hero-link-content">
+                    <svg class="hero-drop-icon" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/>
+                        <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>
+                    </svg>
+                    <div class="hero-drop-label">Paste a YouTube or Vimeo link</div>
+                    <input type="url" class="hero-link-input" id="heroLinkInput"
+                           placeholder="https://youtu.be/… or https://vimeo.com/…"
+                           autocomplete="off" spellcheck="false" aria-label="Video URL">
+                    <div class="hero-link-detected" id="heroLinkDetected" aria-live="polite"></div>
+                </div>
             </div>
             <p class="hero-or-link">or <a id="heroLinkBtn">paste a video link</a></p>
             <div class="trust-row">
@@ -253,6 +326,22 @@
       (function () {
         var dropZone = document.getElementById('heroDropZone');
         var fileInput = document.getElementById('heroFileInput');
+        var heroLinkBtn = document.getElementById('heroLinkBtn');
+        var heroLinkInput = document.getElementById('heroLinkInput');
+        var heroLinkDetected = document.getElementById('heroLinkDetected');
+        var isLinkMode = false;
+
+        function resetToUploadMode() {
+          isLinkMode = false;
+          dropZone.classList.remove('hero-link-mode');
+          heroLinkBtn.textContent = 'paste a video link';
+          heroLinkInput.value = '';
+          heroLinkDetected.textContent = '';
+          heroLinkDetected.classList.remove('error');
+          dropZone.setAttribute('aria-label', 'Upload a video \u2014 click to browse or drag and drop');
+          dropZone.setAttribute('role', 'button');
+          dropZone.setAttribute('tabindex', '0');
+        }
 
         fileInput.addEventListener('change', function () {
           var f = fileInput.files[0];
@@ -264,6 +353,7 @@
 
         dropZone.addEventListener('dragover', function (e) {
           e.preventDefault();
+          if (isLinkMode) return;
           dropZone.classList.add('drag-over');
         });
         dropZone.addEventListener('dragleave', function (e) {
@@ -271,6 +361,7 @@
         });
         dropZone.addEventListener('drop', function (e) {
           e.preventDefault();
+          if (isLinkMode) return;
           dropZone.classList.remove('drag-over');
           var file = e.dataTransfer.files[0];
           if (file && file.type.startsWith('video/')) {
@@ -282,15 +373,49 @@
         });
 
         dropZone.addEventListener('keydown', function (e) {
+          if (isLinkMode) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             fileInput.click();
           }
         });
 
-        document.getElementById('heroLinkBtn').addEventListener('click', function (e) {
+        heroLinkBtn.addEventListener('click', function (e) {
           e.preventDefault();
-          window.openUploadModal({ mode: 'link' });
+          isLinkMode = !isLinkMode;
+          dropZone.classList.toggle('hero-link-mode', isLinkMode);
+          if (isLinkMode) {
+            heroLinkBtn.textContent = 'upload a video';
+            dropZone.setAttribute('aria-label', 'Paste a video link');
+            dropZone.removeAttribute('role');
+            dropZone.setAttribute('tabindex', '-1');
+            setTimeout(function () { heroLinkInput.focus(); }, 200);
+          } else {
+            resetToUploadMode();
+          }
+        });
+
+        heroLinkInput.addEventListener('input', function () {
+          var val = heroLinkInput.value.trim();
+          heroLinkDetected.textContent = '';
+          heroLinkDetected.classList.remove('error');
+          if (!val) return;
+
+          var res = window.LinkParser ? window.LinkParser.parse(val) : null;
+          if (res) {
+            window.openUploadModal({ mode: 'link' });
+            setTimeout(function () {
+              var modalInput = document.querySelector('#uploadModal .link-input');
+              if (modalInput) {
+                modalInput.value = val;
+                modalInput.dispatchEvent(new Event('input'));
+              }
+            }, 50);
+            resetToUploadMode();
+          } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
+            heroLinkDetected.textContent = 'Only YouTube and Vimeo links are supported';
+            heroLinkDetected.classList.add('error');
+          }
         });
       })();
     </script>
