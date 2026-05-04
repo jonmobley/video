@@ -37,13 +37,21 @@
             text-decoration: none;
         }
         .nav a.nav-link {
-            color: #888;
+            color: #ccc;
             text-decoration: none;
-            font-size: 0.92rem;
-            font-weight: 500;
-            transition: color 0.2s;
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
         }
-        .nav a.nav-link:hover { color: #fff; }
+        .nav a.nav-link:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.2);
+        }
 
         main {
             flex: 1;
@@ -126,17 +134,23 @@
 
         .trust-row {
             display: flex;
-            gap: 18px;
+            gap: 20px;
             justify-content: center;
             flex-wrap: wrap;
-            font-size: 0.82rem;
-            color: #666;
-            margin-top: 4px;
+            font-size: 0.95rem;
+            color: #d0d0d0;
+            margin-top: 18px;
         }
         .trust-row span::before {
             content: "✓ ";
             color: #4ecdc4;
             font-weight: 700;
+        }
+
+        .hero.drag-active {
+            outline: 2px dashed rgba(78,205,196,0.5);
+            outline-offset: 12px;
+            border-radius: 20px;
         }
 
         /* Footer */
@@ -161,7 +175,7 @@
             .btn.btn-primary:hover {
                 width: 100%; padding: 16px 24px;
             }
-            .trust-row { gap: 12px; font-size: 0.78rem; }
+            .trust-row { gap: 12px; font-size: 0.85rem; }
             footer { padding: 30px 16px max(20px, env(safe-area-inset-bottom)); }
         }
     </style>
@@ -200,7 +214,7 @@
     </main>
 
     <footer>
-        <p>Powered by VidShare · <a href="/upload" id="footerUploadLink">Upload</a></p>
+        <p>Powered by VidShare</p>
     </footer>
 
     <script src="/js/link-parser.js"></script>
@@ -211,13 +225,27 @@
     <script>
       (function () {
         const openBtn = document.getElementById('openUploadBtn');
-        const footerLink = document.getElementById('footerUploadLink');
-        function trigger(e) {
+        openBtn.addEventListener('click', function (e) {
           e.preventDefault();
           window.openUploadModal();
-        }
-        openBtn.addEventListener('click', trigger);
-        footerLink.addEventListener('click', trigger);
+        });
+
+        var hero = document.querySelector('.hero');
+        hero.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          hero.classList.add('drag-active');
+        });
+        hero.addEventListener('dragleave', function (e) {
+          if (!hero.contains(e.relatedTarget)) hero.classList.remove('drag-active');
+        });
+        hero.addEventListener('drop', function (e) {
+          e.preventDefault();
+          hero.classList.remove('drag-active');
+          var file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('video/')) {
+            window.openUploadModal(file);
+          }
+        });
       })();
     </script>
 </body>

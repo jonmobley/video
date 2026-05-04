@@ -383,6 +383,7 @@
         showError(`File is too large (${formatBytes(file.size)}). Maximum size is 1 GB.`);
         return;
       }
+      if (mode !== 'file') setMode('file');
       selectedFile = file;
       fileName.textContent = file.name;
       fileSizeTxt.textContent = formatBytes(file.size);
@@ -754,7 +755,7 @@
       a.remove();
     });
 
-    return { reset, root, isUploading: () => uploading };
+    return { reset, root, isUploading: () => uploading, setFile };
   }
 
   if (typeof window !== 'undefined') {
