@@ -8,43 +8,99 @@
   <link rel="stylesheet" href="/styles/common.css">
   <link rel="stylesheet" href="/styles/upload.css">
   <style>
+    :root {
+      --upload-content-width: 480px;
+      --upload-content-pad: 20px;
+    }
+
     body {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 40px 20px 60px;
+      padding: 0;
       background: radial-gradient(ellipse at top, rgba(78,205,196,0.08), transparent 60%),
                   radial-gradient(ellipse at bottom, rgba(255,107,107,0.06), transparent 60%),
                   #0a0a0a;
     }
 
-    .header { text-align: center; margin-bottom: 32px; }
+    .nav {
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: calc(var(--upload-content-width) + 2 * var(--upload-content-pad));
+      margin: 0 auto; padding: 18px var(--upload-content-pad);
+    }
+    .nav-left { display: flex; align-items: center; gap: 18px; }
     .logo {
-      font-size: 2rem; font-weight: 700;
+      font-size: 1.2rem; font-weight: 800; text-decoration: none;
       background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; text-decoration: none; display: inline-block;
+      background-clip: text;
     }
-    .page-title { font-size: 1rem; color: #959595; margin-top: 6px; }
+    .nav-link {
+      font-size: 0.9rem; color: #aaa; text-decoration: none;
+      padding: 8px 14px; border-radius: 10px; transition: all 0.2s;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .logout-btn {
+      background: none; border: 1px solid #2c2c2e; color: #aaa;
+      padding: 8px 14px; border-radius: 10px; font-size: 0.85rem;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .logout-btn:hover { color: #fff; border-color: #3a3a3c; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px var(--upload-content-pad) 60px;
+    }
+
+    .page-title {
+      width: 100%;
+      max-width: var(--upload-content-width);
+      font-size: 1rem; color: #959595; margin-bottom: 32px; text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 0; }
+    }
 
     @media (max-width: 600px) {
-      body {
-        padding: 22px 14px max(40px, env(safe-area-inset-bottom));
+      :root {
+        --upload-content-pad: 14px;
       }
-      .header { margin-bottom: 22px; }
-      .logo { font-size: 1.6rem; }
-      .page-title { font-size: 0.92rem; }
+      .nav-inner { padding: 12px var(--upload-content-pad); gap: 8px; flex-wrap: wrap; }
+      .nav-left { gap: 8px; }
+      .nav-link { display: none; }
+      .logout-btn { padding: 9px 12px; font-size: 0.82rem; }
+      main {
+        padding: 22px var(--upload-content-pad) max(40px, env(safe-area-inset-bottom));
+      }
+      .page-title { font-size: 0.92rem; margin-bottom: 22px; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <a href="/" class="logo">VidShare</a>
-    <div class="page-title">Upload a video</div>
-  </div>
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <a href="/" class="logo">VidShare</a>
+        <a href="/account" class="nav-link">My videos</a>
+      </div>
+      <div class="nav-left">
+        <button class="logout-btn" id="logoutBtn">Sign out</button>
+      </div>
+    </div>
+  </nav>
 
-  <div id="uploadRoot"></div>
+  <main>
+    <div class="page-title">Upload a video</div>
+    <div id="uploadRoot"></div>
+  </main>
 
   <script src="/js/link-parser.js"></script>
   <script src="/lib/qrcode-generator.js"></script>
@@ -58,6 +114,11 @@
         e.returnValue = '';
         return '';
       }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
     });
   </script>
 </body>
