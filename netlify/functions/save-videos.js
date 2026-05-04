@@ -191,32 +191,18 @@ exports.handler = async (event, context) => {
           thumbnail_url: video.thumbnailUrl || null
         }));
 
-        // Delete existing videos for this page and insert new ones
-        const { error: deleteError } = await supabase
-          .from('videos')
-          .delete()
-          .eq('page', page); // Delete only records for this page
+        console.log('Attempting atomic replace via RPC:', supabaseVideos.length);
+        const { error: rpcError } = await supabase.rpc('replace_page_videos', {
+          p_page: page,
+          p_videos: supabaseVideos
+        });
 
-        if (deleteError) {
-          console.error('Error deleting existing videos:', deleteError);
-          throw deleteError;
+        if (rpcError) {
+          console.error('Error in replace_page_videos RPC:', rpcError);
+          throw rpcError;
         }
 
-        // Insert new videos
-        console.log('Attempting to insert videos:', supabaseVideos.length);
-        const { data, error } = await supabase
-          .from('videos')
-          .insert(supabaseVideos)
-          .select();
-
-        console.log('Insert result:', { data, error, dataCount: data?.length });
-
-        if (error) {
-          console.error('Error saving videos to Supabase:', error);
-          throw error;
-        }
-
-        console.log(`Successfully saved ${data?.length || 0} videos to Supabase`);
+        console.log(`Successfully saved ${supabaseVideos.length} videos to Supabase`);
         
         return {
           statusCode: 200,

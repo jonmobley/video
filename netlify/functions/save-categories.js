@@ -140,76 +140,28 @@ exports.handler = async (event, context) => {
     // Try to save to Supabase if available
     if (supabase) {
       try {
-        // First, check if the table has the category_key column by trying a simple query
-        let hasCategoryKeyColumn = true;
-        try {
-          await supabase.from('categories').select('category_key').limit(1);
-        } catch (columnError) {
-          console.log('category_key column not found, using legacy format');
-          hasCategoryKeyColumn = false;
-        }
-
-        // Determine show_in_dropdown value based on explicit category scope
-        // 'songs' scope = true (show in dropdown), 'tags' scope = false (filter pills only)
         const showInDropdownValue = categoryScope === 'songs';
         
-        // Prepare data for Supabase with composite keys
-        const supabaseCategories = categories.map((category, index) => {
-          const baseData = {
-            id: `${page}-${category.id}`, // Create composite key with page prefix
-            name: category.name,
-            color: category.color || null,
-            order: category.order !== undefined ? category.order : index, // Use index if no order specified
-            page: page,
-            // Use explicit scope to set show_in_dropdown, ensuring consistency
-            show_in_dropdown: showInDropdownValue
-          };
-          
-          // Only add category_key if the column exists
-          if (hasCategoryKeyColumn) {
-            baseData.category_key = category.id;
-          }
-          
-          return baseData;
+        const supabaseCategories = categories.map((category, index) => ({
+          id: `${page}-${category.id}`,
+          name: category.name,
+          category_key: category.id,
+          color: category.color || null,
+          order: category.order !== undefined ? category.order : index,
+          page: page,
+          show_in_dropdown: showInDropdownValue
+        }));
+
+        console.log('Attempting atomic replace via RPC:', supabaseCategories.length);
+        const { error: rpcError } = await supabase.rpc('replace_page_categories', {
+          p_page: page,
+          p_categories: supabaseCategories,
+          p_show_in_dropdown: showInDropdownValue
         });
 
-        // Only delete categories with the same show_in_dropdown value to preserve tags/categories
-        // This prevents song categories from deleting tags and vice versa
-        // Include NULL values in BOTH scopes to clean up legacy data
-        let deleteQuery = supabase
-          .from('categories')
-          .delete()
-          .eq('page', page);
-        
-        // For songs: delete true OR null
-        // For tags: delete false OR null
-        // This ensures complete replacement of the scoped category set and cleans up legacy NULL rows
-        if (showInDropdownValue) {
-          // Saving songs - delete true and legacy NULL rows
-          deleteQuery = deleteQuery.or('show_in_dropdown.is.true,show_in_dropdown.is.null');
-        } else {
-          // Saving tags - delete false and legacy NULL rows
-          deleteQuery = deleteQuery.or('show_in_dropdown.is.false,show_in_dropdown.is.null');
-        }
-        
-        const { error: deleteError } = await deleteQuery;
-
-        if (deleteError) {
-          console.error('Error deleting existing categories:', deleteError);
-          throw deleteError;
-        }
-
-        // Insert new categories with upsert to handle any edge cases
-        const { data, error } = await supabase
-          .from('categories')
-          .upsert(supabaseCategories, { 
-            onConflict: 'id',
-            ignoreDuplicates: false 
-          });
-
-        if (error) {
-          console.error('Error saving categories to Supabase:', error);
-          throw error;
+        if (rpcError) {
+          console.error('Error in replace_page_categories RPC:', rpcError);
+          throw rpcError;
         }
 
         console.log('Successfully saved categories to Supabase');
