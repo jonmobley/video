@@ -29,14 +29,28 @@ function escapeHtml(str) {
   }[c]));
 }
 
-function showVideo(videoUrl) {
+function showVideo(videoUrl, downloadHref) {
   const titleHtml = videoTitle
     ? '<div class="video-title">' + escapeHtml(videoTitle) + '</div>'
+    : '';
+  // Only uploaded videos can be downloaded — embeds / external platforms cannot.
+  const downloadHtml = downloadHref
+    ? '<div class="watch-actions">' +
+        '<a class="watch-download-btn" href="' + downloadHref + '" download>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>' +
+            '<polyline points="7 10 12 15 17 10"/>' +
+            '<line x1="12" y1="15" x2="12" y2="3"/>' +
+          '</svg>' +
+          '<span>Download</span>' +
+        '</a>' +
+      '</div>'
     : '';
   root.innerHTML =
     '<div class="video-wrap">' +
       '<video id="videoEl" src="' + videoUrl + '" controls autoplay playsinline preload="auto"></video>' +
       titleHtml +
+      downloadHtml +
       renderQrSection() +
     '</div>';
   attachQrHandlers();
@@ -240,6 +254,12 @@ function buildVideoUrl(videoId, password) {
   return url;
 }
 
+function buildDownloadUrl(videoId, password) {
+  var url = '/api/video/' + encodeURIComponent(videoId) + '/download';
+  if (password) url += '?pt=' + encodeURIComponent(password);
+  return url;
+}
+
 async function loadVideo(videoId, password) {
   var videoUrl = buildVideoUrl(videoId, password);
   try {
@@ -248,7 +268,9 @@ async function loadVideo(videoId, password) {
     if (probe.status === 410) { showError('This video has expired and is no longer available.', true); return; }
     if (!probe.ok) { showError('This video could not be found.', true); return; }
   } catch (_) {}
-  showVideo(videoUrl);
+  // Only uploaded files have a backing blob to download — external embeds don't.
+  var canDownload = !videoMeta || !videoMeta.platform || videoMeta.platform === 'upload';
+  showVideo(videoUrl, canDownload ? buildDownloadUrl(videoId, password) : null);
 }
 
 async function init() {

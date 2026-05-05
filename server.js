@@ -250,6 +250,17 @@ function isValidVideoId(id) {
   return typeof id === 'string' && id.length <= 80 && VIDEO_ID_RE.test(id);
 }
 
+// Collection slugs: short URL-safe lowercase hex (12 chars by default).
+const SLUG_RE = /^[a-f0-9]{8,32}$/;
+function isValidSlug(s) { return typeof s === 'string' && SLUG_RE.test(s); }
+function generateSlug() { return crypto.randomBytes(6).toString('hex'); }
+
+// Title sanitiser for filenames (zip entries / Content-Disposition).
+function safeFilename(title, fallback) {
+  const cleaned = String(title || '').replace(/[^a-zA-Z0-9-_ ]+/g, '_').trim().slice(0, 60);
+  return cleaned || fallback;
+}
+
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function ensureSchema() {
   await pool.query(`
@@ -334,6 +345,23 @@ async function ensureSchema() {
     );
     CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_email ON vs_auth_codes(email);
     CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_expires ON vs_auth_codes(expires_at);
+
+    -- Collections: multi-video shareable pages owned by a user. Each collection
+    -- has a short URL-safe slug and a display title. Videos opt-in via the
+    -- collection_id column on vs_uploads.
+    CREATE TABLE IF NOT EXISTS vs_collections (
+      slug TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES vs_users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_vs_collections_user_id ON vs_collections(user_id);
+
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS collection_id TEXT
+      REFERENCES vs_collections(slug) ON DELETE SET NULL;
+    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS collection_order INTEGER NOT NULL DEFAULT 0;
+    CREATE INDEX IF NOT EXISTS idx_vs_uploads_collection_id
+      ON vs_uploads(collection_id) WHERE collection_id IS NOT NULL;
   `);
 
   // One-time migration off password auth: drop legacy password_hash column and
@@ -543,6 +571,50 @@ app.get('/watch', async (req, res) => {
   } catch (err) {
     console.error('watch OG injection error:', err);
     res.sendFile(path.join(__dirname, 'watch.html'));
+  }
+});
+
+// ── Collection page with dynamic OG tags (must be before static middleware) ──
+app.get('/c/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const origin = req.protocol + '://' + req.get('host');
+    let ogTags = '';
+
+    if (isValidSlug(slug)) {
+      const c = await pool.query('SELECT title FROM vs_collections WHERE slug = $1', [slug]);
+      if (c.rows.length) {
+        const title = (c.rows[0].title || 'Collection').replace(/[<>"&]/g, ch =>
+          ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', '&': '&amp;' }[ch]));
+        const collectionUrl = `${origin}/c/${encodeURIComponent(slug)}`;
+        const imageUrl = `${origin}/assets/vidshare-og.png`;
+        ogTags = [
+          `<meta property="og:type" content="website">`,
+          `<meta property="og:url" content="${collectionUrl}">`,
+          `<meta property="og:title" content="${title} — VidShare">`,
+          `<meta property="og:description" content="A video collection on VidShare">`,
+          `<meta property="og:image" content="${imageUrl}">`,
+          `<meta name="twitter:card" content="summary_large_image">`,
+          `<meta name="twitter:title" content="${title} — VidShare">`,
+          `<meta name="twitter:image" content="${imageUrl}">`
+        ].join('\n    ');
+      }
+    }
+
+    if (!ogTags) {
+      ogTags = [
+        `<meta property="og:type" content="website">`,
+        `<meta property="og:title" content="Collection — VidShare">`,
+        `<meta property="og:image" content="${origin}/assets/vidshare-og.png">`,
+        `<meta name="twitter:card" content="summary_large_image">`
+      ].join('\n    ');
+    }
+
+    const html = fs.readFileSync(path.join(__dirname, 'collection.html'), 'utf8');
+    res.type('html').send(html.replace('</head>', `    ${ogTags}\n</head>`));
+  } catch (err) {
+    console.error('collection page error:', err);
+    res.sendFile(path.join(__dirname, 'collection.html'));
   }
 });
 
@@ -1811,6 +1883,344 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('admin list users error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not list users.');
+  }
+});
+
+// ── Collections ───────────────────────────────────────────────────────────────
+// Create a new (empty) collection. Auth required — anonymous browsers can view
+// collections but only signed-in users may create / own them.
+app.post('/api/collections', requireUser, async (req, res) => {
+  try {
+    const { title } = req.body || {};
+    const trimmed = typeof title === 'string' ? title.trim() : '';
+    if (!trimmed) return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
+    if (trimmed.length > 120) return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
+
+    // Retry on the (extremely unlikely) 23505 unique-violation collision.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = generateSlug();
+      try {
+        await pool.query(
+          'INSERT INTO vs_collections (slug, user_id, title) VALUES ($1, $2, $3)',
+          [slug, req.userId, trimmed]
+        );
+        return res.json({ slug, title: trimmed });
+      } catch (err) {
+        if (err.code !== '23505') throw err;
+      }
+    }
+    return apiError(res, 500, 'INTERNAL', 'Could not generate a unique collection id.');
+  } catch (err) {
+    console.error('create collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not create collection.');
+  }
+});
+
+// Public read: collection metadata + non-expired video list.
+app.get('/api/collections/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+
+    const c = await pool.query(
+      'SELECT slug, user_id, title, created_at FROM vs_collections WHERE slug = $1',
+      [slug]
+    );
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+
+    const v = await pool.query(
+      `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
+              platform, embed_video_id, collection_order,
+              (password_hash IS NOT NULL) AS has_password,
+              (thumbnail_data IS NOT NULL) AS has_thumbnail
+         FROM vs_uploads
+        WHERE collection_id = $1
+          AND (expires_at IS NULL OR expires_at > NOW())
+        ORDER BY collection_order ASC, uploaded_at ASC`,
+      [slug]
+    );
+
+    res.json({
+      slug: c.rows[0].slug,
+      title: c.rows[0].title,
+      createdAt: c.rows[0].created_at,
+      isOwner: !!(req.userId && req.userId === c.rows[0].user_id),
+      videos: v.rows
+    });
+  } catch (err) {
+    console.error('get collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not load collection.');
+  }
+});
+
+// Owner-only: rename
+app.patch('/api/collections/:slug', requireUser, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    const { title } = req.body || {};
+    const trimmed = typeof title === 'string' ? title.trim() : '';
+    if (!trimmed) return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
+    if (trimmed.length > 120) return apiError(res, 400, 'TITLE_TOO_LONG', 'Title must be 120 characters or fewer.');
+
+    const result = await pool.query(
+      'UPDATE vs_collections SET title = $1 WHERE slug = $2 AND user_id = $3 RETURNING slug, title',
+      [trimmed, slug, req.userId]
+    );
+    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    res.json({ success: true, collection: result.rows[0] });
+  } catch (err) {
+    console.error('patch collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not update collection.');
+  }
+});
+
+// Owner-only: delete (videos remain, with collection_id set to NULL)
+app.delete('/api/collections/:slug', requireUser, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    const result = await pool.query(
+      'DELETE FROM vs_collections WHERE slug = $1 AND user_id = $2',
+      [slug, req.userId]
+    );
+    if (!result.rowCount) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('delete collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not delete collection.');
+  }
+});
+
+// Owner-only: attach an existing video the user owns to this collection.
+app.post('/api/collections/:slug/videos', requireUser, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { videoId } = req.body || {};
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+
+    // All ownership checks + ordering must happen in one transaction so that
+    // concurrent attaches can't read the same MAX(collection_order) and produce
+    // duplicate ordering values. SELECT ... FOR UPDATE locks the collection row
+    // for the duration of the transaction.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const c = await client.query(
+        'SELECT user_id FROM vs_collections WHERE slug = $1 FOR UPDATE',
+        [slug]
+      );
+      if (!c.rows.length) {
+        await client.query('ROLLBACK');
+        return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+      }
+      if (c.rows[0].user_id !== req.userId) {
+        await client.query('ROLLBACK');
+        return apiError(res, 403, 'FORBIDDEN', 'Not your collection.');
+      }
+      const v = await client.query('SELECT user_id FROM vs_uploads WHERE id = $1', [videoId]);
+      if (!v.rows.length) {
+        await client.query('ROLLBACK');
+        return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+      }
+      if (v.rows[0].user_id !== req.userId) {
+        await client.query('ROLLBACK');
+        return apiError(res, 403, 'FORBIDDEN', 'Not your video.');
+      }
+      // Single statement: read MAX + write atomically inside the held lock.
+      await client.query(
+        `UPDATE vs_uploads
+            SET collection_id = $1,
+                collection_order = (
+                  SELECT COALESCE(MAX(collection_order), -1) + 1
+                    FROM vs_uploads
+                   WHERE collection_id = $1
+                )
+          WHERE id = $2`,
+        [slug, videoId]
+      );
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('add to collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not add video to collection.');
+  }
+});
+
+// Owner-only: remove a video from a collection (the video itself is preserved).
+app.delete('/api/collections/:slug/videos/:videoId', requireUser, async (req, res) => {
+  try {
+    const { slug, videoId } = req.params;
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+
+    const c = await pool.query('SELECT user_id FROM vs_collections WHERE slug = $1', [slug]);
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    if (c.rows[0].user_id !== req.userId) return apiError(res, 403, 'FORBIDDEN', 'Not your collection.');
+
+    const result = await pool.query(
+      'UPDATE vs_uploads SET collection_id = NULL WHERE id = $1 AND collection_id = $2',
+      [videoId, slug]
+    );
+    if (!result.rowCount) return apiError(res, 404, 'NOT_FOUND', 'Video not in this collection.');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('remove from collection error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not remove video from collection.');
+  }
+});
+
+// List the signed-in user's collections.
+app.get('/api/my-collections', requireUser, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT c.slug, c.title, c.created_at,
+              (SELECT COUNT(*)::int FROM vs_uploads WHERE collection_id = c.slug) AS video_count
+         FROM vs_collections c
+        WHERE c.user_id = $1
+        ORDER BY c.created_at DESC`,
+      [req.userId]
+    );
+    res.json({ collections: r.rows });
+  } catch (err) {
+    console.error('my-collections error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not list collections.');
+  }
+});
+
+// Single-video download — same auth model as /api/video/:id but forces an
+// `attachment` Content-Disposition so browsers save instead of streaming.
+app.get('/api/video/:id/download', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+
+    const meta = await pool.query(
+      'SELECT content_type, expires_at, password_hash, title, platform FROM vs_uploads WHERE id = $1',
+      [id]
+    );
+    if (!meta.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
+    const { content_type, expires_at, password_hash, title, platform } = meta.rows[0];
+
+    if (platform && platform !== 'upload') {
+      return apiError(res, 400, 'NOT_DOWNLOADABLE', 'External videos cannot be downloaded.');
+    }
+    if (expires_at && new Date(expires_at) < new Date()) {
+      return apiError(res, 410, 'EXPIRED', 'This video has expired.');
+    }
+    if (password_hash) {
+      const provided = req.query.pt;
+      if (!provided) return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
+      // Constant-time comparison so the endpoint can't be used as a timing
+      // oracle to brute-force the password hash.
+      const a = Buffer.from(hashPassword(String(provided)));
+      const b = Buffer.from(password_hash);
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
+      }
+    }
+
+    const data = await pool.query(
+      'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
+      [id]
+    );
+    if (!data.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
+
+    // Pull extension from id (uploads embed `.mp4` / `.mov` / etc), default mp4.
+    const extMatch = id.match(/\.([a-z0-9]{1,8})$/i);
+    const ext = extMatch ? extMatch[1] : 'mp4';
+    const filename = safeFilename(title, 'video') + '.' + ext;
+
+    res.setHeader('Content-Type', content_type || 'application/octet-stream');
+    res.setHeader('Content-Length', data.rows[0].data.length);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.end(data.rows[0].data);
+  } catch (err) {
+    console.error('video download error:', err);
+    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not download video.');
+  }
+});
+
+// Bulk collection download — streams a zip. Skips password-protected, expired,
+// and non-`upload` videos. Hard caps: 10 videos / 2 GB total to keep memory and
+// connection time bounded.
+app.get('/api/collections/:slug/download', async (req, res) => {
+  const COLLECTION_DOWNLOAD_MAX_VIDEOS = 10;
+  const COLLECTION_DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+  try {
+    const { slug } = req.params;
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+
+    const c = await pool.query('SELECT title FROM vs_collections WHERE slug = $1', [slug]);
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+
+    const v = await pool.query(
+      `SELECT id, title, file_size
+         FROM vs_uploads
+        WHERE collection_id = $1
+          AND (expires_at IS NULL OR expires_at > NOW())
+          AND password_hash IS NULL
+          AND platform = 'upload'
+        ORDER BY collection_order ASC, uploaded_at ASC
+        LIMIT $2`,
+      [slug, COLLECTION_DOWNLOAD_MAX_VIDEOS]
+    );
+    if (!v.rows.length) {
+      return apiError(res, 404, 'NO_VIDEOS', 'No downloadable videos in this collection.');
+    }
+    const totalBytes = v.rows.reduce((s, r) => s + (parseInt(r.file_size, 10) || 0), 0);
+    if (totalBytes > COLLECTION_DOWNLOAD_MAX_BYTES) {
+      return apiError(
+        res, 413, 'TOO_LARGE',
+        `Collection is too large to download as one zip (${(totalBytes / 1024 / 1024 / 1024).toFixed(1)} GB > 2 GB cap). Download videos individually.`
+      );
+    }
+
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 0 } }); // store-only — videos already compressed
+
+    const zipName = safeFilename(c.rows[0].title, 'collection') + '.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    archive.on('warning', err => console.warn('archive warning:', err));
+    archive.on('error', err => {
+      console.error('archive error:', err);
+      if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Zip failed.');
+      else res.destroy(err);
+    });
+    archive.pipe(res);
+
+    const usedNames = new Set();
+    for (const row of v.rows) {
+      const dataResult = await pool.query(
+        'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
+        [row.id]
+      );
+      if (!dataResult.rows.length) continue;
+      const extMatch = row.id.match(/\.([a-z0-9]{1,8})$/i);
+      const ext = extMatch ? extMatch[1] : 'mp4';
+      const base = safeFilename(row.title, 'video');
+      let name = `${base}.${ext}`;
+      let n = 2;
+      while (usedNames.has(name)) { name = `${base}_${n}.${ext}`; n++; }
+      usedNames.add(name);
+      archive.append(dataResult.rows[0].data, { name });
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    console.error('collection download error:', err);
+    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not download collection.');
   }
 });
 

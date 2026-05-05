@@ -3,6 +3,20 @@
 ## Overview
 VidShare Dance Hub is a mobile-first video sharing platform for theater groups to distribute dance instruction and training videos to cast members. It features dedicated video pages for productions, integrates with Wistia for professional hosting, and is optimized for mobile viewing with automatic landscape fullscreen. The platform uses a static frontend, a serverless Node.js backend with Netlify Functions, and optional Supabase/Replit PostgreSQL integration for dynamic content and video uploads. It includes robust security features like token-based authentication and XSS prevention, aiming to provide a secure and accessible way for cast members to access training materials on any device.
 
+## Collections (multi-video shared pages)
+Signed-in users can upload 2+ videos at once and share them as a single page at `/c/:slug` (12-char hex slug). Backed by `vs_collections (slug PK, user_id FK CASCADE, title, created_at)` plus `vs_uploads.collection_id` (FK SET NULL) + `collection_order INTEGER` columns in Replit Postgres. Endpoints (Express, see `server.js`):
+- `POST /api/collections` (auth) — create empty collection, returns `{slug,title}`
+- `GET /api/collections/:slug` — public read incl. `isOwner`, video list (excludes expired)
+- `PATCH /api/collections/:slug` (auth, owner) — rename
+- `DELETE /api/collections/:slug` (auth, owner) — delete page (videos preserved via SET NULL)
+- `POST /api/collections/:slug/videos` (auth, owner of both) — attach existing video
+- `DELETE /api/collections/:slug/videos/:videoId` (auth, owner) — detach
+- `GET /api/my-collections` (auth) — list user's collections w/ video counts
+- `GET /api/video/:id/download` — single-video download with Content-Disposition attachment (rejects non-`upload` platforms; respects expiry/password via `?pt=`)
+- `GET /api/collections/:slug/download` — streams a zip via `archiver` (store-only, level 0); skips password-protected/expired/non-upload videos; hard caps at 10 videos / 2 GB
+
+The page route `GET /c/:slug` is registered in `server.js` BEFORE the static middleware and injects OG meta tags into `collection.html` mirroring the `/watch` pattern. Frontend: `collection.html` + `js/collection-app.js` + `styles/collection.css` (gallery grid, owner-only Rename/Delete/Remove, "Download all (zip)" button). The upload widget (`js/upload-widget.js`) auto-switches to "collection mode" when 2+ files are selected — relabels the title field to "Collection title", lists files inline, requires sign-in, sequentially uploads each file via the existing chunked endpoints, then attaches them to a freshly-created collection. The watch page (`js/watch-app.js`) shows a Download button when `platform === 'upload'`. New npm dep: `archiver`.
+
 ## User Preferences
 None documented yet - this is a fresh import.
 

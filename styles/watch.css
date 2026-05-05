@@ -206,3 +206,22 @@ video {
   outline: 2px solid #4ecdc4;
   outline-offset: 2px;
 }
+
+/* Single-video Download button (only shown for `platform === 'upload'`). */
+.watch-actions {
+  margin-top: 12px;
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.watch-download-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; border: 1px solid #2c2c2e;
+  color: #ddd; padding: 8px 14px; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 600;
+  font-family: inherit; text-decoration: none; cursor: pointer;
+  transition: all 0.2s;
+}
+.watch-download-btn:hover { background: #1c1c1e; border-color: #4ecdc4; color: #fff; }
+.watch-download-btn svg { width: 14px; height: 14px; }
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  .watch-actions { display: none; }
+}

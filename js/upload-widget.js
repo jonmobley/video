@@ -16,7 +16,7 @@
 
     <div class="mode-panel active" data-el="panelFile">
       <div class="drop-zone" data-el="dropZone">
-        <input type="file" data-el="fileInput" accept="video/*" aria-label="Choose a video file">
+        <input type="file" data-el="fileInput" accept="video/*" multiple aria-label="Choose one or more video files">
         <span class="drop-icon-wrap">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="url(#vsGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <defs><linearGradient id="vsGrad" x1="0" x2="1" y1="0" x2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/></linearGradient></defs>
@@ -24,10 +24,12 @@
             <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
           </svg>
         </span>
-        <div class="drop-label">Tap to choose a video</div>
-        <div class="drop-sub">Any format · Vertical or horizontal</div>
-        <div class="size-limit">Max 1 GB</div>
+        <div class="drop-label">Tap to choose video(s)</div>
+        <div class="drop-sub">Pick one or several · Any format</div>
+        <div class="size-limit">Max 1 GB per file · Up to 10 in a collection</div>
       </div>
+
+      <div class="files-list" data-el="filesList" hidden></div>
 
       <div class="file-preview" data-el="filePreview">
         <span class="file-icon-wrap">
@@ -64,7 +66,7 @@
 
     <div class="fields hidden" data-el="fieldsArea">
       <div class="field">
-        <label>Title</label>
+        <label data-el="titleLabel">Title</label>
         <input type="text" data-el="titleInput" placeholder="e.g. Practice run – June 3" maxlength="120" required>
       </div>
       <div class="fields-row">
@@ -262,12 +264,14 @@
     const $ = name => root.querySelector(`[data-el="${name}"]`);
     const dropZone = $('dropZone');
     const fileInput = $('fileInput');
+    const filesList = $('filesList');
     const filePreview = $('filePreview');
     const fileName = $('fileName');
     const fileSizeTxt = $('fileSizeTxt');
     const fileRemove = $('fileRemove');
     const fieldsArea = $('fieldsArea');
     const titleInput = $('titleInput');
+    const titleLabel = $('titleLabel');
     const expirySelect = $('expirySelect');
     const passwordInput = $('passwordInput');
     const passwordNote = $('passwordNote');
@@ -305,9 +309,12 @@
     const linkDetected = $('linkDetected');
 
     let selectedFile = null;
+    let selectedFiles = [];       // multi-file collection mode
+    let isCollectionMode = false; // true when 2+ files selected
     let mode = 'file';            // 'file' | 'link'
     let parsedLink = null;        // { platform, videoId } | null
     let uploading = false;
+    let isSignedIn = false;
 
     const wid = 'uw' + (++widgetCounter);
     panelFile.id = wid + '_file';
@@ -339,6 +346,7 @@
         if (!r.ok) return false;
         try {
           const data = await r.json();
+          isSignedIn = true;
           if (data && data.is_paid) {
             isPaidUser = true;
             expirySelect.value = 'never';
@@ -367,10 +375,20 @@
       panelFile.classList.toggle('active', mode === 'file');
       panelLink.classList.toggle('active', mode === 'link');
 
-      const showFields = mode === 'link' ? true : !!selectedFile;
+      // Fields are visible in link mode (always) or file mode whenever the user
+      // has picked at least one file (single OR collection).
+      const hasAnyFile = !!selectedFile || selectedFiles.length > 0;
+      const showFields = mode === 'link' ? true : hasAnyFile;
       fieldsArea.style.display = showFields ? 'flex' : 'none';
       uploadBtn.classList.toggle('visible', showFields);
-      uploadBtn.textContent = mode === 'link' ? 'Create Watch Link' : 'Upload & Get Link';
+      // Preserve the collection-mode label when returning to the file tab.
+      if (mode === 'link') {
+        uploadBtn.textContent = 'Create Watch Link';
+      } else if (isCollectionMode) {
+        uploadBtn.textContent = 'Upload & Share Collection';
+      } else {
+        uploadBtn.textContent = 'Upload & Get Link';
+      }
 
       hideError();
       updateUploadBtnState();
@@ -407,14 +425,48 @@
 
     function updateUploadBtnState() {
       if (mode === 'file') {
-        const hasFile = !!selectedFile;
+        const hasFiles = isCollectionMode ? selectedFiles.length > 0 : !!selectedFile;
         const hasTitle = titleInput.value.trim().length > 0;
-        uploadBtn.disabled = !(hasFile && hasTitle);
+        uploadBtn.disabled = !(hasFiles && hasTitle);
       } else {
         const hasLink = !!parsedLink;
         const hasTitle = titleInput.value.trim().length > 0;
         uploadBtn.disabled = !(hasLink && hasTitle);
       }
+    }
+
+    function applyCollectionMode(on) {
+      isCollectionMode = on;
+      if (on) {
+        titleLabel.textContent = 'Collection title';
+        titleInput.placeholder = 'e.g. June practice videos';
+        uploadBtn.textContent = 'Upload & Share Collection';
+      } else {
+        titleLabel.textContent = 'Title';
+        titleInput.placeholder = 'e.g. Practice run – June 3';
+        uploadBtn.textContent = mode === 'link' ? 'Create Watch Link' : 'Upload & Get Link';
+      }
+    }
+
+    function renderFilesList() {
+      // Multi-file preview list. Each row shows name + size + remove button.
+      filesList.innerHTML = '';
+      selectedFiles.forEach((f, idx) => {
+        const row = document.createElement('div');
+        row.className = 'files-list-row';
+        row.innerHTML =
+          `<div class="files-list-info">
+             <div class="files-list-name"></div>
+             <div class="files-list-size">${formatBytes(f.size)}</div>
+           </div>
+           <button type="button" class="files-list-remove" data-idx="${idx}" aria-label="Remove file">✕</button>`;
+        row.querySelector('.files-list-name').textContent = f.name;
+        filesList.appendChild(row);
+      });
+      const summary = document.createElement('div');
+      summary.className = 'files-list-summary';
+      summary.textContent = `${selectedFiles.length} videos · ${formatBytes(selectedFiles.reduce((s, f) => s + f.size, 0))}`;
+      filesList.appendChild(summary);
     }
 
     function setFile(file) {
@@ -423,7 +475,10 @@
         return;
       }
       if (mode !== 'file') setMode('file');
+      applyCollectionMode(false);
       selectedFile = file;
+      selectedFiles = [];
+      filesList.hidden = true;
       fileName.textContent = file.name;
       fileSizeTxt.textContent = formatBytes(file.size);
       filePreview.classList.add('visible');
@@ -437,18 +492,70 @@
       hideError();
     }
 
+    function setFiles(files) {
+      // Validate every file up-front so we don't get half-way through and fail.
+      const oversized = files.find(f => f.size > MAX_SIZE);
+      if (oversized) {
+        showError(`"${oversized.name}" is too large (${formatBytes(oversized.size)}). Maximum size is 1 GB per file.`);
+        return;
+      }
+      if (files.length > 10) {
+        showError(`Too many files (${files.length}). A collection can contain at most 10 videos.`);
+        return;
+      }
+      if (mode !== 'file') setMode('file');
+      applyCollectionMode(true);
+      selectedFile = null;
+      selectedFiles = files;
+      filePreview.classList.remove('visible');
+      filesList.hidden = false;
+      renderFilesList();
+      fieldsArea.style.display = 'flex';
+      uploadBtn.classList.add('visible');
+      dropZone.style.display = 'none';
+      if (!titleInput.value.trim()) {
+        titleInput.value = `Collection · ${new Date().toLocaleDateString()}`;
+      }
+      updateUploadBtnState();
+      hideError();
+    }
+
     function clearFile() {
       selectedFile = null;
+      selectedFiles = [];
+      isCollectionMode = false;
       fileInput.value = '';
       filePreview.classList.remove('visible');
+      filesList.hidden = true;
+      filesList.innerHTML = '';
+      applyCollectionMode(false);
       fieldsArea.style.display = 'none';
       uploadBtn.classList.remove('visible');
       dropZone.style.display = '';
       hideError();
     }
 
-    fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+    function removeFileAt(idx) {
+      selectedFiles.splice(idx, 1);
+      if (selectedFiles.length === 0) { clearFile(); return; }
+      if (selectedFiles.length === 1) { setFile(selectedFiles[0]); return; }
+      renderFilesList();
+      updateUploadBtnState();
+    }
+
+    fileInput.addEventListener('change', () => {
+      const files = Array.from(fileInput.files || []);
+      if (files.length === 0) return;
+      if (files.length === 1) setFile(files[0]);
+      else setFiles(files);
+    });
     fileRemove.addEventListener('click', clearFile);
+    filesList.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.files-list-remove');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (!isNaN(idx)) removeFileAt(idx);
+    });
     titleInput.addEventListener('input', updateUploadBtnState);
 
     function updatePasswordNote() {
@@ -460,9 +567,10 @@
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault(); dropZone.classList.remove('drag-over');
-      const f = e.dataTransfer.files[0];
-      if (f && f.type.startsWith('video/')) setFile(f);
-      else showError('Please drop a video file.');
+      const dropped = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('video/'));
+      if (dropped.length === 0) { showError('Please drop a video file.'); return; }
+      if (dropped.length === 1) setFile(dropped[0]);
+      else setFiles(dropped);
     });
 
     function finishSuccess(videoId, opts) {
@@ -551,6 +659,9 @@
       if (uploading) return;
       if (mode === 'link') {
         return startLinkUpload();
+      }
+      if (isCollectionMode) {
+        return startCollectionUpload();
       }
       if (!selectedFile) return;
       const title = titleInput.value.trim();
@@ -692,6 +803,190 @@
       }
     }
 
+    async function startCollectionUpload() {
+      // Multi-file flow: requires sign-in (collections are owned). Sequentially
+      // uploads each file (reuses the existing chunked upload + finalize), then
+      // creates a collection and attaches each video. Aborts on the first hard
+      // failure to keep the UX simple — user can retry the whole batch.
+      const collectionTitle = titleInput.value.trim();
+      if (!collectionTitle) {
+        showError('Please add a collection title.');
+        titleInput.focus();
+        return;
+      }
+      const files = selectedFiles.slice();
+      if (files.length < 2) return;
+
+      // Wait for the auth probe and bail out if not signed in.
+      await authReady;
+      if (!isSignedIn) {
+        showError('Please sign in first to create a shareable collection.');
+        // Soft hint: most users land here without realizing they need an account.
+        setTimeout(() => {
+          window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        }, 1500);
+        return;
+      }
+
+      const expiryDays = expirySelect.value;
+      const password = passwordInput.value;
+
+      uploadBtn.classList.remove('visible');
+      filesList.hidden = true;
+      fieldsArea.style.display = 'none';
+      progressArea.classList.add('visible');
+      if (modeTabs) modeTabs.style.display = 'none';
+      hideError();
+      setProgress(0, 'Preparing collection…');
+      uploading = true;
+      root.dispatchEvent(new CustomEvent('upload:start'));
+
+      try {
+        // 1) Create collection up-front so a partial-upload failure still
+        //    leaves an empty collection the user can retry into.
+        const cRes = await fetch('/api/collections', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: collectionTitle })
+        });
+        if (!cRes.ok) {
+          const err = await parseErrJson(cRes);
+          throw new Error(err.message || 'Could not create collection');
+        }
+        const { slug } = await cRes.json();
+
+        // 2) Upload each file sequentially. Per-file progress is mapped onto a
+        //    band of the overall bar (0..95% across all files).
+        const totalBytes = files.reduce((s, f) => s + f.size, 0) || 1;
+        let bytesDone = 0;
+        const uploadedIds = [];
+
+        for (let f = 0; f < files.length; f++) {
+          const file = files[f];
+          if (file.size === 0) throw new Error(`"${file.name}" is empty (0 bytes).`);
+          const ext = getExt(file);
+          const videoId = genId() + '.' + ext;
+          const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+          const fileTitle = deriveTitleFromFilename(file.name) || file.name;
+
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const slice = file.slice(start, Math.min(start + CHUNK_SIZE, file.size));
+            const ab = await slice.arrayBuffer();
+            const base64 = arrayBufferToBase64(ab);
+
+            const overallPct = Math.min(95, Math.round(((bytesDone + start) / totalBytes) * 95));
+            setProgress(overallPct, `Uploading ${f + 1} of ${files.length}: ${file.name}`);
+
+            await retryChunk(async () => {
+              const res = await fetch('/api/upload-chunk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ videoId, chunkIndex: i, totalChunks, data: base64, contentType: file.type || 'video/mp4' })
+              });
+              if (!res.ok) {
+                const err = await parseErrJson(res);
+                const e = new Error(err.message || `Chunk ${i} failed`);
+                e.status = res.status;
+                throw e;
+              }
+            }, i);
+          }
+
+          const finalRes = await fetch('/api/finalize-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId, totalChunks, contentType: file.type || 'video/mp4', title: fileTitle, expiryDays, password })
+          });
+          if (!finalRes.ok) {
+            const err = await parseErrJson(finalRes);
+            throw new Error(err.message || `Finalize failed for "${file.name}"`);
+          }
+
+          // Attach to collection. Best-effort thumbnail (fire-and-forget).
+          const aRes = await fetch(`/api/collections/${encodeURIComponent(slug)}/videos`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ videoId })
+          });
+          if (!aRes.ok) {
+            const err = await parseErrJson(aRes);
+            throw new Error(err.message || `Could not attach "${file.name}" to the collection`);
+          }
+          captureAndUploadThumbnail(file, videoId);
+          uploadedIds.push(videoId);
+
+          bytesDone += file.size;
+        }
+
+        setProgress(100, 'Done!');
+        uploading = false;
+        finishCollectionSuccess(slug, { title: collectionTitle, count: files.length, expiryDays, password });
+      } catch (err) {
+        uploading = false;
+        progressArea.classList.remove('visible');
+        uploadBtn.classList.add('visible');
+        filesList.hidden = false;
+        fieldsArea.style.display = 'flex';
+        if (modeTabs) modeTabs.style.display = '';
+        root.dispatchEvent(new CustomEvent('upload:reset'));
+        showError('Upload failed: ' + err.message);
+      }
+    }
+
+    function finishCollectionSuccess(slug, opts) {
+      const { title, count, expiryDays, password } = opts || {};
+      const collectionUrl = window.location.origin + '/c/' + encodeURIComponent(slug);
+
+      currentVideoId = null;
+      currentTitle = title || null;
+      currentWatchUrl = collectionUrl;
+
+      setTimeout(() => {
+        progressArea.classList.remove('visible');
+        successArea.classList.add('visible');
+        if (modeTabs) modeTabs.style.display = 'none';
+        shareLink.textContent = collectionUrl;
+        watchLinkBtn.dataset.url = collectionUrl;
+        watchLinkBtn.textContent = 'Open collection ↗';
+        qrPanel.hidden = true;
+        qrToggle.setAttribute('aria-expanded', 'false');
+        qrToggleLabel.textContent = 'Show QR code';
+        qrDisclosure.classList.remove('open');
+
+        metaRow.innerHTML = '';
+        const tBadge = document.createElement('span');
+        tBadge.className = 'meta-badge'; tBadge.textContent = title;
+        metaRow.appendChild(tBadge);
+        const cBadge = document.createElement('span');
+        cBadge.className = 'meta-badge'; cBadge.textContent = `${count} videos`;
+        metaRow.appendChild(cBadge);
+        const expBadge = document.createElement('span');
+        expBadge.className = 'meta-badge';
+        expBadge.textContent = expiryDays === 'never' ? 'No expiry' : `Expires in ${expiryDays} day${expiryDays === '1' ? '' : 's'}`;
+        metaRow.appendChild(expBadge);
+        if (password) {
+          const pb = document.createElement('span');
+          pb.className = 'meta-badge'; pb.textContent = 'Password protected';
+          metaRow.appendChild(pb);
+        }
+
+        successSub.textContent = 'Share this collection link — recipients can watch each video and download them all as a zip.';
+        accountNudge.classList.remove('visible'); // user is signed in by definition
+        qrImg.src = renderQrDataUrl(collectionUrl);
+
+        navigator.clipboard.writeText(collectionUrl).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 3000);
+        }).catch(() => {});
+
+        root.dispatchEvent(new CustomEvent('upload:success', { detail: { collectionSlug: slug, watchUrl: collectionUrl } }));
+      }, 400);
+    }
+
     copyBtn.addEventListener('click', async () => {
       const url = shareLink.textContent;
       try { await navigator.clipboard.writeText(url); }
@@ -714,6 +1009,7 @@
       qrToggle.setAttribute('aria-expanded', 'false');
       qrToggleLabel.textContent = 'Show QR code';
       qrDisclosure.classList.remove('open');
+      watchLinkBtn.textContent = 'Watch it now ↗';
       currentVideoId = null;
       currentTitle = null;
       currentWatchUrl = null;
