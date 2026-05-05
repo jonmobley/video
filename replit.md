@@ -54,19 +54,24 @@ VidShare Dance Hub is a mobile-first video sharing platform for theater groups t
 
 ## User preferences
 
-## Collections (multi-video shared pages)
-Signed-in users can upload 2+ videos at once and share them as a single page at `/c/:slug` (12-char hex slug). Backed by `vs_collections (slug PK, user_id FK CASCADE, title, created_at)` plus `vs_uploads.collection_id` (FK SET NULL) + `collection_order INTEGER` columns in Replit Postgres. Endpoints (Express, see `server.js`):
-- `POST /api/collections` (auth) — create empty collection, returns `{slug,title}`
-- `GET /api/collections/:slug` — public read incl. `isOwner`, video list (excludes expired)
-- `PATCH /api/collections/:slug` (auth, owner) — rename
-- `DELETE /api/collections/:slug` (auth, owner) — delete page (videos preserved via SET NULL)
-- `POST /api/collections/:slug/videos` (auth, owner of both) — attach existing video
-- `DELETE /api/collections/:slug/videos/:videoId` (auth, owner) — detach
-- `GET /api/my-collections` (auth) — list user's collections w/ video counts
+## Folders (multi-video shared pages)
+Anyone (signed-in or anonymous) can upload 2+ videos at once and share them as a single page at `/f/:slug` (12-char hex slug). Anonymous folders have `user_id IS NULL` and are immutable after creation, mirroring anonymous single-upload behavior. Backed by `vs_collections (slug PK, user_id FK CASCADE NULLABLE, title, created_at)` plus `vs_uploads.collection_id` (FK SET NULL) + `collection_order INTEGER` columns in Replit Postgres. The DB table is intentionally NOT renamed (it stays `vs_collections`) to avoid a risky migration; only user-facing copy and HTTP routes use "folder". Endpoints (Express, see `server.js`):
+- `POST /api/folders` (no auth) — create empty folder, returns `{slug,title}`. Rate-limited 20/hr/IP via `folderCreateCounts`.
+- `GET /api/folders/:slug` — public read incl. `isOwner`, video list (excludes expired)
+- `PATCH /api/folders/:slug` (auth, owner) — rename (anonymous folders cannot be renamed)
+- `DELETE /api/folders/:slug` — owner can delete their own folder; anyone can delete an anonymous folder ONLY if it has no videos (cleanup path used after a fully-failed/cancelled batch)
+- `POST /api/folders/:slug/videos` — attach existing video; ownership must match: signed-in user attaches their video to their folder, anonymous attaches anonymous-to-anonymous
+- `DELETE /api/folders/:slug/videos/:videoId` (auth, owner) — detach
+- `GET /api/my-folders` (auth) — list user's folders w/ video counts
 - `GET /api/video/:id/download` — single-video download with Content-Disposition attachment (rejects non-`upload` platforms; respects expiry/password via `?pt=`)
-- `GET /api/collections/:slug/download` — streams a zip via `archiver` (store-only, level 0); skips password-protected/expired/non-upload videos; hard caps at 10 videos / 2 GB
+- `GET /api/folders/:slug/download` — streams a zip via `archiver` (store-only, level 0); skips password-protected/expired/non-upload videos; hard caps at 10 videos / 2 GB
+- `DELETE /api/upload-chunks/:videoId` — best-effort orphaned-chunk cleanup used by the cancel button; only succeeds when no `vs_uploads` row exists for that id
 
-The page route `GET /c/:slug` is registered in `server.js` BEFORE the static middleware and injects OG meta tags into `collection.html` mirroring the `/watch` pattern. Frontend: `collection.html` + `js/collection-app.js` + `styles/collection.css` (gallery grid, owner-only Rename/Delete/Remove, "Download all (zip)" button). The upload widget (`js/upload-widget.js`) auto-switches to "collection mode" when 2+ files are selected — relabels the title field to "Collection title", lists files inline, requires sign-in, sequentially uploads each file via the existing chunked endpoints, then attaches them to a freshly-created collection. The watch page (`js/watch-app.js`) shows a Download button when `platform === 'upload'`. New npm dep: `archiver`.
+All old `/api/collections*` paths and `/c/:slug` 308-redirect to the corresponding `/api/folders*` / `/f/:slug` so legacy links keep working.
+
+The page route `GET /f/:slug` is registered in `server.js` BEFORE the static middleware and injects OG meta tags into `folder.html` mirroring the `/watch` pattern. Frontend: `folder.html` + `js/folder-app.js` + `styles/folder.css` (gallery grid, owner-only Rename/Delete/Remove, "Download all (zip)" button).
+
+The upload widget (`js/upload-widget.js`) auto-switches to "folder mode" when 2+ files are selected — relabels the title field to "Folder title", lists files inline, and runs the batch with **partial-failure tolerance**: each file uploads independently with per-file status (queued/uploading/done/failed/cancelled). One failure no longer aborts the batch; an end-of-batch summary card offers "Retry failed" + "Open folder" + "Start over". A Cancel button stops the batch and best-effort-cleans the chunks of the file mid-flight via `DELETE /api/upload-chunks/:videoId`. If every file fails, the empty folder auto-deletes via `DELETE /api/folders/:slug`. The watch page (`js/watch-app.js`) shows a Download button when `platform === 'upload'`. Tests live in `tests/jest/server-folders.test.js`. New npm dep: `archiver`.
 
 ## User Preferences
 None documented yet - this is a fresh import.

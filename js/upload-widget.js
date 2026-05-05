@@ -26,7 +26,7 @@
         </span>
         <div class="drop-label">Tap to choose video(s)</div>
         <div class="drop-sub">Pick one or several · Any format</div>
-        <div class="size-limit">Max 1 GB per file · Up to 10 in a collection</div>
+        <div class="size-limit">Max 1 GB per file · Up to 10 in a folder</div>
       </div>
 
       <div class="files-list" data-el="filesList" hidden></div>
@@ -101,7 +101,11 @@
       <div class="progress-bar-track">
         <div class="progress-bar-fill" data-el="progressFill"></div>
       </div>
+      <div class="files-status" data-el="filesStatus" hidden></div>
+      <button type="button" class="btn cancel-btn" data-el="cancelBtn" hidden>Cancel</button>
     </div>
+
+    <div class="batch-summary" data-el="batchSummary" hidden role="status" aria-live="polite"></div>
 
     <div class="error-msg" data-el="errorMsg" role="alert" aria-live="assertive"></div>
 
@@ -309,11 +313,18 @@
     const linkDetected = $('linkDetected');
 
     let selectedFile = null;
-    let selectedFiles = [];       // multi-file collection mode
-    let isCollectionMode = false; // true when 2+ files selected
+    let selectedFiles = [];       // multi-file folder mode
+    let isFolderMode = false;     // true when 2+ files selected
     let mode = 'file';            // 'file' | 'link'
     let parsedLink = null;        // { platform, videoId } | null
     let uploading = false;
+    // Per-file upload state for folder mode. Keyed by file index.
+    // Each entry: { name, status, videoId, error }
+    // status ∈ 'queued' | 'uploading' | 'done' | 'failed' | 'cancelled'
+    let folderState = null;
+    let cancelRequested = false;
+    let inFlightVideoId = null;   // chunked upload currently in progress (for cancel cleanup)
+    let currentFolderSlug = null; // folder created for the current batch (for retries / cleanup)
 
     const wid = 'uw' + (++widgetCounter);
     panelFile.id = wid + '_file';
@@ -342,6 +353,9 @@
     let isPaidUser = false;
     let isSignedIn = false;
     let uploadRequiresAuth = true;
+    const filesStatus = $('filesStatus');
+    const cancelBtn = $('cancelBtn');
+    const batchSummary = $('batchSummary');
     const authReady = Promise.all([
       fetch('/api/auth/me', { credentials: 'same-origin' })
         .then(async r => {
@@ -388,11 +402,11 @@
       const showFields = mode === 'link' ? true : hasAnyFile;
       fieldsArea.style.display = showFields ? 'flex' : 'none';
       uploadBtn.classList.toggle('visible', showFields);
-      // Preserve the collection-mode label when returning to the file tab.
+      // Preserve the folder-mode label when returning to the file tab.
       if (mode === 'link') {
         uploadBtn.textContent = 'Create Watch Link';
-      } else if (isCollectionMode) {
-        uploadBtn.textContent = 'Upload & Share Collection';
+      } else if (isFolderMode) {
+        uploadBtn.textContent = 'Upload & Share Folder';
       } else {
         uploadBtn.textContent = 'Upload & Get Link';
       }
@@ -432,7 +446,7 @@
 
     function updateUploadBtnState() {
       if (mode === 'file') {
-        const hasFiles = isCollectionMode ? selectedFiles.length > 0 : !!selectedFile;
+        const hasFiles = isFolderMode ? selectedFiles.length > 0 : !!selectedFile;
         const hasTitle = titleInput.value.trim().length > 0;
         uploadBtn.disabled = !(hasFiles && hasTitle);
       } else {
@@ -442,12 +456,12 @@
       }
     }
 
-    function applyCollectionMode(on) {
-      isCollectionMode = on;
+    function applyFolderMode(on) {
+      isFolderMode = on;
       if (on) {
-        titleLabel.textContent = 'Collection title';
+        titleLabel.textContent = 'Folder title';
         titleInput.placeholder = 'e.g. June practice videos';
-        uploadBtn.textContent = 'Upload & Share Collection';
+        uploadBtn.textContent = 'Upload & Share Folder';
       } else {
         titleLabel.textContent = 'Title';
         titleInput.placeholder = 'e.g. Practice run – June 3';
@@ -482,7 +496,7 @@
         return;
       }
       if (mode !== 'file') setMode('file');
-      applyCollectionMode(false);
+      applyFolderMode(false);
       selectedFile = file;
       selectedFiles = [];
       filesList.hidden = true;
@@ -507,11 +521,11 @@
         return;
       }
       if (files.length > 10) {
-        showError(`Too many files (${files.length}). A collection can contain at most 10 videos.`);
+        showError(`Too many files (${files.length}). A folder can contain at most 10 videos.`);
         return;
       }
       if (mode !== 'file') setMode('file');
-      applyCollectionMode(true);
+      applyFolderMode(true);
       selectedFile = null;
       selectedFiles = files;
       filePreview.classList.remove('visible');
@@ -521,7 +535,7 @@
       uploadBtn.classList.add('visible');
       dropZone.style.display = 'none';
       if (!titleInput.value.trim()) {
-        titleInput.value = `Collection · ${new Date().toLocaleDateString()}`;
+        titleInput.value = `Folder · ${new Date().toLocaleDateString()}`;
       }
       updateUploadBtnState();
       hideError();
@@ -530,12 +544,12 @@
     function clearFile() {
       selectedFile = null;
       selectedFiles = [];
-      isCollectionMode = false;
+      isFolderMode = false;
       fileInput.value = '';
       filePreview.classList.remove('visible');
       filesList.hidden = true;
       filesList.innerHTML = '';
-      applyCollectionMode(false);
+      applyFolderMode(false);
       fieldsArea.style.display = 'none';
       uploadBtn.classList.remove('visible');
       dropZone.style.display = '';
@@ -682,8 +696,8 @@
       if (mode === 'link') {
         return startLinkUpload();
       }
-      if (isCollectionMode) {
-        return startCollectionUpload();
+      if (isFolderMode) {
+        return startFolderUpload();
       }
       if (!selectedFile) return;
       const title = titleInput.value.trim();
@@ -844,30 +858,131 @@
       }
     }
 
-    async function startCollectionUpload() {
-      // Multi-file flow: requires sign-in (collections are owned). Sequentially
-      // uploads each file (reuses the existing chunked upload + finalize), then
-      // creates a collection and attaches each video. Aborts on the first hard
-      // failure to keep the UX simple — user can retry the whole batch.
-      const collectionTitle = titleInput.value.trim();
-      if (!collectionTitle) {
-        showError('Please add a collection title.');
+    function renderFilesStatus() {
+      // Render the per-file status list shown beneath the progress bar during
+      // a folder upload. Updates in place; keyed by index.
+      filesStatus.innerHTML = '';
+      if (!folderState) return;
+      folderState.forEach((entry, idx) => {
+        const row = document.createElement('div');
+        row.className = 'files-status-row status-' + entry.status;
+        row.dataset.idx = String(idx);
+        const dot = document.createElement('span');
+        dot.className = 'files-status-dot';
+        const labels = {
+          queued:    'Queued',
+          uploading: 'Uploading…',
+          done:      'Done',
+          failed:    'Failed',
+          cancelled: 'Cancelled'
+        };
+        dot.textContent = labels[entry.status] || entry.status;
+        const name = document.createElement('span');
+        name.className = 'files-status-name';
+        name.textContent = entry.name;
+        row.appendChild(dot);
+        row.appendChild(name);
+        if (entry.status === 'failed' && entry.error) {
+          const err = document.createElement('span');
+          err.className = 'files-status-err';
+          err.textContent = entry.error;
+          row.appendChild(err);
+        }
+        filesStatus.appendChild(row);
+      });
+    }
+
+    async function uploadOneFile(file, slug, expiryDays, password) {
+      // Returns the new videoId on success; throws on failure. The caller
+      // catches per-file errors so other files can still proceed.
+      if (file.size === 0) {
+        const e = new Error('File is empty (0 bytes).');
+        throw e;
+      }
+      const ext = getExt(file);
+      const videoId = genId() + '.' + ext;
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const fileTitle = deriveTitleFromFilename(file.name) || file.name;
+
+      inFlightVideoId = videoId;
+      try {
+        for (let i = 0; i < totalChunks; i++) {
+          if (cancelRequested) {
+            const e = new Error('Cancelled');
+            e._cancelled = true;
+            throw e;
+          }
+          const start = i * CHUNK_SIZE;
+          const slice = file.slice(start, Math.min(start + CHUNK_SIZE, file.size));
+          const ab = await slice.arrayBuffer();
+          const base64 = arrayBufferToBase64(ab);
+
+          await retryChunk(async () => {
+            const res = await fetch('/api/upload-chunk', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ videoId, chunkIndex: i, totalChunks, data: base64, contentType: file.type || 'video/mp4' })
+            });
+            if (!res.ok) {
+              const err = await parseErrJson(res);
+              const e = new Error(err.message || `Chunk ${i} failed`);
+              e.status = res.status;
+              throw e;
+            }
+          }, i);
+        }
+
+        if (cancelRequested) {
+          const e = new Error('Cancelled');
+          e._cancelled = true;
+          throw e;
+        }
+
+        const finalRes = await fetch('/api/finalize-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, totalChunks, contentType: file.type || 'video/mp4', title: fileTitle, expiryDays, password })
+        });
+        if (!finalRes.ok) {
+          const err = await parseErrJson(finalRes);
+          const e = new Error(err.message || 'Finalize failed');
+          e.status = finalRes.status;
+          throw e;
+        }
+
+        const aRes = await fetch(`/api/folders/${encodeURIComponent(slug)}/videos`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId })
+        });
+        if (!aRes.ok) {
+          const err = await parseErrJson(aRes);
+          const e = new Error(err.message || 'Could not attach to folder');
+          e.status = aRes.status;
+          throw e;
+        }
+        captureAndUploadThumbnail(file, videoId);
+        return videoId;
+      } finally {
+        inFlightVideoId = null;
+      }
+    }
+
+    async function startFolderUpload() {
+      // Multi-file flow with per-file partial-failure handling. Anonymous
+      // users CAN create folders (matches anonymous single-upload behavior).
+      // Each file uploads independently — one failure no longer aborts the
+      // whole batch. At the end we show a summary; if everything failed and
+      // the folder is empty, we delete it server-side as cleanup.
+      const folderTitle = titleInput.value.trim();
+      if (!folderTitle) {
+        showError('Please add a folder title.');
         titleInput.focus();
         return;
       }
       const files = selectedFiles.slice();
       if (files.length < 2) return;
-
-      // Wait for the auth probe and bail out if not signed in.
-      await authReady;
-      if (!isSignedIn) {
-        showError('Please sign in first to create a shareable collection.');
-        // Soft hint: most users land here without realizing they need an account.
-        setTimeout(() => {
-          window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
-        }, 1500);
-        return;
-      }
 
       const expiryDays = expirySelect.value;
       const password = passwordInput.value;
@@ -876,122 +991,241 @@
       filesList.hidden = true;
       fieldsArea.style.display = 'none';
       progressArea.classList.add('visible');
+      filesStatus.hidden = false;
+      cancelBtn.hidden = false;
+      cancelBtn.disabled = false;
+      cancelBtn.textContent = 'Cancel';
+      batchSummary.hidden = true;
+      batchSummary.innerHTML = '';
       if (modeTabs) modeTabs.style.display = 'none';
       hideError();
-      setProgress(0, 'Preparing collection…');
+      setProgress(0, 'Preparing folder…');
+      cancelRequested = false;
       uploading = true;
+      folderState = files.map(f => ({ name: f.name, status: 'queued', videoId: null, error: null }));
+      renderFilesStatus();
       root.dispatchEvent(new CustomEvent('upload:start'));
 
-      try {
-        // 1) Create collection up-front so a partial-upload failure still
-        //    leaves an empty collection the user can retry into.
-        const cRes = await fetch('/api/collections', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: collectionTitle })
-        });
-        if (!cRes.ok) {
-          const err = await parseErrJson(cRes);
-          throw new Error(err.message || 'Could not create collection');
-        }
-        const { slug } = await cRes.json();
-
-        // 2) Upload each file sequentially. Per-file progress is mapped onto a
-        //    band of the overall bar (0..95% across all files).
-        const totalBytes = files.reduce((s, f) => s + f.size, 0) || 1;
-        let bytesDone = 0;
-        const uploadedIds = [];
-
-        for (let f = 0; f < files.length; f++) {
-          const file = files[f];
-          if (file.size === 0) throw new Error(`"${file.name}" is empty (0 bytes).`);
-          const ext = getExt(file);
-          const videoId = genId() + '.' + ext;
-          const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-          const fileTitle = deriveTitleFromFilename(file.name) || file.name;
-
-          for (let i = 0; i < totalChunks; i++) {
-            const start = i * CHUNK_SIZE;
-            const slice = file.slice(start, Math.min(start + CHUNK_SIZE, file.size));
-            const ab = await slice.arrayBuffer();
-            const base64 = arrayBufferToBase64(ab);
-
-            const overallPct = Math.min(95, Math.round(((bytesDone + start) / totalBytes) * 95));
-            setProgress(overallPct, `Uploading ${f + 1} of ${files.length}: ${file.name}`);
-
-            await retryChunk(async () => {
-              const res = await fetch('/api/upload-chunk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ videoId, chunkIndex: i, totalChunks, data: base64, contentType: file.type || 'video/mp4' })
-              });
-              if (!res.ok) {
-                const err = await parseErrJson(res);
-                const e = new Error(err.message || `Chunk ${i} failed`);
-                e.status = res.status;
-                throw e;
-              }
-            }, i);
-          }
-
-          const finalRes = await fetch('/api/finalize-video', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId, totalChunks, contentType: file.type || 'video/mp4', title: fileTitle, expiryDays, password })
-          });
-          if (!finalRes.ok) {
-            const err = await parseErrJson(finalRes);
-            throw new Error(err.message || `Finalize failed for "${file.name}"`);
-          }
-
-          // Attach to collection. Best-effort thumbnail (fire-and-forget).
-          const aRes = await fetch(`/api/collections/${encodeURIComponent(slug)}/videos`, {
+      // Create the folder up-front. If it fails we don't have anything to
+      // clean up. Anonymous users hit the same endpoint — server allows it.
+      let slug = currentFolderSlug;
+      if (!slug) {
+        try {
+          const cRes = await fetch('/api/folders', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ videoId })
+            body: JSON.stringify({ title: folderTitle })
           });
-          if (!aRes.ok) {
-            const err = await parseErrJson(aRes);
-            throw new Error(err.message || `Could not attach "${file.name}" to the collection`);
+          if (!cRes.ok) {
+            const err = await parseErrJson(cRes);
+            throw new Error(err.message || 'Could not create folder');
           }
-          captureAndUploadThumbnail(file, videoId);
-          uploadedIds.push(videoId);
+          const data = await cRes.json();
+          slug = data.slug;
+          currentFolderSlug = slug;
+        } catch (err) {
+          uploading = false;
+          progressArea.classList.remove('visible');
+          filesStatus.hidden = true;
+          cancelBtn.hidden = true;
+          uploadBtn.classList.add('visible');
+          filesList.hidden = false;
+          fieldsArea.style.display = 'flex';
+          if (modeTabs) modeTabs.style.display = '';
+          root.dispatchEvent(new CustomEvent('upload:reset'));
+          showError('Could not create folder: ' + err.message);
+          return;
+        }
+      }
 
-          bytesDone += file.size;
+      const totalBytes = files.reduce((s, f) => s + f.size, 0) || 1;
+      let bytesDone = 0;
+      let succeededCount = 0;
+      let failedCount = 0;
+
+      for (let f = 0; f < files.length; f++) {
+        if (folderState[f].status === 'done') {
+          // skip already-uploaded files (retry path)
+          bytesDone += files[f].size;
+          continue;
+        }
+        if (cancelRequested) {
+          if (folderState[f].status === 'queued') {
+            folderState[f].status = 'cancelled';
+          }
+          continue;
         }
 
-        setProgress(100, 'Done!');
-        uploading = false;
-        finishCollectionSuccess(slug, { title: collectionTitle, count: files.length, expiryDays, password });
-      } catch (err) {
-        uploading = false;
-        progressArea.classList.remove('visible');
-        uploadBtn.classList.add('visible');
-        filesList.hidden = false;
-        fieldsArea.style.display = 'flex';
-        if (modeTabs) modeTabs.style.display = '';
-        root.dispatchEvent(new CustomEvent('upload:reset'));
-        showError('Upload failed: ' + err.message);
+        folderState[f].status = 'uploading';
+        folderState[f].error = null;
+        renderFilesStatus();
+        const overallPct = Math.min(95, Math.round((bytesDone / totalBytes) * 95));
+        setProgress(overallPct, `Uploading ${f + 1} of ${files.length}: ${files[f].name}`);
+
+        try {
+          const videoId = await uploadOneFile(files[f], slug, expiryDays, password);
+          folderState[f].status = 'done';
+          folderState[f].videoId = videoId;
+          succeededCount++;
+        } catch (err) {
+          if (err && err._cancelled) {
+            folderState[f].status = 'cancelled';
+          } else {
+            folderState[f].status = 'failed';
+            folderState[f].error = err.message || 'Upload failed';
+            failedCount++;
+          }
+        }
+        bytesDone += files[f].size;
+        renderFilesStatus();
       }
+
+      cancelBtn.hidden = true;
+      uploading = false;
+
+      // Clean up empty folders so we don't leak slugs into the DB. We only
+      // attempt this when no video was attached at all.
+      if (succeededCount === 0 && currentFolderSlug) {
+        try {
+          await fetch(`/api/folders/${encodeURIComponent(currentFolderSlug)}`, {
+            method: 'DELETE', credentials: 'same-origin'
+          });
+        } catch {}
+        currentFolderSlug = null;
+      }
+
+      const cancelledCount = folderState.filter(s => s.status === 'cancelled').length;
+      if (succeededCount === files.length) {
+        setProgress(100, 'Done!');
+        finishFolderSuccess(slug, { title: folderTitle, count: succeededCount, expiryDays, password });
+        return;
+      }
+
+      // Partial / total failure: show a summary with retry + (if any
+      // succeeded) an "Open folder" link so the user can keep what worked.
+      progressArea.classList.remove('visible');
+      filesStatus.hidden = true;
+      if (modeTabs) modeTabs.style.display = '';
+      showBatchSummary({
+        slug: succeededCount > 0 ? slug : null,
+        succeededCount, failedCount, cancelledCount, total: files.length,
+        folderTitle
+      });
+      root.dispatchEvent(new CustomEvent('upload:partial', {
+        detail: { slug: succeededCount > 0 ? slug : null, succeeded: succeededCount, failed: failedCount, cancelled: cancelledCount }
+      }));
     }
 
-    function finishCollectionSuccess(slug, opts) {
+    function showBatchSummary(opts) {
+      const { slug, succeededCount, failedCount, cancelledCount, total, folderTitle } = opts;
+      batchSummary.innerHTML = '';
+      const heading = document.createElement('div');
+      heading.className = 'batch-summary-heading';
+      if (succeededCount === 0) {
+        heading.textContent = `Upload failed — 0 of ${total} videos uploaded.`;
+      } else {
+        heading.textContent = `Uploaded ${succeededCount} of ${total} videos to "${folderTitle}".`;
+      }
+      batchSummary.appendChild(heading);
+
+      const detail = document.createElement('div');
+      detail.className = 'batch-summary-detail';
+      const parts = [];
+      if (failedCount)    parts.push(`${failedCount} failed`);
+      if (cancelledCount) parts.push(`${cancelledCount} cancelled`);
+      detail.textContent = parts.join(' · ');
+      if (parts.length) batchSummary.appendChild(detail);
+
+      const actions = document.createElement('div');
+      actions.className = 'batch-summary-actions';
+
+      if (failedCount > 0 || cancelledCount > 0) {
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'btn btn-primary';
+        retryBtn.textContent = `Retry ${failedCount + cancelledCount} failed`;
+        retryBtn.addEventListener('click', () => retryFailed());
+        actions.appendChild(retryBtn);
+      }
+
+      if (slug) {
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'btn btn-secondary';
+        openBtn.textContent = 'Open folder ↗';
+        openBtn.addEventListener('click', () => {
+          window.open('/f/' + encodeURIComponent(slug), '_blank', 'noopener');
+        });
+        actions.appendChild(openBtn);
+      }
+
+      const startOverBtn = document.createElement('button');
+      startOverBtn.type = 'button';
+      startOverBtn.className = 'btn btn-secondary';
+      startOverBtn.textContent = 'Start over';
+      startOverBtn.addEventListener('click', () => {
+        currentFolderSlug = null;
+        folderState = null;
+        batchSummary.hidden = true;
+        reset();
+      });
+      actions.appendChild(startOverBtn);
+
+      batchSummary.appendChild(actions);
+      batchSummary.hidden = false;
+    }
+
+    function retryFailed() {
+      // Mark every failed/cancelled entry as queued, then re-run the same
+      // pipeline. uploadOneFile() generates a fresh videoId per attempt, so
+      // there's no orphaned-chunk concern.
+      if (!folderState) return;
+      folderState.forEach(entry => {
+        if (entry.status === 'failed' || entry.status === 'cancelled') {
+          entry.status = 'queued';
+          entry.error = null;
+        }
+      });
+      batchSummary.hidden = true;
+      startFolderUpload();
+    }
+
+    cancelBtn.addEventListener('click', async () => {
+      if (!uploading) return;
+      cancelRequested = true;
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = 'Cancelling…';
+      // Best-effort orphaned-chunk cleanup for the file mid-flight. The
+      // server only honors this when no vs_uploads row exists for the id.
+      const id = inFlightVideoId;
+      if (id) {
+        try {
+          await fetch('/api/upload-chunks/' + encodeURIComponent(id), {
+            method: 'DELETE', credentials: 'same-origin'
+          });
+        } catch {}
+      }
+    });
+
+    function finishFolderSuccess(slug, opts) {
       const { title, count, expiryDays, password } = opts || {};
-      const collectionUrl = window.location.origin + '/c/' + encodeURIComponent(slug);
+      const folderUrl = window.location.origin + '/f/' + encodeURIComponent(slug);
 
       currentVideoId = null;
       currentTitle = title || null;
-      currentWatchUrl = collectionUrl;
+      currentWatchUrl = folderUrl;
+      currentFolderSlug = null;
 
       setTimeout(() => {
         progressArea.classList.remove('visible');
+        filesStatus.hidden = true;
+        cancelBtn.hidden = true;
         successArea.classList.add('visible');
         if (modeTabs) modeTabs.style.display = 'none';
-        shareLink.textContent = collectionUrl;
-        watchLinkBtn.dataset.url = collectionUrl;
-        watchLinkBtn.textContent = 'Open collection ↗';
+        shareLink.textContent = folderUrl;
+        watchLinkBtn.dataset.url = folderUrl;
+        watchLinkBtn.textContent = 'Open folder ↗';
         qrPanel.hidden = true;
         qrToggle.setAttribute('aria-expanded', 'false');
         qrToggleLabel.textContent = 'Show QR code';
@@ -1014,17 +1248,19 @@
           metaRow.appendChild(pb);
         }
 
-        successSub.textContent = 'Share this collection link — recipients can watch each video and download them all as a zip.';
-        accountNudge.classList.remove('visible'); // user is signed in by definition
-        qrImg.src = renderQrDataUrl(collectionUrl);
+        successSub.textContent = 'Share this folder link — recipients can watch each video and download them all as a zip.';
+        authReady.then(signedIn => {
+          accountNudge.classList.toggle('visible', !signedIn);
+        });
+        qrImg.src = renderQrDataUrl(folderUrl);
 
-        navigator.clipboard.writeText(collectionUrl).then(() => {
+        navigator.clipboard.writeText(folderUrl).then(() => {
           copyBtn.textContent = 'Copied!';
           copyBtn.classList.add('copied');
           setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 3000);
         }).catch(() => {});
 
-        root.dispatchEvent(new CustomEvent('upload:success', { detail: { collectionSlug: slug, watchUrl: collectionUrl } }));
+        root.dispatchEvent(new CustomEvent('upload:success', { detail: { folderSlug: slug, watchUrl: folderUrl } }));
       }, 400);
     }
 

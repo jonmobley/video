@@ -54,6 +54,13 @@ const verifyAttempts = new Map();
 const MAX_VERIFY_PER_WINDOW = 8;
 const VERIFY_WINDOW_MS = 5 * 60 * 1000;
 
+// Folder-create throttle: caps how many folders a single IP can spin up per
+// hour. Anonymous folder creation is otherwise unauthenticated, so without
+// this an abusive client could flood the slug space.
+const folderCreateCounts = new Map();
+const MAX_FOLDER_CREATES_PER_HOUR = 20;
+const FOLDER_CREATE_WINDOW_MS = 60 * 60 * 1000;
+
 // CSP report throttle: prevents log flooding from noisy CSP violations
 const cspReportCounts = new Map();
 const MAX_CSP_REPORTS_PER_WINDOW = 50;
@@ -86,6 +93,7 @@ function evictExpiredRateLimits() {
   for (const [k, v] of codeRequestByEmail) if (now > v.resetAt) codeRequestByEmail.delete(k);
   for (const [k, v] of codeRequestByIp)    if (now > v.resetAt) codeRequestByIp.delete(k);
   for (const [k, v] of cspReportCounts)    if (now > v.resetAt) cspReportCounts.delete(k);
+  for (const [k, v] of folderCreateCounts) if (now > v.resetAt) folderCreateCounts.delete(k);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -351,15 +359,19 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_email ON vs_auth_codes(email);
     CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_expires ON vs_auth_codes(expires_at);
 
-    -- Collections: multi-video shareable pages owned by a user. Each collection
-    -- has a short URL-safe slug and a display title. Videos opt-in via the
-    -- collection_id column on vs_uploads.
+    -- Folders (formerly "collections"): multi-video shareable pages. Each
+    -- folder has a short URL-safe slug and a display title. Videos opt-in via
+    -- the collection_id column on vs_uploads. The underlying table is still
+    -- named vs_collections to avoid a risky data migration; only user-facing
+    -- names changed. user_id is nullable so anonymous uploads can create
+    -- folders just like single-video anonymous uploads.
     CREATE TABLE IF NOT EXISTS vs_collections (
       slug TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES vs_users(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES vs_users(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE vs_collections ALTER COLUMN user_id DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_vs_collections_user_id ON vs_collections(user_id);
 
     ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS collection_id TEXT
@@ -579,8 +591,13 @@ app.get('/watch', async (req, res) => {
   }
 });
 
-// ── Collection page with dynamic OG tags (must be before static middleware) ──
-app.get('/c/:slug', async (req, res) => {
+// ── Folder page with dynamic OG tags (must be before static middleware) ──
+// Old `/c/:slug` links 308-redirect to the new `/f/:slug` so previously-shared
+// links keep working without changing the bookmarked URL behavior.
+app.get('/c/:slug', (req, res) => {
+  res.redirect(308, '/f/' + encodeURIComponent(req.params.slug));
+});
+app.get('/f/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
     const origin = req.protocol + '://' + req.get('host');
@@ -589,15 +606,15 @@ app.get('/c/:slug', async (req, res) => {
     if (isValidSlug(slug)) {
       const c = await pool.query('SELECT title FROM vs_collections WHERE slug = $1', [slug]);
       if (c.rows.length) {
-        const title = (c.rows[0].title || 'Collection').replace(/[<>"&]/g, ch =>
+        const title = (c.rows[0].title || 'Folder').replace(/[<>"&]/g, ch =>
           ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', '&': '&amp;' }[ch]));
-        const collectionUrl = `${origin}/c/${encodeURIComponent(slug)}`;
+        const folderUrl = `${origin}/f/${encodeURIComponent(slug)}`;
         const imageUrl = `${origin}/assets/vidshare-og.png`;
         ogTags = [
           `<meta property="og:type" content="website">`,
-          `<meta property="og:url" content="${collectionUrl}">`,
+          `<meta property="og:url" content="${folderUrl}">`,
           `<meta property="og:title" content="${title} — VidShare">`,
-          `<meta property="og:description" content="A video collection on VidShare">`,
+          `<meta property="og:description" content="A video folder on VidShare">`,
           `<meta property="og:image" content="${imageUrl}">`,
           `<meta name="twitter:card" content="summary_large_image">`,
           `<meta name="twitter:title" content="${title} — VidShare">`,
@@ -609,17 +626,17 @@ app.get('/c/:slug', async (req, res) => {
     if (!ogTags) {
       ogTags = [
         `<meta property="og:type" content="website">`,
-        `<meta property="og:title" content="Collection — VidShare">`,
+        `<meta property="og:title" content="Folder — VidShare">`,
         `<meta property="og:image" content="${origin}/assets/vidshare-og.png">`,
         `<meta name="twitter:card" content="summary_large_image">`
       ].join('\n    ');
     }
 
-    const html = fs.readFileSync(path.join(__dirname, 'collection.html'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, 'folder.html'), 'utf8');
     res.type('html').send(html.replace('</head>', `    ${ogTags}\n</head>`));
   } catch (err) {
-    console.error('collection page error:', err);
-    res.sendFile(path.join(__dirname, 'collection.html'));
+    console.error('folder page error:', err);
+    res.sendFile(path.join(__dirname, 'folder.html'));
   }
 });
 
@@ -1894,11 +1911,23 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
   }
 });
 
-// ── Collections ───────────────────────────────────────────────────────────────
-// Create a new (empty) collection. Auth required — anonymous browsers can view
-// collections but only signed-in users may create / own them.
-app.post('/api/collections', requireUser, async (req, res) => {
+// ── Folders (formerly "collections") ─────────────────────────────────────────
+// User-facing name is "folder" everywhere; the underlying table is still
+// vs_collections to keep the migration small. Old `/api/collections*` paths
+// 308-redirect to `/api/folders*` for backward compatibility (308 preserves
+// method and body, so POST/PATCH/DELETE keep working).
+//
+// Anonymous folder creation IS allowed (the same way anonymous single
+// uploads work). Owned folders behave as before — only the owner can
+// rename/delete/attach/detach.
+
+// Create a new (empty) folder. Anyone can create one; we throttle by IP so
+// the slug space can't be flooded.
+app.post('/api/folders', async (req, res) => {
   try {
+    if (checkAndIncrement(folderCreateCounts, getIp(req), MAX_FOLDER_CREATES_PER_HOUR, FOLDER_CREATE_WINDOW_MS)) {
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many folders. Please try again in an hour.');
+    }
     const { title } = req.body || {};
     const trimmed = typeof title === 'string' ? title.trim() : '';
     if (!trimmed) return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
@@ -1910,31 +1939,31 @@ app.post('/api/collections', requireUser, async (req, res) => {
       try {
         await pool.query(
           'INSERT INTO vs_collections (slug, user_id, title) VALUES ($1, $2, $3)',
-          [slug, req.userId, trimmed]
+          [slug, req.userId || null, trimmed]
         );
         return res.json({ slug, title: trimmed });
       } catch (err) {
         if (err.code !== '23505') throw err;
       }
     }
-    return apiError(res, 500, 'INTERNAL', 'Could not generate a unique collection id.');
+    return apiError(res, 500, 'INTERNAL', 'Could not generate a unique folder id.');
   } catch (err) {
-    console.error('create collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not create collection.');
+    console.error('create folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not create folder.');
   }
 });
 
-// Public read: collection metadata + non-expired video list.
-app.get('/api/collections/:slug', async (req, res) => {
+// Public read: folder metadata + non-expired video list.
+app.get('/api/folders/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
 
     const c = await pool.query(
       'SELECT slug, user_id, title, created_at FROM vs_collections WHERE slug = $1',
       [slug]
     );
-    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
 
     const v = await pool.query(
       `SELECT id, title, content_type, uploaded_at, expires_at, view_count, file_size,
@@ -1948,24 +1977,27 @@ app.get('/api/collections/:slug', async (req, res) => {
       [slug]
     );
 
+    // Anonymous folders (user_id IS NULL) have no owner, so isOwner is always
+    // false — no one can mutate them after creation, matching anonymous single
+    // uploads.
     res.json({
       slug: c.rows[0].slug,
       title: c.rows[0].title,
       createdAt: c.rows[0].created_at,
-      isOwner: !!(req.userId && req.userId === c.rows[0].user_id),
+      isOwner: !!(req.userId && c.rows[0].user_id && req.userId === c.rows[0].user_id),
       videos: v.rows
     });
   } catch (err) {
-    console.error('get collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not load collection.');
+    console.error('get folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not load folder.');
   }
 });
 
-// Owner-only: rename
-app.patch('/api/collections/:slug', requireUser, async (req, res) => {
+// Owner-only: rename. Anonymous folders cannot be renamed (no one owns them).
+app.patch('/api/folders/:slug', requireUser, async (req, res) => {
   try {
     const { slug } = req.params;
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     const { title } = req.body || {};
     const trimmed = typeof title === 'string' ? title.trim() : '';
     if (!trimmed) return apiError(res, 400, 'TITLE_REQUIRED', 'A title is required.');
@@ -1975,43 +2007,66 @@ app.patch('/api/collections/:slug', requireUser, async (req, res) => {
       'UPDATE vs_collections SET title = $1 WHERE slug = $2 AND user_id = $3 RETURNING slug, title',
       [trimmed, slug, req.userId]
     );
-    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
-    res.json({ success: true, collection: result.rows[0] });
+    if (!result.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
+    res.json({ success: true, folder: result.rows[0] });
   } catch (err) {
-    console.error('patch collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not update collection.');
+    console.error('patch folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not update folder.');
   }
 });
 
-// Owner-only: delete (videos remain, with collection_id set to NULL)
-app.delete('/api/collections/:slug', requireUser, async (req, res) => {
+// DELETE: owners can delete their own folder. Anonymous *empty* folders may
+// also be deleted by anyone (no auth needed) — this is the cleanup path used
+// when an anonymous batch upload fails or is cancelled before any video has
+// been attached. Non-empty anonymous folders cannot be deleted via the API
+// (matching anonymous single-upload behaviour: anonymous uploads are
+// immutable after creation, except for cleanup).
+app.delete('/api/folders/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
-    const result = await pool.query(
-      'DELETE FROM vs_collections WHERE slug = $1 AND user_id = $2',
-      [slug, req.userId]
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
+
+    const c = await pool.query('SELECT user_id FROM vs_collections WHERE slug = $1', [slug]);
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
+    const folderOwner = c.rows[0].user_id;
+
+    if (folderOwner) {
+      // Owned folder → only the owner can delete it.
+      if (!req.userId || req.userId !== folderOwner) {
+        return apiError(res, 403, 'FORBIDDEN', 'Not your folder.');
+      }
+      await pool.query('DELETE FROM vs_collections WHERE slug = $1', [slug]);
+      return res.json({ success: true });
+    }
+
+    // Anonymous folder → only deletable when empty (cleanup path).
+    const cnt = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM vs_uploads WHERE collection_id = $1',
+      [slug]
     );
-    if (!result.rowCount) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    if (cnt.rows[0].n > 0) {
+      return apiError(res, 403, 'FORBIDDEN', 'This anonymous folder cannot be deleted because it has videos in it.');
+    }
+    await pool.query('DELETE FROM vs_collections WHERE slug = $1', [slug]);
     res.json({ success: true });
   } catch (err) {
-    console.error('delete collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not delete collection.');
+    console.error('delete folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not delete folder.');
   }
 });
 
-// Owner-only: attach an existing video the user owns to this collection.
-app.post('/api/collections/:slug/videos', requireUser, async (req, res) => {
+// Attach a video to a folder. Auth model mirrors ownership: signed-in users
+// attach signed-in videos to their own folders; anonymous uploads attach
+// anonymous videos to anonymous folders. Cross-ownership is rejected.
+app.post('/api/folders/:slug/videos', async (req, res) => {
   try {
     const { slug } = req.params;
     const { videoId } = req.body || {};
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
-    // All ownership checks + ordering must happen in one transaction so that
-    // concurrent attaches can't read the same MAX(collection_order) and produce
-    // duplicate ordering values. SELECT ... FOR UPDATE locks the collection row
-    // for the duration of the transaction.
+    // SELECT ... FOR UPDATE locks the folder row so concurrent attaches don't
+    // both read the same MAX(collection_order) and produce duplicates.
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -2021,22 +2076,25 @@ app.post('/api/collections/:slug/videos', requireUser, async (req, res) => {
       );
       if (!c.rows.length) {
         await client.query('ROLLBACK');
-        return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+        return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
       }
-      if (c.rows[0].user_id !== req.userId) {
-        await client.query('ROLLBACK');
-        return apiError(res, 403, 'FORBIDDEN', 'Not your collection.');
-      }
+      const folderOwner = c.rows[0].user_id; // may be NULL for anonymous folders
       const v = await client.query('SELECT user_id FROM vs_uploads WHERE id = $1', [videoId]);
       if (!v.rows.length) {
         await client.query('ROLLBACK');
         return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
       }
-      if (v.rows[0].user_id !== req.userId) {
+      const videoOwner = v.rows[0].user_id; // may be NULL for anonymous uploads
+
+      // Match-or-reject: the requester must own (or share anonymity with)
+      // BOTH the folder and the video.
+      const sameFolder = (folderOwner || null) === (req.userId || null);
+      const sameVideo  = (videoOwner  || null) === (req.userId || null);
+      if (!sameFolder || !sameVideo) {
         await client.query('ROLLBACK');
-        return apiError(res, 403, 'FORBIDDEN', 'Not your video.');
+        return apiError(res, 403, 'FORBIDDEN', 'Not allowed to attach this video to this folder.');
       }
-      // Single statement: read MAX + write atomically inside the held lock.
+
       await client.query(
         `UPDATE vs_uploads
             SET collection_id = $1,
@@ -2057,36 +2115,36 @@ app.post('/api/collections/:slug/videos', requireUser, async (req, res) => {
       client.release();
     }
   } catch (err) {
-    console.error('add to collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not add video to collection.');
+    console.error('add to folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not add video to folder.');
   }
 });
 
-// Owner-only: remove a video from a collection (the video itself is preserved).
-app.delete('/api/collections/:slug/videos/:videoId', requireUser, async (req, res) => {
+// Owner-only: detach a video from a folder (the video itself is preserved).
+app.delete('/api/folders/:slug/videos/:videoId', requireUser, async (req, res) => {
   try {
     const { slug, videoId } = req.params;
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
     const c = await pool.query('SELECT user_id FROM vs_collections WHERE slug = $1', [slug]);
-    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
-    if (c.rows[0].user_id !== req.userId) return apiError(res, 403, 'FORBIDDEN', 'Not your collection.');
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
+    if (c.rows[0].user_id !== req.userId) return apiError(res, 403, 'FORBIDDEN', 'Not your folder.');
 
     const result = await pool.query(
       'UPDATE vs_uploads SET collection_id = NULL WHERE id = $1 AND collection_id = $2',
       [videoId, slug]
     );
-    if (!result.rowCount) return apiError(res, 404, 'NOT_FOUND', 'Video not in this collection.');
+    if (!result.rowCount) return apiError(res, 404, 'NOT_FOUND', 'Video not in this folder.');
     res.json({ success: true });
   } catch (err) {
-    console.error('remove from collection error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not remove video from collection.');
+    console.error('remove from folder error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not remove video from folder.');
   }
 });
 
-// List the signed-in user's collections.
-app.get('/api/my-collections', requireUser, async (req, res) => {
+// List the signed-in user's folders.
+app.get('/api/my-folders', requireUser, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT c.slug, c.title, c.created_at,
@@ -2096,12 +2154,48 @@ app.get('/api/my-collections', requireUser, async (req, res) => {
         ORDER BY c.created_at DESC`,
       [req.userId]
     );
-    res.json({ collections: r.rows });
+    res.json({ folders: r.rows });
   } catch (err) {
-    console.error('my-collections error:', err);
-    apiError(res, 500, 'INTERNAL', 'Could not list collections.');
+    console.error('my-folders error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not list folders.');
   }
 });
+
+// Best-effort cleanup of orphaned chunks for a video that was never finalized
+// (cancel during upload, or finalize failed). We only allow this when no
+// vs_uploads row exists for that id, so a malicious caller can't wipe a real
+// video's bytes by guessing the id.
+app.delete('/api/upload-chunks/:videoId', async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
+    const exists = await pool.query('SELECT 1 FROM vs_uploads WHERE id = $1', [videoId]);
+    if (exists.rows.length) {
+      return apiError(res, 403, 'FORBIDDEN', 'Cannot delete chunks for a finalized video.');
+    }
+    await pool.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('cleanup chunks error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not clean up chunks.');
+  }
+});
+
+// ── Backwards-compat redirects: /api/collections* → /api/folders* ─────────────
+// 308 preserves the request method and body across the redirect, so POSTed
+// JSON bodies survive — important for clients still hitting old endpoints.
+app.all('/api/collections', (req, res) =>
+  res.redirect(308, '/api/folders'));
+app.all('/api/collections/:slug', (req, res) =>
+  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug)));
+app.all('/api/collections/:slug/videos', (req, res) =>
+  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) + '/videos'));
+app.all('/api/collections/:slug/videos/:videoId', (req, res) =>
+  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) +
+    '/videos/' + encodeURIComponent(req.params.videoId)));
+app.all('/api/collections/:slug/download', (req, res) =>
+  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) + '/download'));
+app.all('/api/my-collections', (req, res) => res.redirect(308, '/api/my-folders'));
 
 // Single-video download — same auth model as /api/video/:id but forces an
 // `attachment` Content-Disposition so browsers save instead of streaming.
@@ -2157,18 +2251,18 @@ app.get('/api/video/:id/download', async (req, res) => {
   }
 });
 
-// Bulk collection download — streams a zip. Skips password-protected, expired,
+// Bulk folder download — streams a zip. Skips password-protected, expired,
 // and non-`upload` videos. Hard caps: 10 videos / 2 GB total to keep memory and
-// connection time bounded.
-app.get('/api/collections/:slug/download', async (req, res) => {
-  const COLLECTION_DOWNLOAD_MAX_VIDEOS = 10;
-  const COLLECTION_DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+// connection time bounded. Public — works for anonymous folders too.
+app.get('/api/folders/:slug/download', async (req, res) => {
+  const FOLDER_DOWNLOAD_MAX_VIDEOS = 10;
+  const FOLDER_DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
   try {
     const { slug } = req.params;
-    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid collection.');
+    if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
 
     const c = await pool.query('SELECT title FROM vs_collections WHERE slug = $1', [slug]);
-    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Collection not found.');
+    if (!c.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
 
     const v = await pool.query(
       `SELECT id, title, file_size
@@ -2179,23 +2273,23 @@ app.get('/api/collections/:slug/download', async (req, res) => {
           AND platform = 'upload'
         ORDER BY collection_order ASC, uploaded_at ASC
         LIMIT $2`,
-      [slug, COLLECTION_DOWNLOAD_MAX_VIDEOS]
+      [slug, FOLDER_DOWNLOAD_MAX_VIDEOS]
     );
     if (!v.rows.length) {
-      return apiError(res, 404, 'NO_VIDEOS', 'No downloadable videos in this collection.');
+      return apiError(res, 404, 'NO_VIDEOS', 'No downloadable videos in this folder.');
     }
     const totalBytes = v.rows.reduce((s, r) => s + (parseInt(r.file_size, 10) || 0), 0);
-    if (totalBytes > COLLECTION_DOWNLOAD_MAX_BYTES) {
+    if (totalBytes > FOLDER_DOWNLOAD_MAX_BYTES) {
       return apiError(
         res, 413, 'TOO_LARGE',
-        `Collection is too large to download as one zip (${(totalBytes / 1024 / 1024 / 1024).toFixed(1)} GB > 2 GB cap). Download videos individually.`
+        `Folder is too large to download as one zip (${(totalBytes / 1024 / 1024 / 1024).toFixed(1)} GB > 2 GB cap). Download videos individually.`
       );
     }
 
     const archiver = require('archiver');
     const archive = archiver('zip', { zlib: { level: 0 } }); // store-only — videos already compressed
 
-    const zipName = safeFilename(c.rows[0].title, 'collection') + '.zip';
+    const zipName = safeFilename(c.rows[0].title, 'folder') + '.zip';
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
     res.setHeader('Cache-Control', 'private, no-store');
@@ -2262,4 +2356,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, pool, uploadCounts, embedAvailabilityCache };
+module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts };

@@ -341,7 +341,7 @@ body.modal-open { overflow: hidden; }
   outline-offset: 2px;
 }
 
-/* ── Multi-file collection list (upload widget) ───────────────────────────── */
+/* ── Multi-file folder list (upload widget) ───────────────────────────────── */
 .upload-card .files-list {
   display: flex; flex-direction: column; gap: 8px;
   background: #1a1a1a; border: 1px solid #2c2c2e; border-radius: 12px;
@@ -374,4 +374,71 @@ body.modal-open { overflow: hidden; }
 .upload-card .files-list-summary {
   font-size: 0.78rem; color: #aaa; padding: 4px 4px 0;
   border-top: 1px solid #2c2c2e; margin-top: 4px; padding-top: 8px;
+}
+
+/* ── Per-file status during folder upload ─────────────────────────────────── */
+.upload-card .files-status {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 12px;
+}
+.upload-card .files-status[hidden] { display: none; }
+.upload-card .files-status-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; background: #1a1a1a; border-radius: 8px;
+  font-size: 0.82rem; min-width: 0;
+}
+.upload-card .files-status-dot {
+  flex-shrink: 0; padding: 2px 8px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700;
+  background: #2c2c2e; color: #aaa;
+}
+.upload-card .files-status-row.status-uploading .files-status-dot { background: #1d3a4d; color: #4ecdc4; }
+.upload-card .files-status-row.status-done .files-status-dot      { background: #1d3a2c; color: #5fd49a; }
+.upload-card .files-status-row.status-failed .files-status-dot    { background: #3a1d22; color: #ff8b8b; }
+.upload-card .files-status-row.status-cancelled .files-status-dot { background: #3a2f1d; color: #ffc857; }
+.upload-card .files-status-name {
+  flex: 1; min-width: 0; color: #ddd;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upload-card .files-status-err {
+  font-size: 0.72rem; color: #ff8b8b; flex-shrink: 0;
+}
+
+.upload-card .cancel-btn {
+  margin-top: 14px; background: transparent;
+  border: 1px solid #3a1f22; color: #ff8b8b;
+  padding: 8px 18px; border-radius: 999px; font-weight: 600;
+}
+.upload-card .cancel-btn[hidden] { display: none; }
+.upload-card .cancel-btn:hover:not(:disabled) {
+  background: #2a1416; border-color: #ff6b6b; color: #ffa0a0;
+}
+.upload-card .cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── End-of-batch summary (partial-failure) ───────────────────────────────── */
+.upload-card .batch-summary {
+  margin-top: 16px; padding: 16px;
+  background: #1a1a1a; border: 1px solid #2c2c2e; border-radius: 12px;
+}
+.upload-card .batch-summary[hidden] { display: none; }
+.upload-card .batch-summary-heading {
+  font-size: 0.95rem; font-weight: 600; color: #f2f2f2; margin-bottom: 4px;
+}
+.upload-card .batch-summary-detail {
+  font-size: 0.82rem; color: #aaa; margin-bottom: 14px;
+}
+.upload-card .batch-summary-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.upload-card .batch-summary-actions .btn {
+  padding: 8px 16px; border-radius: 999px; font-size: 0.85rem;
+  font-weight: 600; border: 1px solid #2c2c2e; cursor: pointer;
+  font-family: inherit; color: #ddd; background: transparent;
+}
+.upload-card .batch-summary-actions .btn-primary {
+  border: none; color: #fff;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+}
+.upload-card .batch-summary-actions .btn-secondary:hover {
+  background: #2c2c2e; border-color: #4ecdc4; color: #fff;
 }

@@ -1,6 +1,6 @@
-/* Collection page (/c/:slug) — fetches /api/collections/:slug, renders the
- * gallery, exposes per-video and bulk download, plus owner-only rename/delete
- * and remove-video controls. Pure DOM API, no framework. */
+/* Folder page (/f/:slug) — fetches /api/folders/:slug, renders the gallery,
+ * exposes per-video and bulk download, plus owner-only rename/delete and
+ * remove-video controls. Pure DOM API, no framework. */
 
 (function () {
   const main = document.getElementById('main');
@@ -19,7 +19,7 @@
   }
 
   function getSlug() {
-    const m = window.location.pathname.match(/^\/c\/([a-f0-9]{8,32})\/?$/);
+    const m = window.location.pathname.match(/^\/f\/([a-f0-9]{8,32})\/?$/);
     return m ? m[1] : null;
   }
 
@@ -49,8 +49,8 @@
        </div>`;
   }
 
-  function renderCollection(data) {
-    document.title = (data.title || 'Collection') + ' – VidShare';
+  function renderFolder(data) {
+    document.title = (data.title || 'Folder') + ' – VidShare';
 
     const videoCount = data.videos.length;
     const totalBytes = data.videos.reduce((s, v) => s + (parseInt(v.file_size, 10) || 0), 0);
@@ -59,15 +59,15 @@
     ).length;
 
     const headerHtml =
-      `<div class="collection-header">
-        <div class="collection-header-text">
-          <h1 class="collection-title" id="collTitle">${escapeHtml(data.title)}</h1>
-          <div class="collection-meta">
+      `<div class="folder-header">
+        <div class="folder-header-text">
+          <h1 class="folder-title" id="folderTitle">${escapeHtml(data.title)}</h1>
+          <div class="folder-meta">
             ${videoCount} video${videoCount === 1 ? '' : 's'}
             ${totalBytes > 0 ? ' · ' + formatBytes(totalBytes) : ''}
           </div>
         </div>
-        <div class="collection-actions">
+        <div class="folder-actions">
           ${downloadableCount > 0 ? `<button type="button" class="btn btn-primary" id="dlAllBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -89,7 +89,7 @@
       </div>`;
 
     const gridHtml = videoCount === 0
-      ? `<div class="empty-state"><h1>No videos yet</h1><p>This collection is empty.</p></div>`
+      ? `<div class="empty-state"><h1>No videos yet</h1><p>This folder is empty.</p></div>`
       : `<div class="video-grid">${data.videos.map(v => renderCard(v, data.isOwner)).join('')}</div>`;
 
     main.innerHTML = headerHtml + gridHtml;
@@ -149,11 +149,9 @@
         const orig = dlAllBtn.innerHTML;
         dlAllBtn.innerHTML = 'Preparing…';
         try {
-          const url = `/api/collections/${encodeURIComponent(slug)}/download`;
+          const url = `/api/folders/${encodeURIComponent(slug)}/download`;
           const probe = await fetch(url, { method: 'HEAD' });
           if (!probe.ok) {
-            // HEAD against streamed responses sometimes lacks a JSON body; do a
-            // GET to surface the error message but cancel before the body comes.
             const ctrl = new AbortController();
             const r = await fetch(url, { signal: ctrl.signal }).catch(() => null);
             if (r && !r.ok) {
@@ -170,7 +168,6 @@
             showToast('Download failed (' + probe.status + ')', true);
             return;
           }
-          // Trigger the download via a hidden link so we keep the user on this page.
           const a = document.createElement('a');
           a.href = url;
           a.rel = 'noopener';
@@ -208,16 +205,15 @@
       deleteBtn.addEventListener('click', () => openDeleteDialog(data));
     }
 
-    // Owner: per-video remove
     main.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('[data-action="remove"]');
       if (!btn) return;
       const id = btn.dataset.id;
       if (!id) return;
-      if (!confirm('Remove this video from the collection? The video itself will not be deleted.')) return;
+      if (!confirm('Remove this video from the folder? The video itself will not be deleted.')) return;
       btn.disabled = true;
       try {
-        const res = await fetch(`/api/collections/${encodeURIComponent(slug)}/videos/${encodeURIComponent(id)}`, {
+        const res = await fetch(`/api/folders/${encodeURIComponent(slug)}/videos/${encodeURIComponent(id)}`, {
           method: 'DELETE', credentials: 'same-origin'
         });
         if (!res.ok) {
@@ -238,7 +234,7 @@
     const overlay = document.createElement('div');
     overlay.className = 'dialog-overlay visible';
     overlay.innerHTML = `<div class="dialog">
-      <h2>Rename collection</h2>
+      <h2>Rename folder</h2>
       <input type="text" id="renameInput" maxlength="120" value="${escapeHtml(data.title)}">
       <div class="dialog-actions">
         <button type="button" class="btn btn-secondary" id="renameCancel">Cancel</button>
@@ -253,7 +249,7 @@
       const title = input.value.trim();
       if (!title) return;
       try {
-        const res = await fetch(`/api/collections/${encodeURIComponent(data.slug)}`, {
+        const res = await fetch(`/api/folders/${encodeURIComponent(data.slug)}`, {
           method: 'PATCH',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
@@ -264,7 +260,7 @@
           throw new Error((j.error && j.error.message) || 'Rename failed');
         }
         overlay.remove();
-        document.getElementById('collTitle').textContent = title;
+        document.getElementById('folderTitle').textContent = title;
         document.title = title + ' – VidShare';
         showToast('Renamed');
       } catch (err) {
@@ -277,8 +273,8 @@
     const overlay = document.createElement('div');
     overlay.className = 'dialog-overlay visible';
     overlay.innerHTML = `<div class="dialog">
-      <h2>Delete collection?</h2>
-      <p>This will delete the collection page only. The videos themselves stay in your account.</p>
+      <h2>Delete folder?</h2>
+      <p>This will delete the folder page only. The videos themselves stay in your account.</p>
       <div class="dialog-actions">
         <button type="button" class="btn btn-secondary" id="dCancel">Cancel</button>
         <button type="button" class="btn btn-danger" id="dConfirm">Delete</button>
@@ -288,7 +284,7 @@
     overlay.querySelector('#dCancel').addEventListener('click', () => overlay.remove());
     overlay.querySelector('#dConfirm').addEventListener('click', async () => {
       try {
-        const res = await fetch(`/api/collections/${encodeURIComponent(data.slug)}`, {
+        const res = await fetch(`/api/folders/${encodeURIComponent(data.slug)}`, {
           method: 'DELETE', credentials: 'same-origin'
         });
         if (!res.ok) {
@@ -304,16 +300,16 @@
 
   async function init() {
     const slug = getSlug();
-    if (!slug) return renderError('Invalid collection link', 'Check the URL and try again.');
+    if (!slug) return renderError('Invalid folder link', 'Check the URL and try again.');
 
     try {
-      const res = await fetch(`/api/collections/${encodeURIComponent(slug)}`, { credentials: 'same-origin' });
-      if (res.status === 404) return renderError('Collection not found', 'It may have been deleted.');
-      if (!res.ok) return renderError('Could not load collection', 'Please refresh and try again.');
+      const res = await fetch(`/api/folders/${encodeURIComponent(slug)}`, { credentials: 'same-origin' });
+      if (res.status === 404) return renderError('Folder not found', 'It may have been deleted.');
+      if (!res.ok) return renderError('Could not load folder', 'Please refresh and try again.');
       const data = await res.json();
-      renderCollection(data);
+      renderFolder(data);
     } catch (err) {
-      renderError('Could not load collection', 'Check your connection and refresh.');
+      renderError('Could not load folder', 'Check your connection and refresh.');
     }
   }
 
