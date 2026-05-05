@@ -314,7 +314,6 @@
     let mode = 'file';            // 'file' | 'link'
     let parsedLink = null;        // { platform, videoId } | null
     let uploading = false;
-    let isSignedIn = false;
 
     const wid = 'uw' + (++widgetCounter);
     panelFile.id = wid + '_file';
