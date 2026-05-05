@@ -1143,27 +1143,7 @@
             openDeleteTagDialog(categoryName, videosInCategory.length, reassignmentOptions, function(newCategoryId) {
                 const newCategoryName = availableCategories.find(cat => cat.id === newCategoryId).name;
                 
-                videosInCategory.forEach(item => {
-                    item.dataset.category = newCategoryId;
-                    const tagsContainer = item.querySelector('.item-tags');
-                    if (tagsContainer) {
-                        const tagPills = tagsContainer.querySelectorAll('.item-tag-pill');
-                        tagPills.forEach(pill => {
-                            if (pill.textContent.toLowerCase() === categoryName.toLowerCase()) {
-                                pill.textContent = newCategoryName.charAt(0).toUpperCase() + newCategoryName.slice(1);
-                            }
-                        });
-                    }
-                    
-                    const editBtn = item.querySelector('.video-edit-btn');
-                    if (editBtn) {
-                        const wistiaId = item.dataset.wistia;
-                        const title = item.dataset.title;
-                        editBtn.dataset.wistiaId = wistiaId;
-                        editBtn.dataset.videoTitle = title;
-                        editBtn.dataset.videoCategory = newCategoryId;
-                    }
-                });
+                reassignVideosToCategory(videosInCategory, categoryName, newCategoryId, newCategoryName);
                 
                 categoryElement.remove();
                 markUnsavedChanges();

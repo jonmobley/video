@@ -115,6 +115,35 @@ function openDeleteTagDialog(categoryName, videoCount, reassignmentOptionsHtml, 
     });
 }
 
+function reassignVideosToCategory(videosInCategory, categoryName, newCategoryId, newCategoryName, options) {
+    options = options || {};
+    var escapeStr = options.escapeStr || function(s) { return s; };
+    var lowerName = categoryName.toLowerCase();
+    var capitalizedName = newCategoryName.charAt(0).toUpperCase() + newCategoryName.slice(1);
+
+    videosInCategory.forEach(function(item) {
+        item.dataset.category = newCategoryId;
+        var tagsContainer = item.querySelector('.item-tags');
+        if (tagsContainer) {
+            var tagPills = tagsContainer.querySelectorAll('.item-tag-pill');
+            tagPills.forEach(function(pill) {
+                if (pill.textContent.toLowerCase() === lowerName) {
+                    pill.textContent = capitalizedName;
+                }
+            });
+        }
+
+        var editBtn = item.querySelector('.video-edit-btn');
+        if (editBtn) {
+            var wistiaId = item.dataset.wistia;
+            var title = item.dataset.title;
+            editBtn.dataset.wistiaId = wistiaId;
+            editBtn.dataset.videoTitle = escapeStr(title);
+            editBtn.dataset.videoCategory = escapeStr(newCategoryId);
+        }
+    });
+}
+
 function openDeleteVideoDialog(videoTitle, onConfirm) {
     var dialog = createAdminDialogOverlay(1000);
 
