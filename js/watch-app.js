@@ -315,5 +315,16 @@ async function init() {
 init();
 
 document.getElementById('footerUploadBtn').addEventListener('click', function() {
-  window.openUploadModal();
+  Promise.all([
+    fetch('/api/auth/me').then(function(r) { return r.ok; }).catch(function() { return false; }),
+    fetch('/api/upload-config').then(function(r) { return r.ok ? r.json() : { requireAuth: true }; }).catch(function() { return { requireAuth: true }; })
+  ]).then(function(results) {
+    var signedIn = results[0];
+    var cfg = results[1];
+    if (signedIn || cfg.requireAuth === false) {
+      window.openUploadModal();
+    } else {
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+    }
+  });
 });

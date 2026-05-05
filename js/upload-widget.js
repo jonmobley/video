@@ -341,21 +341,29 @@
     progressFill.setAttribute('aria-valuenow', '0');
 
     let isPaidUser = false;
-    const authReady = fetch('/api/auth/me', { credentials: 'same-origin' })
-      .then(async r => {
-        if (!r.ok) return false;
-        try {
-          const data = await r.json();
-          isSignedIn = true;
-          if (data && data.is_paid) {
-            isPaidUser = true;
-            expirySelect.value = 'never';
-            expirySelect.disabled = true;
-          }
-          return true;
-        } catch { return false; }
-      })
-      .catch(() => false);
+    let isSignedIn = false;
+    let uploadRequiresAuth = true;
+    const authReady = Promise.all([
+      fetch('/api/auth/me', { credentials: 'same-origin' })
+        .then(async r => {
+          if (!r.ok) return false;
+          try {
+            const data = await r.json();
+            if (data && data.is_paid) {
+              isPaidUser = true;
+              expirySelect.value = 'never';
+              expirySelect.disabled = true;
+            }
+            isSignedIn = true;
+            return true;
+          } catch { return false; }
+        })
+        .catch(() => false),
+      fetch('/api/upload-config')
+        .then(r => r.ok ? r.json() : { requireAuth: true })
+        .then(cfg => { uploadRequiresAuth = cfg.requireAuth !== false; })
+        .catch(() => {})
+    ]).then(([signedIn]) => signedIn);
 
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }
     function hideError() { errorMsg.classList.remove('visible'); }
@@ -653,10 +661,25 @@
 
     uploadBtn.addEventListener('click', startUpload);
 
+    function showAuthError() {
+      showError('Please sign in to upload. ');
+      var link = document.createElement('a');
+      link.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      link.textContent = 'Sign in →';
+      link.style.color = '#4ecdc4';
+      link.style.fontWeight = '600';
+      errorMsg.appendChild(link);
+    }
+
     async function startUpload() {
-      // Debounce double-clicks: while an upload is in flight, ignore further
-      // button presses so we don't kick off two parallel uploads.
       if (uploading) return;
+
+      await authReady;
+      if (uploadRequiresAuth && !isSignedIn) {
+        showAuthError();
+        return;
+      }
+
       if (mode === 'link') {
         return startLinkUpload();
       }
@@ -726,7 +749,9 @@
         });
         if (!finalRes.ok) {
           const err = await parseErrJson(finalRes);
-          throw new Error(err.message || 'Finalize failed');
+          const e = new Error(err.message || 'Finalize failed');
+          e.status = finalRes.status;
+          throw e;
         }
 
         setProgress(100, 'Done!');
@@ -745,12 +770,23 @@
         fieldsArea.style.display = 'flex';
         if (modeTabs) modeTabs.style.display = '';
         root.dispatchEvent(new CustomEvent('upload:reset'));
-        showError('Upload failed: ' + err.message);
+        if (err.status === 401) {
+          showAuthError();
+        } else {
+          showError('Upload failed: ' + err.message);
+        }
       }
     }
 
     async function startLinkUpload() {
       if (!parsedLink) return;
+
+      await authReady;
+      if (uploadRequiresAuth && !isSignedIn) {
+        showAuthError();
+        return;
+      }
+
       const title = titleInput.value.trim();
       if (!title) {
         showError('Please add a title for your video.');
@@ -781,6 +817,7 @@
           const errData = await parseErrJson(res);
           const err = new Error(errData.message || 'Failed to create link video');
           err._errorCode = errData.code;
+          err.status = res.status;
           throw err;
         }
         const data = await res.json();
@@ -798,8 +835,13 @@
         fieldsArea.style.display = 'flex';
         if (modeTabs) modeTabs.style.display = '';
         root.dispatchEvent(new CustomEvent('upload:reset'));
-        const isUnavailable = err._errorCode === 'VIDEO_UNAVAILABLE';
-        showError(isUnavailable ? err.message : 'Submission failed: ' + err.message);
+        if (err.status === 401) {
+          showAuthError();
+        } else if (err._errorCode === 'VIDEO_UNAVAILABLE') {
+          showError(err.message);
+        } else {
+          showError('Submission failed: ' + err.message);
+        }
       }
     }
 

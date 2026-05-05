@@ -200,6 +200,11 @@ function requireUser(req, res, next) {
   if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
   next();
 }
+function requireUploadAuth(req, res, next) {
+  if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') return next();
+  if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Please sign in to upload.');
+  next();
+}
 
 function setSessionCookie(res, userId) {
   const token = signSession(userId);
@@ -623,9 +628,12 @@ app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/api/upload-config', (req, res) => {
+  res.json({ requireAuth: process.env.ALLOW_ANONYMOUS_UPLOADS !== 'true' });
+});
 
 // ── Upload chunk ─────────────────────────────────────────────────────────────
-app.post('/api/upload-chunk', async (req, res) => {
+app.post('/api/upload-chunk', requireUploadAuth, async (req, res) => {
   try {
     const { videoId, chunkIndex, totalChunks, data, contentType } = req.body || {};
     if (!videoId || chunkIndex === undefined || !totalChunks || !data || !contentType) {
@@ -674,7 +682,7 @@ app.post('/api/upload-chunk', async (req, res) => {
 });
 
 // ── Finalize video ───────────────────────────────────────────────────────────
-app.post('/api/finalize-video', async (req, res) => {
+app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
   const { videoId, totalChunks, contentType, title, expiryDays, password } = req.body || {};
   if (!videoId || !totalChunks || !contentType) {
     return apiError(res, 400, 'MISSING_FIELDS', 'Missing required fields.');
@@ -794,7 +802,7 @@ app.post('/api/finalize-video', async (req, res) => {
 const MAX_THUMB_SIZE = 500 * 1024; // 500 KB decoded
 const ALLOWED_THUMB_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-app.post('/api/upload-thumbnail', async (req, res) => {
+app.post('/api/upload-thumbnail', requireUploadAuth, async (req, res) => {
   try {
     const { videoId, data, contentType } = req.body || {};
     if (!videoId || !data || !contentType) {
@@ -931,7 +939,7 @@ app.post('/api/my-videos/:id/thumbnail', requireUser, async (req, res) => {
 // a multi-hundred-KB data: URL inline.
 const LINK_THUMB_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
-app.post('/api/upload-link-thumbnail', async (req, res) => {
+app.post('/api/upload-link-thumbnail', requireUploadAuth, async (req, res) => {
   try {
     const { id, data, contentType } = req.body || {};
     if (!id || !data || !contentType) {
@@ -1125,7 +1133,7 @@ app.get('/api/video-meta/:id', async (req, res) => {
 // no behavioural divergence on the watch page.
 const linkParser = require('./js/link-parser.js');
 
-app.post('/api/create-link-video', async (req, res) => {
+app.post('/api/create-link-video', requireUploadAuth, async (req, res) => {
   try {
     const { url, title, expiryDays, password } = req.body || {};
 
@@ -2243,6 +2251,9 @@ if (require.main === module) {
       await cleanupExpired();
       setInterval(cleanupExpired, 60 * 60 * 1000);
       setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
+      if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
+        console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
+      }
       app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
     })
     .catch(err => {

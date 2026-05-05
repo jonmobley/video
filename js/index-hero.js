@@ -18,10 +18,20 @@
     dropZone.setAttribute('tabindex', '0');
   }
 
+  function requireAuth(cb) {
+    (window.__vsAuthReady || Promise.resolve(false)).then(function () {
+      if (window.__vsSignedIn || window.__vsUploadRequiresAuth === false) {
+        cb();
+      } else {
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      }
+    });
+  }
+
   fileInput.addEventListener('change', function () {
     var f = fileInput.files[0];
     if (f && f.type.startsWith('video/')) {
-      window.openUploadModal(f);
+      requireAuth(function () { window.openUploadModal(f); });
     }
     fileInput.value = '';
   });
@@ -40,7 +50,7 @@
     dropZone.classList.remove('drag-over');
     var file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('video/')) {
-      window.openUploadModal(file);
+      requireAuth(function () { window.openUploadModal(file); });
     } else if (file) {
       dropZone.classList.add('reject');
       setTimeout(function () { dropZone.classList.remove('reject'); }, 500);
@@ -78,15 +88,17 @@
 
     var res = window.LinkParser ? window.LinkParser.parse(val) : null;
     if (res) {
-      window.openUploadModal({ mode: 'link' });
-      setTimeout(function () {
-        var modalInput = document.querySelector('#uploadModal .link-input');
-        if (modalInput) {
-          modalInput.value = val;
-          modalInput.dispatchEvent(new Event('input'));
-        }
-      }, 50);
-      resetToUploadMode();
+      requireAuth(function () {
+        window.openUploadModal({ mode: 'link' });
+        setTimeout(function () {
+          var modalInput = document.querySelector('#uploadModal .link-input');
+          if (modalInput) {
+            modalInput.value = val;
+            modalInput.dispatchEvent(new Event('input'));
+          }
+        }, 50);
+        resetToUploadMode();
+      });
     } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
       heroLinkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported here';
       heroLinkDetected.classList.add('error');
