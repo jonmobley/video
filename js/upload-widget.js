@@ -379,6 +379,13 @@
     ]).then(([signedIn]) => signedIn);
 
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }
+    // Scroll an element into view on mobile so the user actually sees the new
+    // state after a tap (file picked, error shown, etc.). Wrapped in try/catch
+    // because some embedded webviews don't implement scrollIntoView.
+    function scrollIntoViewSafe(el) {
+      if (!el) return;
+      try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+    }
     function hideError() { errorMsg.classList.remove('visible'); }
     function setProgress(pct, label) {
       progressFill.style.width = pct + '%';
@@ -491,8 +498,14 @@
     }
 
     function setFile(file) {
+      if (!file || typeof file.size !== 'number' || file.size === 0) {
+        showError('That file looks empty or unreadable. Please pick a different video.');
+        scrollIntoViewSafe(errorMsg);
+        return;
+      }
       if (file.size > MAX_SIZE) {
         showError(`File is too large (${formatBytes(file.size)}). Maximum size is 1 GB.`);
+        scrollIntoViewSafe(errorMsg);
         return;
       }
       if (mode !== 'file') setMode('file');
@@ -511,6 +524,7 @@
       }
       updateUploadBtnState();
       hideError();
+      scrollIntoViewSafe(filePreview);
     }
 
     function setFiles(files) {
@@ -518,10 +532,18 @@
       const oversized = files.find(f => f.size > MAX_SIZE);
       if (oversized) {
         showError(`"${oversized.name}" is too large (${formatBytes(oversized.size)}). Maximum size is 1 GB per file.`);
+        scrollIntoViewSafe(errorMsg);
         return;
       }
       if (files.length > 10) {
         showError(`Too many files (${files.length}). A folder can contain at most 10 videos.`);
+        scrollIntoViewSafe(errorMsg);
+        return;
+      }
+      const empty = files.find(f => !f || typeof f.size !== 'number' || f.size === 0);
+      if (empty) {
+        showError(`"${empty && empty.name || 'A file'}" looks empty or unreadable. Please pick different videos.`);
+        scrollIntoViewSafe(errorMsg);
         return;
       }
       if (mode !== 'file') setMode('file');
@@ -539,6 +561,7 @@
       }
       updateUploadBtnState();
       hideError();
+      scrollIntoViewSafe(filesList);
     }
 
     function clearFile() {
