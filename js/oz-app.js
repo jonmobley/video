@@ -3908,12 +3908,18 @@
         }
 
         // ===== EVENT DELEGATION FOR DATA-ACTION ATTRIBUTES =====
-        document.getElementById('pageTitle').addEventListener('click', function() {
-            if (typeof resetToDefault === 'function') resetToDefault();
-        });
-        document.getElementById('videoCloseBtn').addEventListener('click', function() {
-            if (typeof stopVideoAndClosePlayer === 'function') stopVideoAndClosePlayer();
-        });
+        var pageTitleElement = document.getElementById('pageTitle');
+        if (pageTitleElement) {
+            pageTitleElement.addEventListener('click', function() {
+                if (typeof resetToDefault === 'function') resetToDefault();
+            });
+        }
+        var videoCloseButton = document.getElementById('videoCloseBtn');
+        if (videoCloseButton) {
+            videoCloseButton.addEventListener('click', function() {
+                if (typeof stopVideoAndClosePlayer === 'function') stopVideoAndClosePlayer();
+            });
+        }
 
         document.addEventListener('click', function(e) {
             var btn = e.target.closest('[data-action]');
