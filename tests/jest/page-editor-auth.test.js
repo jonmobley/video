@@ -8,6 +8,7 @@ const { app } = require('../../server');
 
 describe('page-bound standalone editor authorization', () => {
   const originalEnv = { ...process.env };
+  const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
   beforeEach(() => {
     process.env.ADMIN_TOKEN = 'global-dashboard-test-token';
@@ -44,7 +45,8 @@ describe('page-bound standalone editor authorization', () => {
   test.each([
     ['videos', '/.netlify/functions/save-videos', { page: 'oz', videos: [] }],
     ['categories', '/.netlify/functions/save-categories', { page: 'oz', categories: [] }],
-    ['page config', '/.netlify/functions/save-page-config', { page: 'oz', page_title: 'Blocked' }]
+    ['page config', '/.netlify/functions/save-page-config', { page: 'oz', page_title: 'Blocked' }],
+    ['Coming Soon image', '/.netlify/functions/upload-coming-soon-image', { page: 'oz', image: tinyPng, contentType: 'image/png' }]
   ])('rejects cross-page credentials on %s writes', async (_label, path, body) => {
     const response = await request(app)
       .post(path)
@@ -58,7 +60,8 @@ describe('page-bound standalone editor authorization', () => {
   test.each([
     ['videos', '/.netlify/functions/save-videos', { page: 'seussical', videos: [] }],
     ['categories', '/.netlify/functions/save-categories', { page: 'seussical', categories: [] }],
-    ['page config', '/.netlify/functions/save-page-config', { page: 'seussical', page_title: 'Blocked' }]
+    ['page config', '/.netlify/functions/save-page-config', { page: 'seussical', page_title: 'Blocked' }],
+    ['Coming Soon image', '/.netlify/functions/upload-coming-soon-image', { page: 'seussical', image: tinyPng, contentType: 'image/png' }]
   ])('does not accept the global admin token on %s writes', async (_label, path, body) => {
     const response = await request(app)
       .post(path)

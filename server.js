@@ -518,7 +518,8 @@ function netlifyFunctionAdapter(functionName) {
   'verify-page-editor',
   'save-videos',
   'save-categories',
-  'save-page-config'
+  'save-page-config',
+  'upload-coming-soon-image'
 ].forEach((functionName) => {
   app.all(`/.netlify/functions/${functionName}`, netlifyFunctionAdapter(functionName));
 });

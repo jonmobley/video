@@ -165,23 +165,23 @@ body[data-initially-empty] .seussical-coming-soon {
         min-height: 0;
     }
 
-    .seussical-placeholder-grid {
+    .coming-soon-placeholder-grid {
         margin-top: 12px;
         gap: 12px;
     }
 
-    .seussical-placeholder-thumbnail-label {
+    .coming-soon-placeholder-thumbnail-label {
         padding: 8px 6px;
         font-size: 0.75rem;
     }
 }
 
-/* Decorative thumbnail placeholders for the empty Seussical collection. */
-.seussical-placeholder-grid {
+/* Decorative thumbnail placeholders for empty page collections. */
+.coming-soon-placeholder-grid {
     margin-top: 24px;
 }
 
-.seussical-placeholder-thumbnail {
+.coming-soon-placeholder-thumbnail {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.42);
     border-radius: 10px;
@@ -189,13 +189,13 @@ body[data-initially-empty] .seussical-coming-soon {
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
 }
 
-.seussical-placeholder-thumbnail-media {
+.coming-soon-placeholder-thumbnail-media {
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #132f34;
 }
 
-.seussical-placeholder-thumbnail-media img {
+.coming-soon-placeholder-thumbnail-media img {
     display: block;
     width: 100%;
     height: 100%;
@@ -203,7 +203,7 @@ body[data-initially-empty] .seussical-coming-soon {
     opacity: 0.76;
 }
 
-.seussical-placeholder-thumbnail-label {
+.coming-soon-placeholder-thumbnail-label {
     padding: 10px 12px;
     color: #fff;
     font-size: 0.82rem;

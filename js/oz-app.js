@@ -3,6 +3,8 @@
         const initiallyEmpty = document.body.dataset.initiallyEmpty === 'true';
         const pageCacheKey = (key) => `${key}_${pageKey}`;
         const pageApiUrl = (endpoint) => `/.netlify/functions/${endpoint}?page=${encodeURIComponent(pageKey)}`;
+        const DEFAULT_COMING_SOON_IMAGE = 'attached_assets/coming-soon_1787511284874.jpg';
+        let comingSoonImageUrl = DEFAULT_COMING_SOON_IMAGE;
         const choreographyBySong = {
             "Oh, the Thinks You Can Think!": ["All Cast"],
             "Finale / Oh, the Thinks You Can Think!": ["All Cast"],
@@ -531,7 +533,7 @@
                 return;
             }
 
-            videoGrid.classList.remove('seussical-placeholder-grid');
+            videoGrid.classList.remove('coming-soon-placeholder-grid');
             
             console.log('🎬 DEBUG: === RENDERING VIDEO GRID ===');
             console.log('🎬 DEBUG: Videos to render:', videosToDisplay.length);
@@ -646,18 +648,28 @@
         }
 
         function renderEmptyVideoPlaceholders(videoGrid) {
-            const placeholderImage = 'attached_assets/coming-soon_1787511284874.jpg';
             const cards = Array.from({ length: 4 }, () => `
-                <div class="seussical-placeholder-thumbnail" aria-hidden="true">
-                    <div class="seussical-placeholder-thumbnail-media">
-                        <img src="${placeholderImage}" alt="">
+                <div class="coming-soon-placeholder-thumbnail" aria-hidden="true">
+                    <div class="coming-soon-placeholder-thumbnail-media">
+                        <img data-coming-soon-image alt="">
                     </div>
-                    <div class="seussical-placeholder-thumbnail-label">Video coming soon</div>
+                    <div class="coming-soon-placeholder-thumbnail-label">Video coming soon</div>
                 </div>
             `).join('');
 
-            videoGrid.classList.add('seussical-placeholder-grid');
+            videoGrid.classList.add('coming-soon-placeholder-grid');
             videoGrid.innerHTML = cards;
+            applyComingSoonImage();
+        }
+
+        function applyComingSoonImage(imageUrl) {
+            if (imageUrl !== undefined) {
+                comingSoonImageUrl = imageUrl || DEFAULT_COMING_SOON_IMAGE;
+            }
+
+            document.querySelectorAll('[data-coming-soon-image]').forEach(image => {
+                image.src = comingSoonImageUrl;
+            });
         }
 
 
@@ -800,7 +812,8 @@
                 onTitleLoaded: function(title) {
                     localStorage.setItem(pageCacheKey('page_title'), title);
                 },
-                onTitleMissing: loadPageTitle
+                onTitleMissing: loadPageTitle,
+                onComingSoonImageLoaded: applyComingSoonImage
             });
         }
 
@@ -1203,6 +1216,99 @@
             throw new Error(message);
         }
 
+        const MAX_COMING_SOON_IMAGE_SIZE = 5 * 1024 * 1024;
+        const COMING_SOON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+        function setComingSoonImageStatus(message, isError = false) {
+            const status = document.getElementById('adminComingSoonImageStatus');
+            if (!status) return;
+            status.textContent = message;
+            status.style.color = isError ? '#ffb4b4' : 'rgba(255, 255, 255, 0.8)';
+        }
+
+        function readImageFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('The selected image could not be read.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadComingSoonImage(file) {
+            if (!file) return;
+            if (!COMING_SOON_IMAGE_TYPES.includes(file.type)) {
+                setComingSoonImageStatus('Choose a JPG, PNG, or WebP image.', true);
+                return;
+            }
+            if (file.size > MAX_COMING_SOON_IMAGE_SIZE) {
+                setComingSoonImageStatus('Image must be 5 MB or smaller.', true);
+                return;
+            }
+
+            const input = document.getElementById('adminComingSoonImage');
+            const resetButton = document.getElementById('adminResetComingSoonImage');
+            input.disabled = true;
+            resetButton.disabled = true;
+            setComingSoonImageStatus('Uploading image…');
+
+            try {
+                const image = await readImageFileAsDataUrl(file);
+                const response = await fetch('/.netlify/functions/upload-coming-soon-image', {
+                    method: 'POST',
+                    headers: pageEditorHeaders(),
+                    body: JSON.stringify({ page: pageKey, image, contentType: file.type })
+                });
+                await requirePageEditorResponse(response, 'Failed to upload the Coming Soon image.');
+                const result = await response.json();
+                applyComingSoonImage(result.imageUrl);
+                setComingSoonImageStatus('Image saved.');
+            } catch (error) {
+                console.error('Failed to upload Coming Soon image:', error);
+                setComingSoonImageStatus(error.message || 'Image upload failed.', true);
+            } finally {
+                input.value = '';
+                input.disabled = false;
+                resetButton.disabled = false;
+            }
+        }
+
+        async function resetComingSoonImage() {
+            const resetButton = document.getElementById('adminResetComingSoonImage');
+            const input = document.getElementById('adminComingSoonImage');
+            resetButton.disabled = true;
+            input.disabled = true;
+            setComingSoonImageStatus('Restoring default…');
+
+            try {
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: pageEditorHeaders(),
+                    body: JSON.stringify({ page: pageKey, coming_soon_image_url: null })
+                });
+                await requirePageEditorResponse(response, 'Failed to restore the default Coming Soon image.');
+                applyComingSoonImage(null);
+                setComingSoonImageStatus('Default image restored.');
+            } catch (error) {
+                console.error('Failed to restore default Coming Soon image:', error);
+                setComingSoonImageStatus(error.message || 'Could not restore the default image.', true);
+            } finally {
+                resetButton.disabled = false;
+                input.disabled = false;
+            }
+        }
+
+        function bindComingSoonImageControls() {
+            const input = document.getElementById('adminComingSoonImage');
+            const resetButton = document.getElementById('adminResetComingSoonImage');
+            if (!input || !resetButton || input.dataset.bound === 'true') return;
+
+            input.dataset.bound = 'true';
+            resetButton.dataset.bound = 'true';
+            input.addEventListener('change', () => uploadComingSoonImage(input.files[0]));
+            resetButton.addEventListener('click', resetComingSoonImage);
+        }
+
         function registerLoginFailure() {
             loginAttempts += 1;
             if (loginAttempts < 5) return;
@@ -1350,6 +1456,7 @@
             document.body.classList.add('edit-mode');
             document.getElementById('loginLink').textContent = 'Exit Edit';
             document.getElementById('adminBanner').style.display = 'block';
+            bindComingSoonImageControls();
             
             // Add edit functionality to existing videos
             addEditListeners();

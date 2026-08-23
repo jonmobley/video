@@ -162,6 +162,37 @@ body {
     border-radius: 4px; color: white; font-size: 12px;
 }
 
+.admin-coming-soon-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-right: 12px;
+    color: white;
+    font-size: 13px;
+}
+.admin-coming-soon-controls input[type="file"] {
+    max-width: 190px;
+    color: white;
+    font-size: 12px;
+}
+.admin-reset-image-btn {
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+}
+.admin-reset-image-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+.admin-image-status {
+    min-width: 100px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
 .video-placeholder-state {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;

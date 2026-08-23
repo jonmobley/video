@@ -3,6 +3,7 @@ async function loadPageConfig(pageName, options) {
     var defaultAccentColor = opts.defaultAccentColor || null;
     var onTitleLoaded = opts.onTitleLoaded || null;
     var onTitleMissing = opts.onTitleMissing || null;
+    var onComingSoonImageLoaded = opts.onComingSoonImageLoaded || null;
     var fetchFn = opts.fetchFn || null;
     var debug = opts.debug || false;
 
@@ -18,6 +19,7 @@ async function loadPageConfig(pageName, options) {
             if (!response.ok) {
                 if (defaultAccentColor) applyAccentColor(defaultAccentColor);
                 if (onTitleMissing) onTitleMissing();
+                if (onComingSoonImageLoaded) onComingSoonImageLoaded(null);
                 return;
             }
             config = await response.json();
@@ -37,6 +39,10 @@ async function loadPageConfig(pageName, options) {
         } else if (onTitleMissing) {
             onTitleMissing();
         }
+
+        if (onComingSoonImageLoaded) {
+            onComingSoonImageLoaded(config.coming_soon_image_url || null);
+        }
     } catch (error) {
         console.error('Failed to load page config:', error);
         if (defaultAccentColor) {
@@ -44,5 +50,6 @@ async function loadPageConfig(pageName, options) {
             applyAccentColor(defaultAccentColor);
         }
         if (onTitleMissing) onTitleMissing();
+        if (onComingSoonImageLoaded) onComingSoonImageLoaded(null);
     }
 }

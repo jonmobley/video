@@ -45,6 +45,12 @@
                     <input type="color" id="adminAccentColor" value="#008f67" class="admin-accent-color-input">
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
                 </div>
+                <div class="admin-coming-soon-controls">
+                    <label for="adminComingSoonImage">Coming Soon image:</label>
+                    <input type="file" id="adminComingSoonImage" accept="image/jpeg,image/png,image/webp">
+                    <button type="button" class="admin-reset-image-btn" id="adminResetComingSoonImage">Use default</button>
+                    <span class="admin-image-status" id="adminComingSoonImageStatus" role="status" aria-live="polite"></span>
+                </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
                 <button class="admin-add-video-btn" id="adminManageTagsBtn">Manage Tags</button>
@@ -63,7 +69,7 @@
         <div class="video-container active seussical-coming-soon">
             <div class="wistia-player" id="wistia-player">
                 <div class="coming-soon-player-card" role="img" aria-label="Seussical videos coming soon">
-                    <img src="attached_assets/coming-soon_1787511284874.jpg" alt="Coming soon">
+                    <img data-coming-soon-image alt="Coming soon">
                 </div>
             </div>
             <div class="video-title-overlay" id="current-video-title"></div>

@@ -13,6 +13,7 @@
  *   - og_title (optional): Open Graph title for social sharing
  *   - og_description (optional): Open Graph description
  *   - og_image_url (optional): URL/path to Open Graph image
+ *   - coming_soon_image_url (optional): URL/path to empty-state artwork; null restores the default
  *   - twitter_title (optional): Twitter-specific title
  *   - twitter_description (optional): Twitter-specific description
  *   - canonical_url (optional): Canonical URL for SEO
@@ -29,6 +30,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
+const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
 
 // Initialize Supabase client with the service role key (bypasses RLS).
 // The anon key must NOT be used here — page_config RLS is read-only for anon.
@@ -102,6 +104,7 @@ exports.handler = async (event, context) => {
       og_title,
       og_description,
       og_image_url,
+      coming_soon_image_url,
       twitter_title,
       twitter_description,
       canonical_url
@@ -137,6 +140,18 @@ exports.handler = async (event, context) => {
       };
     }
 
+    if (coming_soon_image_url !== undefined &&
+        coming_soon_image_url !== null &&
+        (typeof coming_soon_image_url !== 'string' ||
+         coming_soon_image_url.length > 2048 ||
+         !/^(\/|https?:\/\/)/i.test(coming_soon_image_url))) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_COMING_SOON_IMAGE', message: 'Invalid Coming Soon image URL.' } })
+      };
+    }
+
     if (!supabase) {
       console.error('Supabase client not available — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
       return {
@@ -146,18 +161,34 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Use upsert to handle both insert and update
-    const upsertData = { page: page };
-    if (accent_color !== undefined) upsertData.accent_color = accent_color;
-    if (page_title !== undefined) upsertData.page_title = page_title;
-    if (meta_description !== undefined) upsertData.meta_description = meta_description;
-    if (meta_keywords !== undefined) upsertData.meta_keywords = meta_keywords;
-    if (og_title !== undefined) upsertData.og_title = og_title;
-    if (og_description !== undefined) upsertData.og_description = og_description;
-    if (og_image_url !== undefined) upsertData.og_image_url = og_image_url;
-    if (twitter_title !== undefined) upsertData.twitter_title = twitter_title;
-    if (twitter_description !== undefined) upsertData.twitter_description = twitter_description;
-    if (canonical_url !== undefined) upsertData.canonical_url = canonical_url;
+    const changes = {};
+    if (accent_color !== undefined) changes.accent_color = accent_color;
+    if (page_title !== undefined) changes.page_title = page_title;
+    if (meta_description !== undefined) changes.meta_description = meta_description;
+    if (meta_keywords !== undefined) changes.meta_keywords = meta_keywords;
+    if (og_title !== undefined) changes.og_title = og_title;
+    if (og_description !== undefined) changes.og_description = og_description;
+    if (og_image_url !== undefined) changes.og_image_url = og_image_url;
+    if (coming_soon_image_url !== undefined) changes.coming_soon_image_url = coming_soon_image_url;
+    if (twitter_title !== undefined) changes.twitter_title = twitter_title;
+    if (twitter_description !== undefined) changes.twitter_description = twitter_description;
+    if (canonical_url !== undefined) changes.canonical_url = canonical_url;
+
+    const existingResult = await supabase
+      .from('page_config')
+      .select('page')
+      .eq('page', page)
+      .maybeSingle();
+    if (existingResult.error) {
+      console.error('Supabase error checking page config:', existingResult.error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Database error.' } })
+      };
+    }
+
+    const upsertData = buildPageConfigWrite(page, changes, existingResult.data);
     
     const result = await supabase
       .from('page_config')

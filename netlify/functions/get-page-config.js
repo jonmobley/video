@@ -15,6 +15,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { getCorsHeaders } = require('./utils/auth');
+const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
 
 // Initialize Supabase client with environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -34,36 +35,6 @@ if (supabaseUrl && supabaseKey) {
     console.error('Error creating Supabase client:', error);
   }
 }
-
-// Default page configurations
-const defaultConfigs = {
-  oz: {
-    page: 'oz',
-    accent_color: '#008f67',
-    page_title: 'Oz',
-    meta_description: 'Oz - Video Collection',
-    meta_keywords: 'oz, videos, collection',
-    og_title: 'Oz',
-    og_description: 'Oz - Video Collection',
-    og_image_url: '/assets/og-image.png',
-    twitter_title: null,
-    twitter_description: null,
-    canonical_url: 'https://vidsharepro.netlify.app/oz.html'
-  },
-  disc: {
-    page: 'disc',
-    accent_color: '#008f67',
-    page_title: 'Disc',
-    meta_description: 'Disc - Video Collection',
-    meta_keywords: 'disc, videos, collection',
-    og_title: 'Disc',
-    og_description: 'Disc - Video Collection',
-    og_image_url: '/assets/og-image.png',
-    twitter_title: null,
-    twitter_description: null,
-    canonical_url: 'https://vidsharepro.netlify.app/disc.html'
-  }
-};
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -96,19 +67,7 @@ exports.handler = async (event, context) => {
       
       if (page) {
         // Return specific page config or generate default
-        const config = defaultConfigs[page] || {
-          page: page,
-          accent_color: '#008f67',
-          page_title: page.charAt(0).toUpperCase() + page.slice(1),
-          meta_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          meta_keywords: `${page}, videos, collection`,
-          og_title: page.charAt(0).toUpperCase() + page.slice(1),
-          og_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          og_image_url: '/assets/og-image.png',
-          twitter_title: null,
-          twitter_description: null,
-          canonical_url: `https://vidsharepro.netlify.app/${page}.html`
-        };
+        const config = getDefaultPageConfig(page);
         
         return {
           statusCode: 200,
@@ -120,7 +79,7 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify(Object.values(defaultConfigs))
+          body: JSON.stringify(['oz', 'disc', 'seussical'].map(getDefaultPageConfig))
         };
       }
     }
@@ -143,24 +102,23 @@ exports.handler = async (event, context) => {
       // If page not found, return default configuration
       // This ensures the app continues to work even if page_config entry is missing
       if (error.code === 'PGRST116' && page) {
-        const config = defaultConfigs[page] || {
-          page: page,
-          accent_color: '#008f67',
-          page_title: page.charAt(0).toUpperCase() + page.slice(1),
-          meta_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          meta_keywords: `${page}, videos, collection`,
-          og_title: page.charAt(0).toUpperCase() + page.slice(1),
-          og_description: `${page.charAt(0).toUpperCase() + page.slice(1)} - Video Collection`,
-          og_image_url: '/assets/og-image.png',
-          twitter_title: null,
-          twitter_description: null,
-          canonical_url: `https://vidsharepro.netlify.app/${page}.html`
-        };
+        const config = getDefaultPageConfig(page);
         
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify(config)
+        };
+      }
+
+      // A public page should still receive its known configuration when the
+      // database is temporarily unavailable. This keeps page templates,
+      // including Coming Soon artwork, usable during a transient read outage.
+      if (page) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(getDefaultPageConfig(page))
         };
       }
       

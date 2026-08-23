@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS page_config (
     og_title TEXT,
     og_description TEXT,
     og_image_url TEXT,
+    coming_soon_image_url TEXT,
     twitter_title TEXT,
     twitter_description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -196,6 +197,9 @@ CREATE INDEX IF NOT EXISTS idx_categories_page_order ON categories(page, "order"
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE page_config ENABLE ROW LEVEL SECURITY;
+
+-- Optional artwork used by empty-state page templates.
+ALTER TABLE page_config ADD COLUMN IF NOT EXISTS coming_soon_image_url TEXT;
 
 -- Create policies (adjust based on your auth setup)
 -- Example: Allow public read access
