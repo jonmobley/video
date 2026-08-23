@@ -282,3 +282,33 @@ body[data-initially-empty] .seussical-coming-soon {
         scroll-snap-align: start;
     }
 }
+
+/* Keep the filter rail edge-to-edge at narrow tablet/mobile widths. The
+   shared gallery caps these layouts at a centered column, which otherwise
+   clips the final pills before the inner scroller can be reached. */
+@media screen and (max-width: 999px) {
+    body[data-initially-empty] .navigation-section {
+        width: 100%;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        overflow: visible;
+    }
+
+    body[data-initially-empty] .category-dropdown-container {
+        width: 100%;
+        justify-content: center;
+    }
+
+    body[data-initially-empty] .tags-container {
+        width: 100vw;
+        max-width: none;
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        box-sizing: border-box;
+    }
+
+    body[data-initially-empty] .tags {
+        max-width: none;
+    }
+}
