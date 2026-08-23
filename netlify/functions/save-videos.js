@@ -23,27 +23,8 @@
  *   - Replaces all videos for the specified page
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase = null;
-
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey
-});
-
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+const { getPool } = require('../../lib/page-store');
 
 /**
  * Generate a persistent URL string for a video based on its Wistia ID
@@ -96,13 +77,6 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Log environment for debugging
-    console.log('Function environment:', {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasSupabaseKey: !!supabaseKey,
-      hasSupabase: !!supabase
-    });
-
     // Cap payload first so we never spend CPU parsing oversized bodies.
     if (event.body && event.body.length > 1024 * 1024) {
       return {
@@ -175,64 +149,30 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate video IDs found');
     }
 
-    // Try to save to Supabase if available
-    if (supabase) {
-      try {
-        // Prepare data for Supabase
-        const supabaseVideos = videos.map(video => ({
-          id: video.id,
-          wistia_id: video.wistiaId,
-          title: video.title,
-          category: video.category,
-          tags: video.tags || [],
-          url_string: video.urlString,
-          order: video.order || 0,
-          page: page,
-          video_url: video.video_url,
-          platform: video.platform || 'wistia',
-          // Persist any captured/uploaded frame URL so listings render the
-          // real thumbnail instead of a placeholder. Optional — videos
-          // without one keep falling back to the platform default.
-          thumbnail_url: video.thumbnailUrl || null
-        }));
-
-        console.log('Attempting atomic replace via RPC:', supabaseVideos.length);
-        const { error: rpcError } = await supabase.rpc('replace_page_videos', {
-          p_page: page,
-          p_videos: supabaseVideos
-        });
-
-        if (rpcError) {
-          console.error('Error in replace_page_videos RPC:', rpcError);
-          throw rpcError;
+    const client = await getPool().connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`videos:${page}`]);
+        await client.query('DELETE FROM videos WHERE page = $1', [page]);
+        for (let index = 0; index < videos.length; index++) {
+          const video = videos[index];
+          await client.query(`INSERT INTO videos (id, wistia_id, title, category, tags, url_string, "order", page, video_url, platform, thumbnail_url)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [video.id, video.wistiaId, video.title, video.category, video.tags || [], video.urlString,
+            video.order !== undefined ? video.order : index, page, video.video_url || null,
+            video.platform || 'wistia', video.thumbnailUrl || null]);
         }
-
-        console.log(`Successfully saved ${supabaseVideos.length} videos to Supabase`);
+        await client.query('COMMIT');
         
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ success: true, count: videos.length, page: page, message: `Videos saved successfully for page: ${page}` })
         };
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
-        throw new Error(`Failed to save videos: ${dbError.message}`);
-      }
-    } else {
-      // Supabase not configured
-      console.log('Supabase not configured, videos not persisted');
-      
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          success: true, 
-          count: videos.length, 
-          message: 'Videos validated but not persisted (Supabase not configured)',
-          temporary: true
-        })
-      };
-    }
+    } catch (dbError) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw dbError;
+    } finally { client.release(); }
   } catch (error) {
     console.error('Handler error:', error);
     return {

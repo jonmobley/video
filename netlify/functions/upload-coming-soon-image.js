@@ -6,21 +6,9 @@
  * page-scoped editor credential rather than the global admin token.
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase = null;
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+const { query } = require('../../lib/page-store');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_REQUEST_SIZE = 8 * 1024 * 1024;
@@ -130,15 +118,6 @@ exports.handler = async (event) => {
     });
   }
 
-  if (!supabase) {
-    return response(500, headers, {
-      error: {
-        code: 'DB_NOT_CONFIGURED',
-        message: 'Database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
-      }
-    });
-  }
-
   try {
     const extension = contentType === 'image/jpeg' || contentType === 'image/jpg'
       ? 'jpg'
@@ -156,34 +135,19 @@ exports.handler = async (event) => {
     });
 
     const imageUrl = `/.netlify/blobs/page-images/${filename}`;
-    const existingResult = await supabase
-      .from('page_config')
-      .select('page')
-      .eq('page', page)
-      .maybeSingle();
-    if (existingResult.error) {
-      console.error('Supabase error checking page config:', existingResult.error);
-      return response(500, headers, {
-        error: { code: 'DB_ERROR', message: 'Failed to save the Coming Soon image.' }
-      });
-    }
-
-    const { data, error } = await supabase
-      .from('page_config')
-      .upsert(buildPageConfigWrite(page, { coming_soon_image_url: imageUrl }, existingResult.data), { onConflict: 'page' })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Supabase error updating Coming Soon image:', error);
-      return response(500, headers, {
-        error: { code: 'DB_ERROR', message: 'Failed to save the Coming Soon image.' }
-      });
-    }
+    const existing = await query('SELECT page FROM page_config WHERE page = $1', [page]);
+    const config = buildPageConfigWrite(page, { coming_soon_image_url: imageUrl }, existing.rows[0]);
+    const result = await query(`INSERT INTO page_config (page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      ON CONFLICT (page) DO UPDATE SET coming_soon_image_url = EXCLUDED.coming_soon_image_url, updated_at = NOW()
+      RETURNING page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation`,
+      [config.page, config.accent_color, config.page_title, config.meta_description, config.meta_keywords,
+        config.canonical_url, config.og_title, config.og_description, config.og_image_url,
+        config.coming_soon_image_url, config.twitter_title, config.twitter_description, JSON.stringify(config.presentation)]);
 
     return response(200, headers, {
       imageUrl,
-      pageConfig: data,
+      pageConfig: result.rows[0],
       message: 'Coming Soon image uploaded successfully.'
     });
   } catch (error) {

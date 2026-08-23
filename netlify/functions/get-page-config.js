@@ -13,12 +13,14 @@
  *   - Default config if specific page not found
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { getCorsHeaders } = require('./utils/auth');
 const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
+const { query } = require('../../lib/page-store');
 
 function mergePageConfig(config) {
   const defaults = getDefaultPageConfig(config.page);
+  // Defense in depth: do not leak secrets even if a future query changes.
+  const { editor_token_hash, setup_token_hash, setup_token_expires_at, setup_token_used_at, ...publicConfig } = config;
   const savedPresentation = config.presentation &&
     typeof config.presentation === 'object' &&
     !Array.isArray(config.presentation)
@@ -27,7 +29,7 @@ function mergePageConfig(config) {
 
   return {
     ...defaults,
-    ...config,
+    ...publicConfig,
     presentation: {
       ...defaults.presentation,
       ...savedPresentation
@@ -35,24 +37,8 @@ function mergePageConfig(config) {
   };
 }
 
-// Initialize Supabase client with environment variables
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-let supabase = null;
-
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey
-});
-
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+// Never add credential hashes to this projection: this function is public.
+const PUBLIC_FIELDS = 'page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation';
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -79,75 +65,12 @@ exports.handler = async (event, context) => {
     // Get page parameter from query string
     const page = event.queryStringParameters?.page;
     
-    // If Supabase is not configured, return default configs
-    if (!supabase) {
-      console.log('Supabase not configured, returning default page config');
-      
-      if (page) {
-        // Return specific page config or generate default
-        const config = getDefaultPageConfig(page);
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(config)
-        };
-      } else {
-        // Return all default configs
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(['oz', 'disc', 'seussical'].map(getDefaultPageConfig))
-        };
-      }
-    }
-    
-    // Supabase is available, query the database
-    let query = supabase
-      .from('page_config')
-      .select('*');
-    
-    // If specific page requested, filter by it
-    if (page) {
-      query = query.eq('page', page).single();
-    }
-    
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Supabase error:', error);
-      
-      // If page not found, return default configuration
-      // This ensures the app continues to work even if page_config entry is missing
-      if (error.code === 'PGRST116' && page) {
-        const config = getDefaultPageConfig(page);
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(config)
-        };
-      }
-
-      // A public page should still receive its known configuration when the
-      // database is temporarily unavailable. This keeps page templates,
-      // including Coming Soon artwork, usable during a transient read outage.
-      if (page) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(getDefaultPageConfig(page))
-        };
-      }
-      
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Database error.' } })
-      };
-    }
-
-    const responseData = page ? mergePageConfig(data) : data.map(mergePageConfig);
+    const result = page
+      ? await query(`SELECT ${PUBLIC_FIELDS} FROM page_config WHERE page = $1`, [page])
+      : await query(`SELECT ${PUBLIC_FIELDS} FROM page_config ORDER BY page`);
+    const responseData = page
+      ? (result.rows.length ? mergePageConfig(result.rows[0]) : getDefaultPageConfig(page))
+      : result.rows.map(mergePageConfig);
     return {
       statusCode: 200,
       headers,
@@ -164,3 +87,4 @@ exports.handler = async (event, context) => {
 };
 
 exports.mergePageConfig = mergePageConfig;
+exports.PUBLIC_FIELDS = PUBLIC_FIELDS;

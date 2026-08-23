@@ -3,6 +3,7 @@ const { Pool, types } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const { ensurePageSchema } = require('./lib/page-store');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -381,6 +382,7 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_vs_uploads_collection_id
       ON vs_uploads(collection_id) WHERE collection_id IS NOT NULL;
   `);
+  await ensurePageSchema(pool);
 
   // One-time migration off password auth: drop legacy password_hash column and
   // wipe any pre-existing accounts (per product decision — no migration path).

@@ -16,26 +16,7 @@
  *   - Graceful fallback behavior
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-let supabase = null;
-
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey
-});
-
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+const { query } = require('../../lib/page-store');
 
 // Default categories for fallback
 // Used when Supabase is unavailable or not configured
@@ -112,22 +93,11 @@ exports.handler = async (event, context) => {
     const page = params.page || 'oz'; // Default to 'oz' for backward compatibility
     
     console.log(`Fetching categories for page: ${page}`);
-    // Try to get categories from Supabase if available
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('page', page)
-          .order('order', { ascending: true });
+    try {
+        const result = await query('SELECT id, name, category_key, color, "order", page, icon, show_in_dropdown FROM categories WHERE page = $1 ORDER BY "order" ASC', [page]);
+        const data = result.rows;
 
-        if (error) {
-          console.error('Error fetching categories from Supabase:', error);
-          throw error;
-        }
-
-        console.log(`Successfully fetched ${data.length} categories from Supabase for page: ${page}`);
-        console.log('Raw Supabase data:', JSON.stringify(data, null, 2));
+        console.log(`Successfully fetched ${data.length} categories for page: ${page}`);
         
         // Transform data to use category_key as id if available
         const transformedData = data.map(cat => ({
@@ -156,7 +126,7 @@ exports.handler = async (event, context) => {
           headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(transformedData)
         };
-      } catch (dbError) {
+    } catch (dbError) {
         console.error('Database query failed, using default categories:', dbError);
         // Fall back to default categories if database fails
         const fallbackData = DEFAULT_CATEGORIES[page] || [];
@@ -176,27 +146,6 @@ exports.handler = async (event, context) => {
           headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(fallbackData)
         };
-      }
-    } else {
-      // Supabase not configured, return default categories
-      console.log('Supabase not configured, returning default categories');
-      const fallbackData = DEFAULT_CATEGORIES[page] || [];
-      const etag = generateHash(fallbackData);
-      const clientEtag = event.headers['if-none-match'];
-      
-      if (clientEtag === etag) {
-        return {
-          statusCode: 304,
-          headers: { ...headers, 'ETag': etag },
-          body: ''
-        };
-      }
-      
-      return {
-        statusCode: 200,
-        headers: { ...headers, 'ETag': etag },
-        body: JSON.stringify(fallbackData)
-      };
     }
   } catch (error) {
     console.error('Handler error:', error);

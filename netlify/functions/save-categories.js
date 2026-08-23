@@ -20,27 +20,8 @@
  *   - Maintains referential integrity with videos
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase = null;
-
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey
-});
-
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+const { getPool } = require('../../lib/page-store');
 
 exports.handler = async (event, context) => {
   // Get secured CORS headers
@@ -64,13 +45,6 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Log environment for debugging
-    console.log('Function environment:', {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasSupabaseKey: !!supabaseKey,
-      hasSupabase: !!supabase
-    });
-
     if (event.body && event.body.length > 1024 * 1024) {
       return {
         statusCode: 413,
@@ -142,59 +116,30 @@ exports.handler = async (event, context) => {
       throw new Error('Duplicate category IDs found');
     }
 
-    // Try to save to Supabase if available
-    if (supabase) {
-      try {
+    const client = await getPool().connect();
+    try {
         const showInDropdownValue = categoryScope === 'songs';
-        
-        const supabaseCategories = categories.map((category, index) => ({
-          id: `${page}-${category.id}`,
-          name: category.name,
-          category_key: category.id,
-          color: category.color || null,
-          order: category.order !== undefined ? category.order : index,
-          page: page,
-          show_in_dropdown: showInDropdownValue
-        }));
-
-        console.log('Attempting atomic replace via RPC:', supabaseCategories.length);
-        const { error: rpcError } = await supabase.rpc('replace_page_categories', {
-          p_page: page,
-          p_categories: supabaseCategories,
-          p_show_in_dropdown: showInDropdownValue
-        });
-
-        if (rpcError) {
-          console.error('Error in replace_page_categories RPC:', rpcError);
-          throw rpcError;
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`categories:${page}`]);
+        await client.query('DELETE FROM categories WHERE page = $1 AND show_in_dropdown = $2', [page, showInDropdownValue]);
+        for (let index = 0; index < categories.length; index++) {
+          const category = categories[index];
+          await client.query(`INSERT INTO categories (id, name, category_key, color, "order", page, show_in_dropdown)
+            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [`${page}-${categoryScope}-${category.id}`, category.name, category.id, category.color || null,
+            category.order !== undefined ? category.order : index, page, showInDropdownValue]);
         }
-
-        console.log('Successfully saved categories to Supabase');
+        await client.query('COMMIT');
 
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ success: true, count: categories.length, page: page, message: `Categories saved successfully for page: ${page}` })
         };
-      } catch (dbError) {
-        console.error('Database operation failed:', dbError);
-        throw new Error(`Failed to save categories: ${dbError.message}`);
-      }
-    } else {
-      // Supabase not configured
-      console.log('Supabase not configured, categories not persisted');
-      
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          success: true, 
-          count: categories.length, 
-          message: 'Categories validated but not persisted (Supabase not configured)',
-          temporary: true
-        })
-      };
-    }
+    } catch (dbError) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw dbError;
+    } finally { client.release(); }
   } catch (error) {
     console.error('Handler error:', error);
     return {

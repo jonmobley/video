@@ -1245,6 +1245,65 @@
         let loginAttempts = 0;
         let loginCooldown = false;
 
+        function pageEditorStorageKey() {
+            return `vidshare-page-editor-token:${pageKey}`;
+        }
+
+        function savePageEditorToken(token) {
+            pageEditorToken = token;
+            try {
+                localStorage.setItem(pageEditorStorageKey(), token);
+            } catch (error) {
+                console.warn('Could not remember the page editor credential in this browser.', error);
+            }
+        }
+
+        function clearSavedPageEditorToken() {
+            pageEditorToken = null;
+            try {
+                localStorage.removeItem(pageEditorStorageKey());
+            } catch (error) {
+                console.warn('Could not clear the saved page editor credential.', error);
+            }
+        }
+
+        function showSetupCredentialDialog(token) {
+            const existing = document.getElementById('pageEditorCredentialDialog');
+            if (existing) existing.remove();
+            const dialog = document.createElement('div');
+            dialog.id = 'pageEditorCredentialDialog';
+            dialog.className = 'page-settings-overlay';
+            dialog.innerHTML = `
+                <div class="page-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="pageEditorCredentialTitle">
+                    <h3 id="pageEditorCredentialTitle">Save your page editor credential</h3>
+                    <p>This credential lets you return to edit this show from another browser. Keep it private.</p>
+                    <label>Page editor credential<input id="pageEditorCredentialValue" type="text" readonly></label>
+                    <p class="page-settings-status" id="pageEditorCredentialStatus"></p>
+                    <div class="page-settings-actions">
+                        <button type="button" id="pageEditorCredentialCopy">Copy credential</button>
+                        <button type="button" id="pageEditorCredentialContinue">Continue to editor</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(dialog);
+            const value = dialog.querySelector('#pageEditorCredentialValue');
+            value.value = token;
+            dialog.querySelector('#pageEditorCredentialCopy').addEventListener('click', async () => {
+                const status = dialog.querySelector('#pageEditorCredentialStatus');
+                try {
+                    await navigator.clipboard.writeText(token);
+                    status.textContent = 'Credential copied.';
+                } catch {
+                    value.focus();
+                    value.select();
+                    status.textContent = 'Select and copy the credential above.';
+                }
+            });
+            dialog.querySelector('#pageEditorCredentialContinue').addEventListener('click', () => {
+                dialog.remove();
+                enterEditMode();
+            });
+        }
+
         function pageEditorHeaders(token = pageEditorToken) {
             return {
                 'Content-Type': 'application/json',
@@ -1266,7 +1325,7 @@
 
             const message = await getPageEditorError(response, fallbackMessage);
             if (response.status === 401 || response.status === 403) {
-                pageEditorToken = null;
+                clearSavedPageEditorToken();
                 if (isEditMode) exitEditMode();
             }
             throw new Error(message);
@@ -1603,7 +1662,7 @@
                     return;
                 }
 
-                pageEditorToken = password;
+                savePageEditorToken(password);
                 document.getElementById('loginOverlay').style.display = 'none';
                 loginError.style.display = 'none';
                 loginAttempts = 0;
@@ -1629,9 +1688,9 @@
                 });
                 if (!response.ok) throw new Error(await getPageEditorError(response, 'This setup link is expired or already used.'));
                 const result = await response.json();
-                pageEditorToken = result.editor_token;
+                savePageEditorToken(result.editor_token);
                 history.replaceState(null, '', window.location.pathname);
-                enterEditMode();
+                showSetupCredentialDialog(result.editor_token);
             } catch (error) {
                 const loginError = document.getElementById('loginError');
                 loginError.textContent = error.message;
@@ -1639,7 +1698,40 @@
                 document.getElementById('loginOverlay').style.display = 'flex';
             }
         }
-        redeemSetupLink();
+
+        async function restoreSavedPageEditorSession() {
+            let token;
+            try {
+                token = localStorage.getItem(pageEditorStorageKey());
+            } catch {
+                return;
+            }
+            if (!token || new URLSearchParams(window.location.search).get('setup')) return;
+            try {
+                const response = await fetch('/.netlify/functions/verify-page-editor', {
+                    method: 'POST',
+                    headers: pageEditorHeaders(token),
+                    body: JSON.stringify({ page: pageKey })
+                });
+                if (!response.ok) {
+                    clearSavedPageEditorToken();
+                    return;
+                }
+                pageEditorToken = token;
+                enterEditMode();
+            } catch (error) {
+                console.warn('Could not restore page editor session.', error);
+            }
+        }
+
+        async function initializePageEditorAccess() {
+            if (new URLSearchParams(window.location.search).get('setup')) {
+                await redeemSetupLink();
+                return;
+            }
+            await restoreSavedPageEditorSession();
+        }
+        initializePageEditorAccess();
 
         /**
          * Edit page title inline in admin mode
@@ -1785,7 +1877,7 @@
         function exitEditMode() {
             isEditMode = false;
             isOrganizeMode = false; // Exit organize mode when exiting edit mode
-            pageEditorToken = null;
+            clearSavedPageEditorToken();
             document.body.classList.remove('edit-mode');
             document.body.classList.remove('organize-mode');
             document.getElementById('loginLink').textContent = 'Login';

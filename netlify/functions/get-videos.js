@@ -16,26 +16,7 @@
  *   - Field name transformation (snake_case to camelCase)
  */
 
-const { createClient } = require('@supabase/supabase-js');
-
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-let supabase = null;
-
-console.log('Supabase initialization:', {
-  hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey
-});
-
-if (supabaseUrl && supabaseKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('Supabase client created successfully');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
+const { query } = require('../../lib/page-store');
 
 // Default videos for fallback
 // These are used when Supabase is not configured or unavailable
@@ -231,20 +212,9 @@ exports.handler = async (event, context) => {
     const page = params.page || 'oz'; // Default to 'oz' for backward compatibility
     
     console.log(`Fetching videos for page: ${page}`);
-    // Try to get videos from Supabase if available
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('page', page)
-          .order('order', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching videos from Supabase:', error);
-          throw error;
-        }
-
+    try {
+        const result = await query('SELECT id, wistia_id, title, category, tags, url_string, "order", video_url, platform, thumbnail_url FROM videos WHERE page = $1 ORDER BY "order" ASC', [page]);
+        const data = result.rows;
         // Transform Supabase data to match expected format
         // Converts snake_case database fields to camelCase for frontend
         const videos = data.map(video => ({
@@ -261,7 +231,7 @@ exports.handler = async (event, context) => {
           thumbnailUrl: video.thumbnail_url || null
         }));
 
-        console.log(`Successfully fetched ${videos.length} videos from Supabase for page: ${page}`);
+        console.log(`Successfully fetched ${videos.length} videos for page: ${page}`);
         
         const etag = generateHash(videos);
         const clientEtag = event.headers['if-none-match'];
@@ -279,7 +249,7 @@ exports.handler = async (event, context) => {
           headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(videos)
         };
-      } catch (dbError) {
+    } catch (dbError) {
         console.error('Database query failed, using default videos:', dbError);
         // Fall back to default videos if database fails
         const fallbackData = DEFAULT_VIDEOS[page] || [];
@@ -299,27 +269,6 @@ exports.handler = async (event, context) => {
           headers: { ...headers, 'ETag': etag },
           body: JSON.stringify(fallbackData)
         };
-      }
-    } else {
-      // Supabase not configured, return default videos
-      console.log('Supabase not configured, returning default videos');
-      const fallbackData = DEFAULT_VIDEOS[page] || [];
-      const etag = generateHash(fallbackData);
-      const clientEtag = event.headers['if-none-match'];
-      
-      if (clientEtag === etag) {
-        return {
-          statusCode: 304,
-          headers: { ...headers, 'ETag': etag },
-          body: ''
-        };
-      }
-      
-      return {
-        statusCode: 200,
-        headers: { ...headers, 'ETag': etag },
-        body: JSON.stringify(fallbackData)
-      };
     }
   } catch (error) {
     console.error('Handler error:', error);

@@ -28,9 +28,9 @@
  *   - Validates hex color format for accent_color
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
+const { query } = require('../../lib/page-store');
 
 const PRESENTATION_FIELDS = new Set([
   'template_key',
@@ -151,28 +151,6 @@ function validatePresentation(presentation) {
   return null;
 }
 
-// Initialize Supabase client with the service role key (bypasses RLS).
-// The anon key must NOT be used here — page_config RLS is read-only for anon.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase = null;
-
-if (!supabaseServiceRoleKey && process.env.SUPABASE_URL) {
-  console.error(
-    'SUPABASE_SERVICE_ROLE_KEY is not set. ' +
-    'save-page-config requires the service role key to bypass RLS. ' +
-    'Set it in Netlify environment variables.'
-  );
-}
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-    console.log('Supabase client created successfully for page config');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
 
 exports.handler = async (event, context) => {
   // Get secured CORS headers
@@ -283,15 +261,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (!supabase) {
-      console.error('Supabase client not available — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: { code: 'DB_NOT_CONFIGURED', message: 'Database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' } })
-      };
-    }
-
     const changes = {};
     if (accent_color !== undefined) changes.accent_color = accent_color;
     if (page_title !== undefined) changes.page_title = page_title;
@@ -306,41 +275,24 @@ exports.handler = async (event, context) => {
     if (canonical_url !== undefined) changes.canonical_url = canonical_url;
     if (presentation !== undefined) changes.presentation = presentation;
 
-    const existingResult = await supabase
-      .from('page_config')
-      .select('page')
-      .eq('page', page)
-      .maybeSingle();
-    if (existingResult.error) {
-      console.error('Supabase error checking page config:', existingResult.error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Database error.' } })
-      };
-    }
-
-    const upsertData = buildPageConfigWrite(page, changes, existingResult.data);
-    
-    const result = await supabase
-      .from('page_config')
-      .upsert(upsertData, { onConflict: 'page' })
-      .select()
-      .single();
-
-    if (result.error) {
-      console.error('Supabase error:', result.error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Database error.' } })
-      };
-    }
+    const existing = await query('SELECT * FROM page_config WHERE page = $1', [page]);
+    const upsertData = buildPageConfigWrite(page, changes, existing.rows[0]);
+    const fields = ['page', 'accent_color', 'page_title', 'meta_description', 'meta_keywords',
+      'og_title', 'og_description', 'og_image_url', 'coming_soon_image_url',
+      'twitter_title', 'twitter_description', 'canonical_url', 'presentation'];
+    const values = fields.map(field => field === 'presentation'
+      ? JSON.stringify(upsertData[field] || {}) : (upsertData[field] ?? null));
+    const result = await query(
+      `INSERT INTO page_config (${fields.join(', ')}) VALUES (${fields.map((_, i) => `$${i + 1}`).join(', ')})
+       ON CONFLICT (page) DO UPDATE SET ${fields.slice(1).map(field => `${field} = EXCLUDED.${field}`).join(', ')}, updated_at = NOW()
+       RETURNING page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation`,
+      values
+    );
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(result.data)
+      body: JSON.stringify(result.rows[0])
     };
   } catch (error) {
     console.error('Error:', error);

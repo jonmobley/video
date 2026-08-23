@@ -17,10 +17,8 @@
  */
 
 const crypto = require('crypto');
-const { createClient } = require('@supabase/supabase-js');
 const { verifyPageEditorCredential } = require('../../../lib/page-editor-auth');
-const dynamicSupabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
+const pageStore = require('../../../lib/page-store');
 
 /**
  * Check if request is authorized
@@ -96,12 +94,19 @@ function requireAuth(event) {
  */
 async function requirePageAuth(event, page) {
   const headers = getSecuredCorsHeaders();
-    const provided = (event.headers?.authorization || event.headers?.Authorization || '').replace(/^Bearer\s+/i, '');
-    if (dynamicSupabase && provided) {
+  const provided = (event.headers?.authorization || event.headers?.Authorization || '').replace(/^Bearer\s+/i, '');
+  if (provided) {
+    try {
       const digest = crypto.createHash('sha256').update(provided).digest('hex');
-      const { data } = await dynamicSupabase.from('page_config').select('page').eq('page', page).eq('editor_token_hash', digest).maybeSingle();
-      if (data) return { authorized: true, page, headers };
+      const result = await pageStore.query(
+        'SELECT page FROM page_config WHERE page = $1 AND editor_token_hash = $2',
+        [page, digest]
+      );
+      if (result.rows.length) return { authorized: true, page, headers };
+    } catch (error) {
+      console.error('Page editor credential lookup failed:', error.message);
     }
+  }
   const result = verifyPageEditorCredential({
     page,
     headers: event.headers || {}
