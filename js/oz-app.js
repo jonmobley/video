@@ -1,26 +1,15 @@
         // ===== GLOBAL VARIABLES AND CONFIGURATION =====
-        const pageKey = document.body.dataset.pageKey || 'oz';
-        const initiallyEmpty = document.body.dataset.initiallyEmpty === 'true';
+        const routeShowSlug = window.location.pathname.match(/^\/show\/([a-z0-9-]+)$/i);
+        const pageKey = (routeShowSlug && routeShowSlug[1].toLowerCase()) ||
+            document.body.dataset.pageKey || 'oz';
         const pageCacheKey = (key) => `${key}_${pageKey}`;
         const pageApiUrl = (endpoint) => `/.netlify/functions/${endpoint}?page=${encodeURIComponent(pageKey)}`;
-        const DEFAULT_COMING_SOON_IMAGE = 'attached_assets/coming-soon_1787511284874.jpg';
+        const DEFAULT_COMING_SOON_IMAGE = '/assets/og-image.png';
         let comingSoonImageUrl = DEFAULT_COMING_SOON_IMAGE;
-        const choreographyBySong = {
-            "Oh, the Thinks You Can Think!": ["All Cast"],
-            "Finale / Oh, the Thinks You Can Think!": ["All Cast"],
-            "Horton Hears a Who": ["Jungle People"],
-            "Biggest Blame Fool": ["Jungle People"],
-            "Here on Who": ["Whos"],
-            "Amayzing Mayzie": ["Mayzie", "Bird Girls"],
-            "Amayzing Gertrude": ["Gertrude", "Bird Girls"],
-            "Chasing the Whos": ["All Cast"],
-            "Monkey Around": ["Wickershams", "Jungle People"],
-            "How Lucky You Are": ["Cat"],
-            "The Military": ["General Schmitz", "Cadets", "JoJo", "Cat"],
-            "It's Possible": ["Fish"],
-            "Egg, Nest and Tree": ["Jungle People"],
-            "Havin' a Hunch": ["Cat", "JoJo", "Hunches"]
-        };
+        let hasConfiguredComingSoonImage = false;
+        let pagePresentation = window.PageTemplate
+            ? window.PageTemplate.getDefaultPresentation()
+            : { empty_state_enabled: false, force_empty_state: false, choreography_by_song: {} };
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
@@ -43,6 +32,47 @@
         
         // Global videos array - populated from server
         let videos = [];
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[character]));
+        }
+
+        function escapeAttribute(value) {
+            return escapeHtml(value);
+        }
+
+        function hasConfiguredChoreography() {
+            return Object.keys(pagePresentation.choreography_by_song || {}).length > 0;
+        }
+
+        function shouldShowEmptyState() {
+            return pagePresentation.force_empty_state === true ||
+                (pagePresentation.empty_state_enabled === true && videos.length === 0);
+        }
+
+        function getComingSoonFallbackImage() {
+            return pagePresentation.empty_state_fallback_image_url || DEFAULT_COMING_SOON_IMAGE;
+        }
+
+        function syncPageTemplateState() {
+            const isEmpty = shouldShowEmptyState();
+            document.body.classList.toggle('page-empty-state', isEmpty);
+
+            if (isEmpty && window.PageTemplate) {
+                window.PageTemplate.renderEmptyPlayer(
+                    comingSoonImageUrl || getComingSoonFallbackImage(),
+                    pagePresentation.empty_state_label
+                );
+            } else if (window.PageTemplate) {
+                window.PageTemplate.clearEmptyPlayer();
+            }
+        }
 
         // ===== VIDEO PLAYER MANAGEMENT FUNCTIONS =====
         
@@ -465,7 +495,7 @@
                     processLoadedVideos(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
-                    if (initiallyEmpty) {
+                    if (pagePresentation.empty_state_enabled) {
                         videos = [];
                         processLoadedVideos(videos);
                         return;
@@ -476,7 +506,7 @@
                 console.error('❌ FAILED TO LOAD VIDEOS:', error);
                 console.error('❌ Error details:', error.message);
                 console.error('❌ This will result in empty video grid!');
-                if (initiallyEmpty) {
+                if (pagePresentation.empty_state_enabled) {
                     videos = [];
                     processLoadedVideos(videos);
                     return;
@@ -489,6 +519,13 @@
          * Process loaded videos (featured video, rendering, etc.)
          */
         function processLoadedVideos(videos) {
+            syncPageTemplateState();
+
+            if (shouldShowEmptyState()) {
+                renderVideoGrid([]);
+                return;
+            }
+
             // Check if there's a featured video saved
             const featuredVideo = videos.find(v => v.featured === true);
             if (featuredVideo) {
@@ -525,7 +562,7 @@
             const videosToDisplay = videos.filter(video => video.wistiaId !== featuredContent.videoId);
             
             if (videosToDisplay.length === 0 && videos.length === 0) {
-                if (initiallyEmpty) {
+                if (shouldShowEmptyState()) {
                     renderEmptyVideoPlaceholders(videoGrid);
                     return;
                 }
@@ -648,12 +685,14 @@
         }
 
         function renderEmptyVideoPlaceholders(videoGrid) {
-            const cards = Array.from({ length: 4 }, () => `
+            const count = Math.max(0, Number(pagePresentation.empty_state_placeholder_count) || 0);
+            const label = pagePresentation.empty_state_label || 'Video coming soon';
+            const cards = Array.from({ length: count }, () => `
                 <div class="coming-soon-placeholder-thumbnail" aria-hidden="true">
                     <div class="coming-soon-placeholder-thumbnail-media">
                         <img data-coming-soon-image alt="">
                     </div>
-                    <div class="coming-soon-placeholder-thumbnail-label">Video coming soon</div>
+                    <div class="coming-soon-placeholder-thumbnail-label">${escapeHtml(label)}</div>
                 </div>
             `).join('');
 
@@ -664,12 +703,16 @@
 
         function applyComingSoonImage(imageUrl) {
             if (imageUrl !== undefined) {
-                comingSoonImageUrl = imageUrl || DEFAULT_COMING_SOON_IMAGE;
+                hasConfiguredComingSoonImage = Boolean(imageUrl);
+                comingSoonImageUrl = imageUrl || getComingSoonFallbackImage();
+            } else if (!hasConfiguredComingSoonImage) {
+                comingSoonImageUrl = getComingSoonFallbackImage();
             }
 
             document.querySelectorAll('[data-coming-soon-image]').forEach(image => {
                 image.src = comingSoonImageUrl;
             });
+            if (shouldShowEmptyState()) syncPageTemplateState();
         }
 
 
@@ -813,8 +856,19 @@
                     localStorage.setItem(pageCacheKey('page_title'), title);
                 },
                 onTitleMissing: loadPageTitle,
-                onComingSoonImageLoaded: applyComingSoonImage
+                onComingSoonImageLoaded: applyComingSoonImage,
+                onPresentationLoaded: applyPagePresentation
             });
+        }
+
+        function applyPagePresentation(presentation) {
+            pagePresentation = window.PageTemplate
+                ? window.PageTemplate.applyPresentation(presentation)
+                : { ...pagePresentation, ...(presentation || {}) };
+            applyComingSoonImage();
+            syncPageTemplateState();
+            const grid = document.getElementById('videoGrid');
+            if (grid) renderVideoGrid(videos);
         }
 
         /**
@@ -907,11 +961,11 @@
             // Keep "All" for All Songs and multi-group songs. For a song
             // with only one choreography group, the extra control is
             // redundant because that group is already the only option.
-            const showAllTag = pageKey !== 'seussical' ||
+            const showAllTag = !hasConfiguredChoreography() ||
                 currentActiveCategory === 'all' ||
                 availableTags.length > 1;
             tagFilters.innerHTML = showAllTag
-                ? '<div class="tag active" data-tag="all">All</div>'
+                ? `<div class="tag active" data-tag="all">${escapeHtml(pagePresentation.tag_all_label || 'All')}</div>`
                 : '';
             
             // Add tags from managed tags (show_in_dropdown = false)
@@ -967,14 +1021,13 @@
             if (!categoryDropdown) return;
             
             // Use customizable "All" label from preferences
-            const allLabel = categoryPreferences.allLabel || 'All Songs';
-            categoryDropdown.innerHTML = `<option value="all">${allLabel}</option>`;
-            
-            // Seussical's song list is part of the page configuration. Use
-            // server categories when available so existing video category IDs
-            // continue to work, and generate stable IDs for missing entries.
-            const songCategories = pageKey === 'seussical'
-                ? getSeussicalSongCategories()
+            const allLabel = pagePresentation.category_all_label || categoryPreferences.allLabel || 'All Songs';
+            categoryDropdown.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>`;
+
+            // Configured song/group pages can populate their navigation before
+            // any videos exist. Other pages continue to use managed categories.
+            const songCategories = hasConfiguredChoreography()
+                ? getConfiguredSongCategories()
                 : (window.serverCategories || []).filter(cat =>
                     cat.id !== 'all' && cat.show_in_dropdown === true
                 );
@@ -1018,19 +1071,19 @@
                 .replace(/^-+|-+$/g, '');
         }
 
-        function getSeussicalSongName(categoryId) {
+        function getConfiguredSongName(categoryId) {
             const category = (window.serverCategories || []).find(item => item.id === categoryId);
             if (category) return category.name;
 
-            const mappedSong = Object.keys(choreographyBySong).find(songName =>
+            const mappedSong = Object.keys(pagePresentation.choreography_by_song || {}).find(songName =>
                 slugifyFilterName(songName) === categoryId
             );
             return mappedSong || categoryId;
         }
 
-        function getSeussicalSongCategories() {
+        function getConfiguredSongCategories() {
             const serverCategories = window.serverCategories || [];
-            return Object.keys(choreographyBySong).map((name, index) => {
+            return Object.keys(pagePresentation.choreography_by_song || {}).map((name, index) => {
                 const existing = serverCategories.find(category =>
                     normalizeFilterName(category.name) === normalizeFilterName(name)
                 );
@@ -1045,15 +1098,16 @@
 
         function getVisibleChoreographyFilters(categoryId) {
             const managedTags = getAvailableTags();
-            if (pageKey !== 'seussical') return managedTags;
+            if (!hasConfiguredChoreography()) return managedTags;
 
-            const allMappedNames = [...new Set(Object.values(choreographyBySong).flat())];
-            const selectedSongName = categoryId === 'all' ? null : getSeussicalSongName(categoryId);
-            const mappedSongName = selectedSongName && Object.keys(choreographyBySong).find(songName =>
+            const mapping = pagePresentation.choreography_by_song || {};
+            const allMappedNames = [...new Set(Object.values(mapping).flat())];
+            const selectedSongName = categoryId === 'all' ? null : getConfiguredSongName(categoryId);
+            const mappedSongName = selectedSongName && Object.keys(mapping).find(songName =>
                 normalizeFilterName(songName) === normalizeFilterName(selectedSongName)
             );
             const names = mappedSongName
-                ? choreographyBySong[mappedSongName]
+                ? mapping[mappedSongName]
                 : allMappedNames;
 
             return names.map(name => {
@@ -1086,7 +1140,7 @@
         function filterByCategory(categoryId) {
             currentActiveCategory = categoryId;
 
-            if (pageKey === 'seussical') {
+            if (hasConfiguredChoreography()) {
                 const visibleFilters = getVisibleChoreographyFilters(categoryId);
                 if (currentActiveTag !== 'all' &&
                     !visibleFilters.some(tag => tag.id === currentActiveTag)) {
@@ -1150,7 +1204,9 @@
                 
                 // Step 3: Populate tag filters (depends on categories being loaded)
                 console.log('📋 Step 3: Populating tag filters...');
+                populateCategoryDropdown();
                 populateTagFilters();
+                syncPageTemplateState();
                 console.log('✅ Step 3 Complete: Tag filters populated');
                 
                 console.log('🎯 Step 4: Tag listeners removed - no filtering needed');
@@ -1309,6 +1365,171 @@
             resetButton.addEventListener('click', resetComingSoonImage);
         }
 
+        function pageSettingsRow(song = '', groups = '') {
+            const row = document.createElement('div');
+            row.className = 'page-song-group-row';
+            row.innerHTML = `
+                <input type="text" class="page-song-name" placeholder="Song name" value="${escapeAttribute(song)}">
+                <input type="text" class="page-song-groups" placeholder="Groups, separated by commas" value="${escapeAttribute(groups)}">
+                <button type="button" class="page-remove-song">Remove</button>
+            `;
+            row.querySelector('.page-remove-song').addEventListener('click', () => row.remove());
+            return row;
+        }
+
+        function ensurePagePresentationControls() {
+            const buttons = document.querySelector('.admin-banner-buttons');
+            if (!buttons || document.getElementById('adminPageSettingsBtn')) return;
+
+            const comingSoonControls = document.createElement('div');
+            comingSoonControls.className = 'admin-coming-soon-controls';
+            comingSoonControls.innerHTML = `
+                <label for="adminComingSoonImage">Coming Soon image:</label>
+                <input type="file" id="adminComingSoonImage" accept="image/jpeg,image/png,image/webp">
+                <button type="button" class="admin-reset-image-btn" id="adminResetComingSoonImage">Use default</button>
+                <span class="admin-image-status" id="adminComingSoonImageStatus" role="status" aria-live="polite"></span>
+            `;
+            const settingsButton = document.createElement('button');
+            settingsButton.type = 'button';
+            settingsButton.className = 'admin-add-video-btn';
+            settingsButton.id = 'adminPageSettingsBtn';
+            settingsButton.textContent = 'Page Settings';
+            buttons.insertBefore(comingSoonControls, buttons.querySelector('#adminAddVideoBtn'));
+            buttons.insertBefore(settingsButton, buttons.querySelector('#adminAddVideoBtn'));
+
+            const overlay = document.createElement('div');
+            overlay.className = 'page-settings-overlay';
+            overlay.id = 'pageSettingsOverlay';
+            overlay.innerHTML = `
+                <section class="page-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="pageSettingsTitle">
+                    <h3 id="pageSettingsTitle">Page Settings</h3>
+                    <div class="page-settings-grid">
+                        <label class="page-settings-check"><input type="checkbox" id="pageEmptyStateEnabled"> Show Coming Soon when no videos exist</label>
+                        <label class="page-settings-check"><input type="checkbox" id="pageForceEmptyState"> Show Coming Soon even when videos exist</label>
+                        <label>Coming Soon label<input type="text" id="pageEmptyStateLabel" maxlength="120"></label>
+                        <label>Placeholder cards<input type="number" id="pagePlaceholderCount" min="0" max="24"></label>
+                        <label>Background image URL<input type="url" id="pageBackgroundUrl" maxlength="2048" placeholder="/attached_assets/background.png"></label>
+                        <label>Background position<input type="text" id="pageBackgroundPosition" maxlength="80" placeholder="center center"></label>
+                        <label>Background opacity<input type="number" id="pageBackgroundOpacity" min="0" max="1" step="0.01"></label>
+                        <label>Background blur (px)<input type="number" id="pageBackgroundBlur" min="0" max="20" step="0.5"></label>
+                        <label>Mobile background opacity<input type="number" id="pageMobileBackgroundOpacity" min="0" max="1" step="0.01"></label>
+                        <label>Footer text<select id="pageFooterTheme"><option value="dark">Dark</option><option value="light">Light</option></select></label>
+                        <label>All categories label<input type="text" id="pageCategoryAllLabel" maxlength="80"></label>
+                        <label>All groups label<input type="text" id="pageTagAllLabel" maxlength="80"></label>
+                    </div>
+                    <h4>Song choreography groups</h4>
+                    <p>Use one row per song. List its visible groups with commas. A page without rows uses its normal tag filters.</p>
+                    <div class="page-song-groups" id="pageSongGroups"></div>
+                    <button type="button" class="page-settings-add-group" id="pageAddSongGroup">Add song</button>
+                    <div class="page-settings-actions">
+                        <button type="button" id="pageSettingsCancel">Cancel</button>
+                        <button type="button" id="pageSettingsSave">Save page settings</button>
+                    </div>
+                    <p class="admin-image-status" id="pageSettingsStatus" role="status" aria-live="polite"></p>
+                </section>
+            `;
+            document.body.appendChild(overlay);
+
+            settingsButton.addEventListener('click', openPageSettings);
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) closePageSettings();
+            });
+            document.getElementById('pageSettingsCancel').addEventListener('click', closePageSettings);
+            document.getElementById('pageAddSongGroup').addEventListener('click', () => {
+                document.getElementById('pageSongGroups').appendChild(pageSettingsRow());
+            });
+            document.getElementById('pageSettingsSave').addEventListener('click', savePageSettings);
+        }
+
+        function openPageSettings() {
+            ensurePagePresentationControls();
+            const presentation = pagePresentation;
+            document.getElementById('pageEmptyStateEnabled').checked = presentation.empty_state_enabled === true;
+            document.getElementById('pageForceEmptyState').checked = presentation.force_empty_state === true;
+            document.getElementById('pageEmptyStateLabel').value = presentation.empty_state_label || '';
+            document.getElementById('pagePlaceholderCount').value = presentation.empty_state_placeholder_count || 0;
+            document.getElementById('pageBackgroundUrl').value = presentation.background_image_url || '';
+            document.getElementById('pageBackgroundPosition').value = presentation.background_position || 'center center';
+            document.getElementById('pageBackgroundOpacity').value = presentation.background_opacity || 0;
+            document.getElementById('pageBackgroundBlur').value = presentation.background_blur || 0;
+            document.getElementById('pageMobileBackgroundOpacity').value = presentation.mobile_background_opacity || 0;
+            document.getElementById('pageFooterTheme').value = presentation.footer_theme || 'dark';
+            document.getElementById('pageCategoryAllLabel').value = presentation.category_all_label || '';
+            document.getElementById('pageTagAllLabel').value = presentation.tag_all_label || '';
+
+            const groups = document.getElementById('pageSongGroups');
+            groups.innerHTML = '';
+            Object.entries(presentation.choreography_by_song || {}).forEach(([song, songGroups]) => {
+                groups.appendChild(pageSettingsRow(song, songGroups.join(', ')));
+            });
+            document.getElementById('pageSettingsStatus').textContent = '';
+            document.getElementById('pageSettingsOverlay').classList.add('open');
+        }
+
+        function closePageSettings() {
+            document.getElementById('pageSettingsOverlay')?.classList.remove('open');
+        }
+
+        async function savePageSettings() {
+            const status = document.getElementById('pageSettingsStatus');
+            const saveButton = document.getElementById('pageSettingsSave');
+            const mapping = {};
+            for (const row of document.querySelectorAll('.page-song-group-row')) {
+                const song = row.querySelector('.page-song-name').value.trim();
+                const groups = row.querySelector('.page-song-groups').value.split(',')
+                    .map(group => group.trim()).filter(Boolean);
+                if (!song && groups.length === 0) continue;
+                if (!song || groups.length === 0 || mapping[song]) {
+                    status.textContent = 'Each song needs a unique name and at least one group.';
+                    status.style.color = '#ffb4b4';
+                    return;
+                }
+                mapping[song] = groups;
+            }
+
+            const presentation = {
+                ...pagePresentation,
+                empty_state_enabled: document.getElementById('pageEmptyStateEnabled').checked,
+                force_empty_state: document.getElementById('pageForceEmptyState').checked,
+                empty_state_label: document.getElementById('pageEmptyStateLabel').value.trim() || 'Video coming soon',
+                empty_state_placeholder_count: Number(document.getElementById('pagePlaceholderCount').value),
+                background_image_url: document.getElementById('pageBackgroundUrl').value.trim() || null,
+                background_position: document.getElementById('pageBackgroundPosition').value.trim() || 'center center',
+                background_opacity: Number(document.getElementById('pageBackgroundOpacity').value),
+                background_blur: Number(document.getElementById('pageBackgroundBlur').value),
+                mobile_background_opacity: Number(document.getElementById('pageMobileBackgroundOpacity').value),
+                footer_theme: document.getElementById('pageFooterTheme').value,
+                category_all_label: document.getElementById('pageCategoryAllLabel').value.trim() || 'All',
+                tag_all_label: document.getElementById('pageTagAllLabel').value.trim() || 'All',
+                choreography_by_song: mapping
+            };
+
+            saveButton.disabled = true;
+            status.textContent = 'Saving page settings…';
+            status.style.color = 'rgba(255, 255, 255, 0.8)';
+            try {
+                const response = await fetch('/.netlify/functions/save-page-config', {
+                    method: 'POST',
+                    headers: pageEditorHeaders(),
+                    body: JSON.stringify({ page: pageKey, presentation })
+                });
+                await requirePageEditorResponse(response, 'Failed to save page settings.');
+                const result = await response.json();
+                applyPagePresentation(result.presentation);
+                populateCategoryDropdown();
+                populateTagFilters();
+                processLoadedVideos(videos);
+                status.textContent = 'Page settings saved.';
+                setTimeout(closePageSettings, 500);
+            } catch (error) {
+                console.error('Failed to save page settings:', error);
+                status.textContent = error.message || 'Could not save page settings.';
+                status.style.color = '#ffb4b4';
+            } finally {
+                saveButton.disabled = false;
+            }
+        }
+
         function registerLoginFailure() {
             loginAttempts += 1;
             if (loginAttempts < 5) return;
@@ -1456,6 +1677,7 @@
             document.body.classList.add('edit-mode');
             document.getElementById('loginLink').textContent = 'Exit Edit';
             document.getElementById('adminBanner').style.display = 'block';
+            ensurePagePresentationControls();
             bindComingSoonImageControls();
             
             // Add edit functionality to existing videos

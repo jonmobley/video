@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS page_config (
     coming_soon_image_url TEXT,
     twitter_title TEXT,
     twitter_description TEXT,
+    presentation JSONB NOT NULL DEFAULT '{}'::JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -106,6 +107,48 @@ INSERT INTO page_config (page, accent_color) VALUES
     ('oz', '#ff6b6b'),
     ('disc', '#ff6b6b')
 ON CONFLICT (page) DO NOTHING;
+
+-- Structured template settings. Existing page rows retain their saved values.
+ALTER TABLE page_config
+    ADD COLUMN IF NOT EXISTS presentation JSONB NOT NULL DEFAULT '{}'::JSONB;
+
+-- Only seed the Seussical presentation where it has not already been configured.
+INSERT INTO page_config (page, presentation) VALUES (
+    'seussical',
+    '{
+      "template_key": "gallery",
+      "empty_state_enabled": true,
+      "force_empty_state": false,
+      "empty_state_label": "Video coming soon",
+      "empty_state_placeholder_count": 4,
+      "background_image_url": "/attached_assets/Seussical_background_1787511048230.png",
+      "background_position": "center center",
+      "background_opacity": 0.46,
+      "background_blur": 1,
+      "mobile_background_opacity": 0.36,
+      "footer_theme": "light",
+      "category_all_label": "All Songs",
+      "tag_all_label": "All",
+      "choreography_by_song": {
+        "Oh, the Thinks You Can Think!": ["All Cast"],
+        "Finale / Oh, the Thinks You Can Think!": ["All Cast"],
+        "Horton Hears a Who": ["Jungle People"],
+        "Biggest Blame Fool": ["Jungle People"],
+        "Here on Who": ["Whos"],
+        "Amayzing Mayzie": ["Mayzie", "Bird Girls"],
+        "Amayzing Gertrude": ["Gertrude", "Bird Girls"],
+        "Chasing the Whos": ["All Cast"],
+        "Monkey Around": ["Wickershams", "Jungle People"],
+        "How Lucky You Are": ["Cat"],
+        "The Military": ["General Schmitz", "Cadets", "JoJo", "Cat"],
+        "It''s Possible": ["Fish"],
+        "Egg, Nest and Tree": ["Jungle People"],
+        "Havin'' a Hunch": ["Cat", "JoJo", "Hunches"]
+      }
+    }'::JSONB
+)
+ON CONFLICT (page) DO UPDATE SET presentation = EXCLUDED.presentation
+WHERE page_config.presentation IS NULL OR page_config.presentation = '{}'::JSONB;
 
 -- ============================================================================
 -- RATE LIMITS TABLE (used by Netlify serverless upload functions)

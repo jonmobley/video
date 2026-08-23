@@ -2370,6 +2370,12 @@ app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html'
 app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));
 app.get('/oz',      (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
 app.get('/disc',    (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+// Generic show pages share the gallery template. New show slugs resolve here
+// rather than requiring a new HTML file and route for each production.
+app.get('/show/:slug', (req, res, next) => {
+  if (!/^[a-z0-9-]+$/i.test(req.params.slug)) return next();
+  res.sendFile(path.join(__dirname, 'oz.html'));
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 // When run directly (`node server.js`) start the HTTP listener and the

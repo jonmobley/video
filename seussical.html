@@ -30,9 +30,9 @@
     <link rel="stylesheet" href="styles/gallery-mobile.css">
     <link rel="stylesheet" href="styles/common.css">
     <link rel="stylesheet" href="styles/oz-page.css">
-    <link rel="stylesheet" href="styles/seussical-page.css">
+    <link rel="stylesheet" href="styles/page-template.css">
 </head>
-<body data-page-key="seussical" data-initially-empty="true">
+<body data-page-key="seussical">
     <div class="admin-banner hidden" id="adminBanner">
         <div class="admin-banner-content">
             <div class="admin-banner-text">
@@ -44,12 +44,6 @@
                     <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
                     <input type="color" id="adminAccentColor" value="#008f67" class="admin-accent-color-input">
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
-                </div>
-                <div class="admin-coming-soon-controls">
-                    <label for="adminComingSoonImage">Coming Soon image:</label>
-                    <input type="file" id="adminComingSoonImage" accept="image/jpeg,image/png,image/webp">
-                    <button type="button" class="admin-reset-image-btn" id="adminResetComingSoonImage">Use default</button>
-                    <span class="admin-image-status" id="adminComingSoonImageStatus" role="status" aria-live="polite"></span>
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -66,13 +60,16 @@
             <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
             <h1 class="page-title page-title-clickable" id="pageTitle">Seussical</h1>
         </div>
-        <div class="video-container active seussical-coming-soon">
+        <div class="video-container">
             <div class="wistia-player" id="wistia-player">
-                <div class="coming-soon-player-card" role="img" aria-label="Seussical videos coming soon">
-                    <img data-coming-soon-image alt="Coming soon">
+                <div class="video-placeholder video-placeholder-state">
+                    <div class="video-placeholder-inner">
+                        <div>Loading video player...</div>
+                    </div>
                 </div>
             </div>
             <div class="video-title-overlay" id="current-video-title"></div>
+            <button class="video-close-button" id="videoCloseBtn"></button>
         </div>
         <div class="mobile-video-title" id="mobile-video-title"></div>
     </div>
@@ -151,6 +148,7 @@
     <script src="js/shared-cache-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
     <script src="js/shared-admin-dialogs.js"></script>
+    <script src="js/shared-page-template.js"></script>
     <script src="js/oz-app.js"></script>
 </body>
 </html>

@@ -1,2 +1,3 @@
 - [Page editor access](page-editor-access.md) — standalone editors and the global dashboard must use separate credential scopes.
 - [Slug normalization](slug-normalization.md) — canonicalize folder URL slugs to lowercase before validation and lookup.
+- [Config-driven show pages](config-driven-show-pages.md) — put show presentation and mappings in validated page configuration, not page-name branches.

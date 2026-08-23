@@ -4,6 +4,7 @@ async function loadPageConfig(pageName, options) {
     var onTitleLoaded = opts.onTitleLoaded || null;
     var onTitleMissing = opts.onTitleMissing || null;
     var onComingSoonImageLoaded = opts.onComingSoonImageLoaded || null;
+    var onPresentationLoaded = opts.onPresentationLoaded || null;
     var fetchFn = opts.fetchFn || null;
     var debug = opts.debug || false;
 
@@ -20,6 +21,7 @@ async function loadPageConfig(pageName, options) {
                 if (defaultAccentColor) applyAccentColor(defaultAccentColor);
                 if (onTitleMissing) onTitleMissing();
                 if (onComingSoonImageLoaded) onComingSoonImageLoaded(null);
+                if (onPresentationLoaded) onPresentationLoaded(null);
                 return;
             }
             config = await response.json();
@@ -43,6 +45,9 @@ async function loadPageConfig(pageName, options) {
         if (onComingSoonImageLoaded) {
             onComingSoonImageLoaded(config.coming_soon_image_url || null);
         }
+        if (onPresentationLoaded) {
+            onPresentationLoaded(config.presentation || null);
+        }
     } catch (error) {
         console.error('Failed to load page config:', error);
         if (defaultAccentColor) {
@@ -51,5 +56,6 @@ async function loadPageConfig(pageName, options) {
         }
         if (onTitleMissing) onTitleMissing();
         if (onComingSoonImageLoaded) onComingSoonImageLoaded(null);
+        if (onPresentationLoaded) onPresentationLoaded(null);
     }
 }

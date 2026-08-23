@@ -17,6 +17,24 @@ const { createClient } = require('@supabase/supabase-js');
 const { getCorsHeaders } = require('./utils/auth');
 const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
 
+function mergePageConfig(config) {
+  const defaults = getDefaultPageConfig(config.page);
+  const savedPresentation = config.presentation &&
+    typeof config.presentation === 'object' &&
+    !Array.isArray(config.presentation)
+    ? config.presentation
+    : {};
+
+  return {
+    ...defaults,
+    ...config,
+    presentation: {
+      ...defaults.presentation,
+      ...savedPresentation
+    }
+  };
+}
+
 // Initialize Supabase client with environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
@@ -129,10 +147,11 @@ exports.handler = async (event, context) => {
       };
     }
 
+    const responseData = page ? mergePageConfig(data) : data.map(mergePageConfig);
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(data)
+      body: JSON.stringify(responseData)
     };
   } catch (error) {
     console.error('Error:', error);
@@ -143,3 +162,5 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
+exports.mergePageConfig = mergePageConfig;

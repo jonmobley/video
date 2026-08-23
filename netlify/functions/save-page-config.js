@@ -32,6 +32,125 @@ const { createClient } = require('@supabase/supabase-js');
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
 
+const PRESENTATION_FIELDS = new Set([
+  'template_key',
+  'empty_state_enabled',
+  'force_empty_state',
+  'empty_state_label',
+  'empty_state_placeholder_count',
+  'empty_state_fallback_image_url',
+  'background_image_url',
+  'background_position',
+  'background_opacity',
+  'background_blur',
+  'mobile_background_opacity',
+  'footer_theme',
+  'category_all_label',
+  'tag_all_label',
+  'choreography_by_song'
+]);
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function presentationError(message) {
+  return { code: 'BAD_PRESENTATION', message };
+}
+
+function validatePresentation(presentation) {
+  if (!isPlainObject(presentation)) return presentationError('Presentation must be a plain object.');
+  if (Buffer.byteLength(JSON.stringify(presentation), 'utf8') > 32 * 1024) {
+    return presentationError('Presentation is too large (max 32 KB).');
+  }
+
+  for (const field of Object.keys(presentation)) {
+    if (!PRESENTATION_FIELDS.has(field)) {
+      return presentationError(`Unsupported presentation field: ${field}.`);
+    }
+  }
+
+  const stringFields = {
+    template_key: 40,
+    empty_state_label: 160,
+    background_position: 100,
+    category_all_label: 100,
+    tag_all_label: 100
+  };
+  for (const [field, maxLength] of Object.entries(stringFields)) {
+    if (presentation[field] !== undefined &&
+      (typeof presentation[field] !== 'string' || !presentation[field].trim() ||
+        presentation[field].length > maxLength)) {
+      return presentationError(`Invalid presentation ${field}.`);
+    }
+  }
+  if (presentation.template_key !== undefined && presentation.template_key !== 'gallery') {
+    return presentationError('Invalid presentation template_key.');
+  }
+  for (const field of ['empty_state_enabled', 'force_empty_state']) {
+    if (presentation[field] !== undefined && typeof presentation[field] !== 'boolean') {
+      return presentationError(`Invalid presentation ${field}.`);
+    }
+  }
+  if (presentation.empty_state_placeholder_count !== undefined &&
+    (!Number.isInteger(presentation.empty_state_placeholder_count) ||
+      presentation.empty_state_placeholder_count < 0 ||
+      presentation.empty_state_placeholder_count > 24)) {
+    return presentationError('Invalid presentation empty_state_placeholder_count.');
+  }
+  for (const field of ['background_opacity', 'mobile_background_opacity']) {
+    if (presentation[field] !== undefined &&
+      (typeof presentation[field] !== 'number' || !Number.isFinite(presentation[field]) ||
+        presentation[field] < 0 || presentation[field] > 1)) {
+      return presentationError(`Invalid presentation ${field}.`);
+    }
+  }
+  if (presentation.background_blur !== undefined &&
+    (typeof presentation.background_blur !== 'number' || !Number.isFinite(presentation.background_blur) ||
+      presentation.background_blur < 0 || presentation.background_blur > 20)) {
+    return presentationError('Invalid presentation background_blur.');
+  }
+  for (const field of ['background_image_url', 'empty_state_fallback_image_url']) {
+    if (presentation[field] !== undefined && presentation[field] !== null &&
+      (typeof presentation[field] !== 'string' ||
+        presentation[field].length > 2048 ||
+        !/^(\/|https?:\/\/)/i.test(presentation[field]))) {
+      return presentationError(`Invalid presentation ${field}.`);
+    }
+  }
+  if (presentation.footer_theme !== undefined &&
+    !['light', 'dark'].includes(presentation.footer_theme)) {
+    return presentationError('Invalid presentation footer_theme.');
+  }
+
+  const choreography = presentation.choreography_by_song;
+  if (choreography !== undefined) {
+    if (!isPlainObject(choreography) || Object.keys(choreography).length > 100) {
+      return presentationError('Invalid presentation choreography_by_song.');
+    }
+    for (const [song, groups] of Object.entries(choreography)) {
+      if (typeof song !== 'string' || !song.trim() || song.length > 160 ||
+        !Array.isArray(groups) || groups.length > 50) {
+        return presentationError('Invalid presentation choreography_by_song.');
+      }
+      const normalizedGroups = new Set();
+      for (const group of groups) {
+        if (typeof group !== 'string' || !group.trim() || group.length > 120) {
+          return presentationError('Invalid presentation choreography_by_song.');
+        }
+        const normalized = group.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+        if (normalizedGroups.has(normalized)) {
+          return presentationError('Duplicate choreography group for a song.');
+        }
+        normalizedGroups.add(normalized);
+      }
+    }
+  }
+  return null;
+}
+
 // Initialize Supabase client with the service role key (bypasses RLS).
 // The anon key must NOT be used here — page_config RLS is read-only for anon.
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -107,7 +226,8 @@ exports.handler = async (event, context) => {
       coming_soon_image_url,
       twitter_title,
       twitter_description,
-      canonical_url
+       canonical_url,
+       presentation
     } = body;
 
     // Validate input
@@ -129,6 +249,17 @@ exports.handler = async (event, context) => {
     const authResult = requirePageAuth(event, page);
     if (!authResult.authorized) {
       return authResult.response;
+    }
+
+    if (presentation !== undefined) {
+      const validationError = validatePresentation(presentation);
+      if (validationError) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: validationError })
+        };
+      }
     }
 
     // Validate accent_color is a valid hex color
@@ -173,6 +304,7 @@ exports.handler = async (event, context) => {
     if (twitter_title !== undefined) changes.twitter_title = twitter_title;
     if (twitter_description !== undefined) changes.twitter_description = twitter_description;
     if (canonical_url !== undefined) changes.canonical_url = canonical_url;
+    if (presentation !== undefined) changes.presentation = presentation;
 
     const existingResult = await supabase
       .from('page_config')
@@ -219,3 +351,5 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
+exports.validatePresentation = validatePresentation;

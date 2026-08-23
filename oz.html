@@ -64,6 +64,7 @@ Last Updated: 2024
     <link rel="stylesheet" href="styles/gallery-mobile.css">
     <link rel="stylesheet" href="styles/common.css">
     <link rel="stylesheet" href="styles/oz-page.css">
+    <link rel="stylesheet" href="styles/page-template.css">
 </head>
 
 <!-- 
@@ -79,7 +80,7 @@ Main page structure with:
 - Various popup overlays for admin functions
 ======================================================================== 
 -->
-<body>
+<body data-page-key="oz">
     <!-- ===== ADMIN BANNER ===== -->
     <!-- Displayed when user enters edit mode - contains admin controls -->
     <div class="admin-banner hidden" id="adminBanner">
@@ -93,12 +94,6 @@ Main page structure with:
                     <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
                     <input type="color" id="adminAccentColor" value="#008f67" class="admin-accent-color-input">
                     <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
-                </div>
-                <div class="admin-coming-soon-controls">
-                    <label for="adminComingSoonImage">Coming Soon image:</label>
-                    <input type="file" id="adminComingSoonImage" accept="image/jpeg,image/png,image/webp">
-                    <button type="button" class="admin-reset-image-btn" id="adminResetComingSoonImage">Use default</button>
-                    <span class="admin-image-status" id="adminComingSoonImageStatus" role="status" aria-live="polite"></span>
                 </div>
                 <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
                 <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
@@ -342,6 +337,7 @@ Main page structure with:
     <script src="js/shared-cache-utils.js"></script>
     <script src="js/shared-thumbnail-utils.js"></script>
     <script src="js/shared-admin-dialogs.js"></script>
+    <script src="js/shared-page-template.js"></script>
     
     <!-- 
     ========================================================================
