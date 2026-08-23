@@ -30,6 +30,20 @@ body::before {
         touch-action: pan-x;
         overscroll-behavior-x: contain;
         overscroll-behavior-y: none;
+        -webkit-mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 44px,
+            #000 calc(100% - 44px),
+            transparent 100%
+        );
+        mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 44px,
+            #000 calc(100% - 44px),
+            transparent 100%
+        );
     }
 
     body[data-initially-empty] .tags-container::before,
@@ -38,19 +52,19 @@ body::before {
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 36px;
+        width: 24px;
         z-index: 2;
         pointer-events: none;
     }
 
     body[data-initially-empty] .tags-container::before {
         left: 0;
-        background: linear-gradient(to right, rgba(15, 15, 15, 0.62), transparent);
+        background: linear-gradient(to right, rgba(15, 15, 15, 0.3), transparent);
     }
 
     body[data-initially-empty] .tags-container::after {
         right: 0;
-        background: linear-gradient(to left, rgba(15, 15, 15, 0.62), transparent);
+        background: linear-gradient(to left, rgba(15, 15, 15, 0.3), transparent);
     }
 
     body[data-initially-empty] .tags {
@@ -59,20 +73,12 @@ body::before {
         overscroll-behavior-y: none;
         scroll-snap-type: x proximity;
         scroll-padding-inline: 12px;
-        -webkit-mask-image: linear-gradient(
-            to right,
-            transparent 0,
-            #000 36px,
-            #000 calc(100% - 36px),
-            transparent 100%
-        );
-        mask-image: linear-gradient(
-            to right,
-            transparent 0,
-            #000 36px,
-            #000 calc(100% - 36px),
-            transparent 100%
-        );
+    }
+
+    body[data-initially-empty] .navigation-section {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
     }
 
     body[data-initially-empty] .tag {
@@ -218,5 +224,50 @@ body[data-initially-empty] .seussical-coming-soon {
 @media screen and (min-width: 1300px) {
     body[data-initially-empty] .content {
         max-width: 1040px;
+    }
+}
+
+/* Desktop/tablet filter rows use the same soft edge treatment and a single
+   horizontal scroller instead of clipping the last pill abruptly. */
+@media screen and (min-width: 768px) {
+    body[data-initially-empty] .navigation-section {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    body[data-initially-empty] .tags-container {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+        touch-action: pan-x;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: none;
+        -webkit-mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 20px,
+            #000 calc(100% - 20px),
+            transparent 100%
+        );
+        mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 20px,
+            #000 calc(100% - 20px),
+            transparent 100%
+        );
+    }
+
+    body[data-initially-empty] .tags {
+        min-width: 0;
+        touch-action: pan-x;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: none;
+        scroll-snap-type: x proximity;
+        scroll-padding-inline: 12px;
+    }
+
+    body[data-initially-empty] .tag {
+        scroll-snap-align: start;
     }
 }
