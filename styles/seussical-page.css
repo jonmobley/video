@@ -25,6 +25,44 @@ body::before {
     body[data-initially-empty] .tags-container {
         background: rgba(15, 15, 15, 0.38);
         box-shadow: none;
+        position: relative;
+        overflow: hidden;
+        touch-action: pan-x;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: none;
+    }
+
+    body[data-initially-empty] .tags-container::before,
+    body[data-initially-empty] .tags-container::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 28px;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    body[data-initially-empty] .tags-container::before {
+        left: 0;
+        background: linear-gradient(to right, rgba(15, 15, 15, 0.42), transparent);
+    }
+
+    body[data-initially-empty] .tags-container::after {
+        right: 0;
+        background: linear-gradient(to left, rgba(15, 15, 15, 0.42), transparent);
+    }
+
+    body[data-initially-empty] .tags {
+        touch-action: pan-x;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: none;
+        scroll-snap-type: x proximity;
+        scroll-padding-inline: 12px;
+    }
+
+    body[data-initially-empty] .tag {
+        scroll-snap-align: start;
     }
 }
 
@@ -154,6 +192,7 @@ body[data-initially-empty] .seussical-coming-soon {
     body[data-initially-empty] .tags-container {
         max-width: none;
     }
+
 }
 
 @media screen and (min-width: 768px) and (max-width: 1299px) {
