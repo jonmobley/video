@@ -50,9 +50,20 @@ describe('Backwards-compat redirects /api/collections* → /api/folders*', () =>
   });
 
   test('GET /c/:slug → 308 /f/:slug (page route)', async () => {
-    const res = await request(app).get('/c/abcdef012345').redirects(0);
+    const res = await request(app).get('/c/ABCDEF012345').redirects(0);
     expect(res.status).toBe(308);
     expect(res.headers.location).toBe('/f/abcdef012345');
+  });
+
+  test('GET /api/folders/:slug accepts uppercase slugs', async () => {
+    pgMock.enqueue({
+      rows: [{ slug: 'abcdef012345', user_id: null, title: 'Mixed Case Folder', created_at: null }]
+    });
+    pgMock.enqueue({ rows: [] });
+
+    const res = await request(app).get('/api/folders/ABCDEF012345');
+    expect(res.status).toBe(200);
+    expect(res.body.slug).toBe('abcdef012345');
   });
 
   test('GET /api/my-collections → 308 /api/my-folders', async () => {

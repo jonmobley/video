@@ -19,8 +19,8 @@
   }
 
   function getSlug() {
-    const m = window.location.pathname.match(/^\/f\/([a-f0-9]{8,32})\/?$/);
-    return m ? m[1] : null;
+    const m = window.location.pathname.match(/^\/f\/([a-f0-9]{8,32})\/?$/i);
+    return m ? m[1].toLowerCase() : null;
   }
 
   function thumbUrlFor(v) {

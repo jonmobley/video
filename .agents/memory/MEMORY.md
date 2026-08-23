@@ -1,1 +1,2 @@
 - [Page editor access](page-editor-access.md) — standalone editors and the global dashboard must use separate credential scopes.
+- [Slug normalization](slug-normalization.md) — canonicalize folder URL slugs to lowercase before validation and lookup.

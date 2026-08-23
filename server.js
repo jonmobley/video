@@ -266,6 +266,7 @@ function isValidVideoId(id) {
 // Collection slugs: short URL-safe lowercase hex (12 chars by default).
 const SLUG_RE = /^[a-f0-9]{8,32}$/;
 function isValidSlug(s) { return typeof s === 'string' && SLUG_RE.test(s); }
+function normalizeSlug(s) { return typeof s === 'string' ? s.toLowerCase() : s; }
 function generateSlug() { return crypto.randomBytes(6).toString('hex'); }
 
 // Title sanitiser for filenames (zip entries / Content-Disposition).
@@ -629,11 +630,11 @@ app.get('/watch', async (req, res) => {
 // Old `/c/:slug` links 308-redirect to the new `/f/:slug` so previously-shared
 // links keep working without changing the bookmarked URL behavior.
 app.get('/c/:slug', (req, res) => {
-  res.redirect(308, '/f/' + encodeURIComponent(req.params.slug));
+  res.redirect(308, '/f/' + encodeURIComponent(normalizeSlug(req.params.slug)));
 });
 app.get('/f/:slug', async (req, res) => {
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     const origin = req.protocol + '://' + req.get('host');
     let ogTags = '';
 
@@ -1990,7 +1991,7 @@ app.post('/api/folders', async (req, res) => {
 // Public read: folder metadata + non-expired video list.
 app.get('/api/folders/:slug', async (req, res) => {
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
 
     const c = await pool.query(
@@ -2030,7 +2031,7 @@ app.get('/api/folders/:slug', async (req, res) => {
 // Owner-only: rename. Anonymous folders cannot be renamed (no one owns them).
 app.patch('/api/folders/:slug', requireUser, async (req, res) => {
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     const { title } = req.body || {};
     const trimmed = typeof title === 'string' ? title.trim() : '';
@@ -2057,7 +2058,7 @@ app.patch('/api/folders/:slug', requireUser, async (req, res) => {
 // immutable after creation, except for cleanup).
 app.delete('/api/folders/:slug', async (req, res) => {
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
 
     const c = await pool.query('SELECT user_id FROM vs_collections WHERE slug = $1', [slug]);
@@ -2094,7 +2095,7 @@ app.delete('/api/folders/:slug', async (req, res) => {
 // anonymous videos to anonymous folders. Cross-ownership is rejected.
 app.post('/api/folders/:slug/videos', async (req, res) => {
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     const { videoId } = req.body || {};
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
@@ -2157,7 +2158,8 @@ app.post('/api/folders/:slug/videos', async (req, res) => {
 // Owner-only: detach a video from a folder (the video itself is preserved).
 app.delete('/api/folders/:slug/videos/:videoId', requireUser, async (req, res) => {
   try {
-    const { slug, videoId } = req.params;
+    const { videoId } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
     if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
@@ -2221,14 +2223,14 @@ app.delete('/api/upload-chunks/:videoId', async (req, res) => {
 app.all('/api/collections', (req, res) =>
   res.redirect(308, '/api/folders'));
 app.all('/api/collections/:slug', (req, res) =>
-  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug)));
+  res.redirect(308, '/api/folders/' + encodeURIComponent(normalizeSlug(req.params.slug))));
 app.all('/api/collections/:slug/videos', (req, res) =>
-  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) + '/videos'));
+  res.redirect(308, '/api/folders/' + encodeURIComponent(normalizeSlug(req.params.slug)) + '/videos'));
 app.all('/api/collections/:slug/videos/:videoId', (req, res) =>
-  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) +
+  res.redirect(308, '/api/folders/' + encodeURIComponent(normalizeSlug(req.params.slug)) +
     '/videos/' + encodeURIComponent(req.params.videoId)));
 app.all('/api/collections/:slug/download', (req, res) =>
-  res.redirect(308, '/api/folders/' + encodeURIComponent(req.params.slug) + '/download'));
+  res.redirect(308, '/api/folders/' + encodeURIComponent(normalizeSlug(req.params.slug)) + '/download'));
 app.all('/api/my-collections', (req, res) => res.redirect(308, '/api/my-folders'));
 
 // Single-video download — same auth model as /api/video/:id but forces an
@@ -2292,7 +2294,7 @@ app.get('/api/folders/:slug/download', async (req, res) => {
   const FOLDER_DOWNLOAD_MAX_VIDEOS = 10;
   const FOLDER_DOWNLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
   try {
-    const { slug } = req.params;
+    const slug = normalizeSlug(req.params.slug);
     if (!isValidSlug(slug)) return apiError(res, 400, 'BAD_SLUG', 'Invalid folder.');
 
     const c = await pool.query('SELECT title FROM vs_collections WHERE slug = $1', [slug]);
