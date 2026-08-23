@@ -38,19 +38,19 @@ body::before {
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 28px;
+        width: 36px;
         z-index: 2;
         pointer-events: none;
     }
 
     body[data-initially-empty] .tags-container::before {
         left: 0;
-        background: linear-gradient(to right, rgba(15, 15, 15, 0.42), transparent);
+        background: linear-gradient(to right, rgba(15, 15, 15, 0.62), transparent);
     }
 
     body[data-initially-empty] .tags-container::after {
         right: 0;
-        background: linear-gradient(to left, rgba(15, 15, 15, 0.42), transparent);
+        background: linear-gradient(to left, rgba(15, 15, 15, 0.62), transparent);
     }
 
     body[data-initially-empty] .tags {
@@ -59,6 +59,20 @@ body::before {
         overscroll-behavior-y: none;
         scroll-snap-type: x proximity;
         scroll-padding-inline: 12px;
+        -webkit-mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 36px,
+            #000 calc(100% - 36px),
+            transparent 100%
+        );
+        mask-image: linear-gradient(
+            to right,
+            transparent 0,
+            #000 36px,
+            #000 calc(100% - 36px),
+            transparent 100%
+        );
     }
 
     body[data-initially-empty] .tag {
