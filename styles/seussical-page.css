@@ -21,3 +21,36 @@ body::before {
 .footer .login-link {
     color: #fff;
 }
+
+/* Empty Seussical pages use a static card in place of a playable video. */
+body[data-initially-empty] .seussical-coming-soon {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    background: rgba(10, 35, 40, 0.7);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.coming-soon-player-card,
+.coming-soon-player-card img {
+    width: 100%;
+    height: 100%;
+}
+
+.coming-soon-player-card {
+    display: grid;
+    place-items: center;
+    background: #132f34;
+}
+
+.coming-soon-player-card img {
+    display: block;
+    object-fit: cover;
+}
+
+.seussical-coming-soon .video-title-overlay,
+.seussical-coming-soon .video-close-button {
+    display: none;
+}
