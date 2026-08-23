@@ -890,12 +890,18 @@
             const tagFilters = document.getElementById('tagFilters');
             if (!tagFilters) return;
             
-            // Start with "All" tag
-            tagFilters.innerHTML = '<div class="tag active" data-tag="all">All</div>';
+            const availableTags = getVisibleChoreographyFilters(currentActiveCategory);
+            // Keep "All" for All Songs and multi-group songs. For a song
+            // with only one choreography group, the extra control is
+            // redundant because that group is already the only option.
+            const showAllTag = pageKey !== 'seussical' ||
+                currentActiveCategory === 'all' ||
+                availableTags.length > 1;
+            tagFilters.innerHTML = showAllTag
+                ? '<div class="tag active" data-tag="all">All</div>'
+                : '';
             
             // Add tags from managed tags (show_in_dropdown = false)
-            const availableTags = getVisibleChoreographyFilters(currentActiveCategory);
-            
             availableTags.forEach(tag => {
                 const tagElement = document.createElement('div');
                 tagElement.className = `tag${currentActiveTag === tag.id ? ' active' : ''}`;
