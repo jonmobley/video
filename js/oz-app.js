@@ -425,14 +425,6 @@
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
 
-                // New production pages can deliberately start without a feed.
-                // Avoid showing a failed-load state when there are no videos yet.
-                if (initiallyEmpty) {
-                    videos = [];
-                    processLoadedVideos(videos);
-                    return;
-                }
-                
                 // Check cache first
                 const cachedVideos = getCachedData(pageCacheKey('videos'));
                 if (cachedVideos) {
@@ -455,12 +447,22 @@
                     processLoadedVideos(videos);
                 } else {
                     console.error('Server response not ok:', response.status);
+                    if (initiallyEmpty) {
+                        videos = [];
+                        processLoadedVideos(videos);
+                        return;
+                    }
                     showError('server');
                 }
             } catch (error) {
                 console.error('❌ FAILED TO LOAD VIDEOS:', error);
                 console.error('❌ Error details:', error.message);
                 console.error('❌ This will result in empty video grid!');
+                if (initiallyEmpty) {
+                    videos = [];
+                    processLoadedVideos(videos);
+                    return;
+                }
                 showError('network');
             }
         }
@@ -505,9 +507,15 @@
             const videosToDisplay = videos.filter(video => video.wistiaId !== featuredContent.videoId);
             
             if (videosToDisplay.length === 0 && videos.length === 0) {
+                if (initiallyEmpty) {
+                    renderEmptyVideoPlaceholders(videoGrid);
+                    return;
+                }
                 videoGrid.innerHTML = '';
                 return;
             }
+
+            videoGrid.classList.remove('seussical-placeholder-grid');
             
             console.log('🎬 DEBUG: === RENDERING VIDEO GRID ===');
             console.log('🎬 DEBUG: Videos to render:', videosToDisplay.length);
@@ -619,6 +627,21 @@
             if (videos.length > 0) {
                 loadInitialContent();
             }
+        }
+
+        function renderEmptyVideoPlaceholders(videoGrid) {
+            const placeholderImage = 'attached_assets/coming-soon_1787511284874.jpg';
+            const cards = Array.from({ length: 4 }, () => `
+                <div class="seussical-placeholder-thumbnail" aria-hidden="true">
+                    <div class="seussical-placeholder-thumbnail-media">
+                        <img src="${placeholderImage}" alt="">
+                    </div>
+                    <div class="seussical-placeholder-thumbnail-label">Video coming soon</div>
+                </div>
+            `).join('');
+
+            videoGrid.classList.add('seussical-placeholder-grid');
+            videoGrid.innerHTML = cards;
         }
 
 

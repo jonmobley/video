@@ -54,3 +54,39 @@ body[data-initially-empty] .seussical-coming-soon {
 .seussical-coming-soon .video-close-button {
     display: none;
 }
+
+/* Decorative thumbnail placeholders for the empty Seussical collection. */
+.seussical-placeholder-grid {
+    margin-top: 24px;
+}
+
+.seussical-placeholder-thumbnail {
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 10px;
+    background: rgba(9, 33, 37, 0.8);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.seussical-placeholder-thumbnail-media {
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #132f34;
+}
+
+.seussical-placeholder-thumbnail-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.76;
+}
+
+.seussical-placeholder-thumbnail-label {
+    padding: 10px 12px;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-align: center;
+}
