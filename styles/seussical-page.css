@@ -22,8 +22,19 @@ body::before {
         background: transparent;
     }
 
+    /* The empty-state player is intentionally not a real video, so its
+       mobile title bar should not render as an empty black strip. */
+    body[data-initially-empty] .mobile-video-title {
+        display: none !important;
+        background: transparent;
+    }
+
+    body[data-initially-empty] .navigation-section {
+        background: transparent;
+    }
+
     body[data-initially-empty] .tags-container {
-        background: rgba(15, 15, 15, 0.38);
+        background: transparent;
         box-shadow: none;
         position: relative;
         overflow: hidden;
