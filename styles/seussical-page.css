@@ -15,3 +15,9 @@ body::before {
         filter: none;
     }
 }
+
+.footer,
+.footer strong,
+.footer .login-link {
+    color: #fff;
+}
