@@ -14,6 +14,18 @@ body::before {
         opacity: 0.36;
         filter: none;
     }
+
+    /* Let the Seussical artwork continue behind the mobile content instead
+       of inheriting the shared gallery's solid black mobile surfaces. */
+    body[data-initially-empty] .header,
+    body[data-initially-empty] .content {
+        background: transparent;
+    }
+
+    body[data-initially-empty] .tags-container {
+        background: rgba(15, 15, 15, 0.38);
+        box-shadow: none;
+    }
 }
 
 .footer,
@@ -129,4 +141,29 @@ body[data-initially-empty] .seussical-coming-soon {
     font-weight: 600;
     letter-spacing: 0.02em;
     text-align: center;
+}
+
+/* Keep the filter navigation aligned with the full-width player above it. */
+@media screen and (min-width: 768px) {
+    body[data-initially-empty] .navigation-section,
+    body[data-initially-empty] .tags-container,
+    body[data-initially-empty] .tags {
+        min-width: 0;
+    }
+
+    body[data-initially-empty] .tags-container {
+        max-width: none;
+    }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1299px) {
+    body[data-initially-empty] .content {
+        max-width: 740px;
+    }
+}
+
+@media screen and (min-width: 1300px) {
+    body[data-initially-empty] .content {
+        max-width: 1040px;
+    }
 }
