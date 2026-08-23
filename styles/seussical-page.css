@@ -1,0 +1,17 @@
+/* Seussical-specific theme, layered after the shared Oz gallery styling. */
+body::before {
+    background-image: url('../attached_assets/Seussical_background_1787511048230.png');
+    background-position: center center;
+    opacity: 0.46;
+    filter: blur(1px);
+}
+
+@media screen and (max-width: 767px) {
+    body::before {
+        display: block;
+        background-position: center center;
+        background-size: cover;
+        opacity: 0.36;
+        filter: none;
+    }
+}
