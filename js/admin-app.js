@@ -29,6 +29,12 @@
     const videoFilterCountEl   = document.getElementById('videoFilterCount');
     const tabBtns        = document.querySelectorAll('.tab-btn');
     const tabPanels      = document.querySelectorAll('.tab-panel');
+    const createShowBtn = document.getElementById('createShowBtn');
+    const createShowModal = document.getElementById('createShowModal');
+    const createShowForm = document.getElementById('createShowForm');
+    const createShowError = document.getElementById('createShowError');
+    const createShowResult = document.getElementById('createShowResult');
+    const createShowLink = document.getElementById('createShowLink');
 
     let usersLoaded = false;
     const PAGE_SIZE = 50;
@@ -684,6 +690,42 @@
     loginBtn.addEventListener('click', tryLogin);
     tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
     logoutBtn.addEventListener('click', logout);
+    createShowBtn.addEventListener('click', () => {
+      createShowModal.classList.remove('hidden');
+      createShowResult.classList.add('hidden');
+      createShowError.classList.remove('visible');
+      document.getElementById('newShowTitle').focus();
+    });
+    document.getElementById('closeCreateShow').addEventListener('click', () => createShowModal.classList.add('hidden'));
+    createShowForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const submit = document.getElementById('createShowSubmit');
+      submit.disabled = true;
+      createShowError.classList.remove('visible');
+      try {
+        const response = await fetch('/.netlify/functions/create-show-page', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: document.getElementById('newShowTitle').value.trim(),
+            page: document.getElementById('newShowSlug').value.trim().toLowerCase()
+          })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || 'Could not create show.');
+        createShowLink.value = result.setup_url;
+        createShowResult.classList.remove('hidden');
+      } catch (error) {
+        createShowError.textContent = error.message;
+        createShowError.classList.add('visible');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+    document.getElementById('copyShowLink').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(createShowLink.value);
+      document.getElementById('copyShowLink').textContent = 'Copied';
+    });
     refreshBtn.addEventListener('click', () => {
       if (refreshBtn.disabled) return;
       videoOffset = 0;

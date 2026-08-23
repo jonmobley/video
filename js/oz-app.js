@@ -1416,6 +1416,9 @@
                         <label>Footer text<select id="pageFooterTheme"><option value="dark">Dark</option><option value="light">Light</option></select></label>
                         <label>All categories label<input type="text" id="pageCategoryAllLabel" maxlength="80"></label>
                         <label>All groups label<input type="text" id="pageTagAllLabel" maxlength="80"></label>
+                        <label>Open Graph title<input type="text" id="pageOgTitle" maxlength="160"></label>
+                        <label>Open Graph image URL<input type="url" id="pageOgImageUrl" maxlength="2048" placeholder="/attached_assets/show-thumbnail.jpg"></label>
+                        <label class="page-settings-wide">Open Graph description<textarea id="pageOgDescription" maxlength="300"></textarea></label>
                     </div>
                     <h4>Song choreography groups</h4>
                     <p>Use one row per song. List its visible groups with commas. A page without rows uses its normal tag filters.</p>
@@ -1456,6 +1459,9 @@
             document.getElementById('pageFooterTheme').value = presentation.footer_theme || 'dark';
             document.getElementById('pageCategoryAllLabel').value = presentation.category_all_label || '';
             document.getElementById('pageTagAllLabel').value = presentation.tag_all_label || '';
+            document.getElementById('pageOgTitle').value = window.currentPageConfig?.og_title || document.getElementById('pageTitle').textContent || '';
+            document.getElementById('pageOgDescription').value = window.currentPageConfig?.og_description || '';
+            document.getElementById('pageOgImageUrl').value = window.currentPageConfig?.og_image_url || '';
 
             const groups = document.getElementById('pageSongGroups');
             groups.innerHTML = '';
@@ -1503,6 +1509,9 @@
                 tag_all_label: document.getElementById('pageTagAllLabel').value.trim() || 'All',
                 choreography_by_song: mapping
             };
+            const ogTitle = document.getElementById('pageOgTitle').value.trim();
+            const ogDescription = document.getElementById('pageOgDescription').value.trim();
+            const ogImageUrl = document.getElementById('pageOgImageUrl').value.trim() || null;
 
             saveButton.disabled = true;
             status.textContent = 'Saving page settings…';
@@ -1511,7 +1520,13 @@
                 const response = await fetch('/.netlify/functions/save-page-config', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
-                    body: JSON.stringify({ page: pageKey, presentation })
+                    body: JSON.stringify({
+                        page: pageKey,
+                        presentation,
+                        og_title: ogTitle,
+                        og_description: ogDescription,
+                        og_image_url: ogImageUrl
+                    })
                 });
                 await requirePageEditorResponse(response, 'Failed to save page settings.');
                 const result = await response.json();
@@ -1602,6 +1617,29 @@
                 submitButton.textContent = 'Login';
             }
         });
+
+        async function redeemSetupLink() {
+            const setupToken = new URLSearchParams(window.location.search).get('setup');
+            if (!setupToken) return;
+            try {
+                const response = await fetch('/.netlify/functions/redeem-page-editor-setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ page: pageKey, token: setupToken })
+                });
+                if (!response.ok) throw new Error(await getPageEditorError(response, 'This setup link is expired or already used.'));
+                const result = await response.json();
+                pageEditorToken = result.editor_token;
+                history.replaceState(null, '', window.location.pathname);
+                enterEditMode();
+            } catch (error) {
+                const loginError = document.getElementById('loginError');
+                loginError.textContent = error.message;
+                loginError.style.display = 'block';
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        }
+        redeemSetupLink();
 
         /**
          * Edit page title inline in admin mode

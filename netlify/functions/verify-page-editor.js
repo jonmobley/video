@@ -40,7 +40,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const authResult = requirePageAuth(event, body.page);
+  const authResult = await requirePageAuth(event, body.page);
   if (!authResult.authorized) return authResult.response;
 
   return {

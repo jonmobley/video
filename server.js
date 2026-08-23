@@ -519,7 +519,9 @@ function netlifyFunctionAdapter(functionName) {
   'save-videos',
   'save-categories',
   'save-page-config',
-  'upload-coming-soon-image'
+  'upload-coming-soon-image',
+  'create-show-page',
+  'redeem-page-editor-setup'
 ].forEach((functionName) => {
   app.all(`/.netlify/functions/${functionName}`, netlifyFunctionAdapter(functionName));
 });

@@ -97,6 +97,10 @@ CREATE TABLE IF NOT EXISTS page_config (
     twitter_title TEXT,
     twitter_description TEXT,
     presentation JSONB NOT NULL DEFAULT '{}'::JSONB,
+    editor_token_hash TEXT,
+    setup_token_hash TEXT,
+    setup_token_expires_at TIMESTAMP WITH TIME ZONE,
+    setup_token_used_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -111,6 +115,12 @@ ON CONFLICT (page) DO NOTHING;
 -- Structured template settings. Existing page rows retain their saved values.
 ALTER TABLE page_config
     ADD COLUMN IF NOT EXISTS presentation JSONB NOT NULL DEFAULT '{}'::JSONB;
+
+ALTER TABLE page_config
+    ADD COLUMN IF NOT EXISTS editor_token_hash TEXT,
+    ADD COLUMN IF NOT EXISTS setup_token_hash TEXT,
+    ADD COLUMN IF NOT EXISTS setup_token_expires_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS setup_token_used_at TIMESTAMP WITH TIME ZONE;
 
 -- Only seed the Seussical presentation where it has not already been configured.
 INSERT INTO page_config (page, presentation) VALUES (

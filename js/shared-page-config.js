@@ -28,6 +28,9 @@ async function loadPageConfig(pageName, options) {
         }
 
         if (debug) console.log('🎨 DEBUG: Loaded page config:', config);
+        if (typeof window !== 'undefined') {
+            window.currentPageConfig = config;
+        }
 
         var accentColor = config.accent_color || defaultAccentColor;
         if (accentColor) {

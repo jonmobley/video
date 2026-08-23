@@ -246,7 +246,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const authResult = requirePageAuth(event, page);
+    const authResult = await requirePageAuth(event, page);
     if (!authResult.authorized) {
       return authResult.response;
     }

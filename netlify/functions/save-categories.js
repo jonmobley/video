@@ -25,7 +25,7 @@ const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 let supabase = null;
 
 console.log('Supabase initialization:', {
@@ -111,7 +111,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const authResult = requirePageAuth(event, page);
+    const authResult = await requirePageAuth(event, page);
     if (!authResult.authorized) {
       return authResult.response;
     }

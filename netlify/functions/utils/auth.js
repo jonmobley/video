@@ -17,7 +17,10 @@
  */
 
 const crypto = require('crypto');
+const { createClient } = require('@supabase/supabase-js');
 const { verifyPageEditorCredential } = require('../../../lib/page-editor-auth');
+const dynamicSupabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
 
 /**
  * Check if request is authorized
@@ -91,8 +94,14 @@ function requireAuth(event) {
  * Authorize a write for exactly one standalone content page.
  * Page-editor credentials never fall back to the site-wide ADMIN_TOKEN.
  */
-function requirePageAuth(event, page) {
+async function requirePageAuth(event, page) {
   const headers = getSecuredCorsHeaders();
+    const provided = (event.headers?.authorization || event.headers?.Authorization || '').replace(/^Bearer\s+/i, '');
+    if (dynamicSupabase && provided) {
+      const digest = crypto.createHash('sha256').update(provided).digest('hex');
+      const { data } = await dynamicSupabase.from('page_config').select('page').eq('page', page).eq('editor_token_hash', digest).maybeSingle();
+      if (data) return { authorized: true, page, headers };
+    }
   const result = verifyPageEditorCredential({
     page,
     headers: event.headers || {}

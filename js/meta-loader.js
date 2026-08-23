@@ -1,6 +1,7 @@
 (function() {
     var el = document.currentScript || document.querySelector('script[data-page]');
-    var page = el ? el.getAttribute('data-page') : null;
+    var match = window.location.pathname.match(/^\/show\/([a-z0-9-]+)$/i);
+    var page = match ? match[1].toLowerCase() : (el ? el.getAttribute('data-page') : null);
     if (!page) return;
 
     (async function() {

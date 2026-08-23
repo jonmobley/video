@@ -140,7 +140,8 @@ body.page-empty-state .tags {
 }
 
 .page-settings-dialog input,
-.page-settings-dialog select {
+.page-settings-dialog select,
+.page-settings-dialog textarea {
     box-sizing: border-box;
     width: 100%;
     min-height: 36px;
@@ -149,6 +150,15 @@ body.page-empty-state .tags {
     border-radius: 5px;
     background: #2c2c2c;
     color: #fff;
+}
+
+.page-settings-dialog textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+.page-settings-wide {
+    grid-column: 1 / -1;
 }
 
 .page-settings-dialog .page-settings-check {

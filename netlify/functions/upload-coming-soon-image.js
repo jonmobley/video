@@ -101,7 +101,7 @@ exports.handler = async (event) => {
     });
   }
 
-  const authResult = requirePageAuth(event, page);
+  const authResult = await requirePageAuth(event, page);
   if (!authResult.authorized) return authResult.response;
 
   if (!ALLOWED_TYPES.includes(contentType)) {
