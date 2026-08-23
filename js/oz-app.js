@@ -951,25 +951,27 @@
             const allLabel = categoryPreferences.allLabel || 'All Songs';
             categoryDropdown.innerHTML = `<option value="all">${allLabel}</option>`;
             
-            // Get song categories from server (filtered by show_in_dropdown = true)
-            if (window.serverCategories && window.serverCategories.length > 0) {
-                const songCategories = window.serverCategories.filter(cat => 
+            // Seussical's song list is part of the page configuration. Use
+            // server categories when available so existing video category IDs
+            // continue to work, and generate stable IDs for missing entries.
+            const songCategories = pageKey === 'seussical'
+                ? getSeussicalSongCategories()
+                : (window.serverCategories || []).filter(cat =>
                     cat.id !== 'all' && cat.show_in_dropdown === true
                 );
-                
-                // Sort by order field
-                songCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
-                
-                // Add to dropdown
-                songCategories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    categoryDropdown.appendChild(option);
-                });
-                
-                console.log(`📋 DEBUG: Populated dropdown with ${songCategories.length} song categories`);
-            }
+
+            // Sort by order field
+            songCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            // Add to dropdown
+            songCategories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categoryDropdown.appendChild(option);
+            });
+
+            console.log(`📋 DEBUG: Populated dropdown with ${songCategories.length} song categories`);
         }
         
         /**
@@ -999,7 +1001,27 @@
 
         function getSeussicalSongName(categoryId) {
             const category = (window.serverCategories || []).find(item => item.id === categoryId);
-            return category ? category.name : categoryId;
+            if (category) return category.name;
+
+            const mappedSong = Object.keys(choreographyBySong).find(songName =>
+                slugifyFilterName(songName) === categoryId
+            );
+            return mappedSong || categoryId;
+        }
+
+        function getSeussicalSongCategories() {
+            const serverCategories = window.serverCategories || [];
+            return Object.keys(choreographyBySong).map((name, index) => {
+                const existing = serverCategories.find(category =>
+                    normalizeFilterName(category.name) === normalizeFilterName(name)
+                );
+                return existing || {
+                    id: slugifyFilterName(name),
+                    name,
+                    order: index,
+                    show_in_dropdown: true
+                };
+            });
         }
 
         function getVisibleChoreographyFilters(categoryId) {
