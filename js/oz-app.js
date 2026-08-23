@@ -1,4 +1,8 @@
         // ===== GLOBAL VARIABLES AND CONFIGURATION =====
+        const pageKey = document.body.dataset.pageKey || 'oz';
+        const initiallyEmpty = document.body.dataset.initiallyEmpty === 'true';
+        const pageCacheKey = (key) => `${key}_${pageKey}`;
+        const pageApiUrl = (endpoint) => `/.netlify/functions/${endpoint}?page=${encodeURIComponent(pageKey)}`;
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
@@ -420,9 +424,17 @@
         async function loadVideosFromServer() {
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
+
+                // New production pages can deliberately start without a feed.
+                // Avoid showing a failed-load state when there are no videos yet.
+                if (initiallyEmpty) {
+                    videos = [];
+                    processLoadedVideos(videos);
+                    return;
+                }
                 
                 // Check cache first
-                const cachedVideos = getCachedData('videos_oz');
+                const cachedVideos = getCachedData(pageCacheKey('videos'));
                 if (cachedVideos) {
                     videos = cachedVideos;
                     console.log('✅ Videos loaded from cache:', videos.length, 'videos');
@@ -430,15 +442,15 @@
                     return;
                 }
                 
-                console.log('🎬 Making API call to: /.netlify/functions/get-videos?page=oz');
-                const response = await fetch('/.netlify/functions/get-videos?page=oz');
+                console.log(`🎬 Making API call to: ${pageApiUrl('get-videos')}`);
+                const response = await fetch(pageApiUrl('get-videos'));
                 if (response.ok) {
                     videos = await response.json();
                     console.log('✅ Videos loaded successfully:', videos.length, 'videos');
                     console.log('🎬 Video data sample:', videos.slice(0, 2));
                     
                     // Cache the response
-                    setCachedData('videos_oz', videos);
+                    setCachedData(pageCacheKey('videos'), videos);
                     
                     processLoadedVideos(videos);
                 } else {
@@ -734,7 +746,7 @@
          * Load saved page title from localStorage
          */
         function loadPageTitle() {
-            const savedTitle = localStorage.getItem('oz_page_title');
+            const savedTitle = localStorage.getItem(pageCacheKey('page_title'));
             if (savedTitle) {
                 document.getElementById('pageTitle').textContent = savedTitle;
                 return true; // Indicates title was loaded from localStorage
@@ -743,11 +755,11 @@
         }
 
         function loadPageConfigOz() {
-            return loadPageConfig('oz', {
+            return loadPageConfig(pageKey, {
                 defaultAccentColor: '#008f67',
                 debug: true,
                 onTitleLoaded: function(title) {
-                    localStorage.setItem('oz_page_title', title);
+                    localStorage.setItem(pageCacheKey('page_title'), title);
                 },
                 onTitleMissing: loadPageTitle
             });
@@ -764,7 +776,7 @@
             
             // Test loading from server
             try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=oz');
+                const response = await fetch(pageApiUrl('get-page-config'));
                 const config = await response.json();
                 console.log('🎨 Server config:', config);
             } catch (error) {
@@ -786,7 +798,7 @@
                         'Authorization': `Bearer ${adminToken}`
                     },
                     body: JSON.stringify({
-                        page: 'oz',
+                        page: pageKey,
                         accent_color: color
                     })
                 });
@@ -816,7 +828,7 @@
          */
         async function loadCurrentAccentColor() {
             try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=oz');
+                const response = await fetch(pageApiUrl('get-page-config'));
                 if (response.ok) {
                     const config = await response.json();
                     const accentColor = config.accent_color || '#008f67';
@@ -1134,7 +1146,7 @@
                                 'Authorization': `Bearer ${adminToken}`
                             },
                             body: JSON.stringify({
-                                page: 'oz',
+                                page: pageKey,
                                 page_title: newTitle
                             })
                         });
@@ -1142,18 +1154,18 @@
                         if (response.ok) {
                             titleElement.textContent = newTitle;
                             // Also save to localStorage as backup
-                            localStorage.setItem('oz_page_title', newTitle);
+                            localStorage.setItem(pageCacheKey('page_title'), newTitle);
                             markUnsavedChanges();
                         } else {
                             // If server save fails, still save to localStorage
-                            localStorage.setItem('oz_page_title', newTitle);
+                            localStorage.setItem(pageCacheKey('page_title'), newTitle);
                             titleElement.textContent = newTitle;
                             console.warn('Server save failed, saved to localStorage only');
                         }
                     } catch (error) {
                         console.error('Failed to save page title:', error);
                         // Fallback to localStorage if server is unreachable
-                        localStorage.setItem('oz_page_title', newTitle);
+                        localStorage.setItem(pageCacheKey('page_title'), newTitle);
                         titleElement.textContent = newTitle;
                         console.warn('Server unreachable, saved to localStorage only');
                     }
@@ -2081,7 +2093,7 @@
             
             try {
                 // Get current video data from server to ensure we don't lose any existing data
-                const getResponse = await fetch('/.netlify/functions/get-videos?page=oz');
+                const getResponse = await fetch(pageApiUrl('get-videos'));
                 const allServerVideos = await getResponse.json();
                 
                 // Create a map of server videos for easy lookup
@@ -2134,7 +2146,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${adminToken}`
                     },
-                    body: JSON.stringify({ videos: videos, page: 'oz' })
+                    body: JSON.stringify({ videos: videos, page: pageKey })
                 });
                 
                 if (!videoResponse.ok) {
@@ -2158,7 +2170,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${adminToken}`
                     },
-                    body: JSON.stringify({ categories: categories, page: 'oz' })
+                    body: JSON.stringify({ categories: categories, page: pageKey })
                 });
                 
                 if (!categoryResponse.ok) {
@@ -2192,7 +2204,7 @@
                                 'Authorization': `Bearer ${adminToken}`
                             },
                             body: JSON.stringify({
-                                page: 'oz',
+                                page: pageKey,
                                 accent_color: currentAccentColor
                             })
                         });
@@ -2217,8 +2229,8 @@
                 clearUnsavedChanges();
                 
                 // Clear localStorage cache to ensure changes are visible immediately
-                localStorage.removeItem('videos_oz');
-                localStorage.removeItem('categories_oz');
+                localStorage.removeItem(pageCacheKey('videos'));
+                localStorage.removeItem(pageCacheKey('categories'));
                 console.log('🗑️ Cleared localStorage cache - changes will be visible on next load');
                 
                 // Reset button after 2 seconds
@@ -3538,13 +3550,13 @@
                 console.log('🏷️ DEBUG: Loading categories from server...');
                 
                 // Check cache first
-                const cachedCategories = getCachedData('categories_oz');
+                const cachedCategories = getCachedData(pageCacheKey('categories'));
                 if (cachedCategories) {
                     console.log('🏷️ DEBUG: Loaded categories from cache');
                     return cachedCategories;
                 }
                 
-                const response = await fetch('/.netlify/functions/get-categories?page=oz');
+                const response = await fetch(pageApiUrl('get-categories'));
                 
                 if (!response.ok) {
                     console.warn('🏷️ WARNING: Could not load categories from server, using local data');
@@ -3557,7 +3569,7 @@
                     serverCategories.filter(c => c.show_in_dropdown === false));
                 
                 // Cache the categories
-                setCachedData('categories_oz', serverCategories);
+                setCachedData(pageCacheKey('categories'), serverCategories);
                 
                 return serverCategories;
             } catch (error) {
@@ -3578,7 +3590,7 @@
                     },
                     body: JSON.stringify({ 
                         categories: categories, 
-                        page: 'oz',
+                        page: pageKey,
                         category_scope: categoryScope // Explicit scope: 'songs' or 'tags'
                     })
                 });
@@ -3766,7 +3778,7 @@
                         category_key: categoryKey,
                         show_in_dropdown: false,
                         order: index,
-                        page: 'oz'
+                        page: pageKey
                     });
                 }
             });
@@ -3780,7 +3792,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        page: 'oz',
+                        page: pageKey,
                         categories: updatedTags,
                         category_scope: 'tags' // Explicit scope: only save/replace tags
                     })

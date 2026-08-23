@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seussical</title>
+    <meta name="description" content="Seussical dance videos from Grace Church.">
+    <meta name="keywords" content="Seussical, dance videos, choreography, performance">
+    <meta name="author" content="Grace">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://vidsharepro.netlify.app/seussical.html">
+    <meta property="og:title" content="Seussical">
+    <meta property="og:description" content="Seussical dance videos from Grace Church.">
+    <meta property="og:image" content="https://vidsharepro.netlify.app/assets/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Seussical Video Collection">
+    <meta property="og:site_name" content="Grace Dance Videos">
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://vidsharepro.netlify.app/seussical.html">
+    <meta property="twitter:title" content="Seussical">
+    <meta property="twitter:description" content="Seussical dance videos from Grace Church.">
+    <meta property="twitter:image" content="https://vidsharepro.netlify.app/assets/og-image.png">
+    <meta property="twitter:image:alt" content="Seussical Video Collection">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#008f67" id="theme-color-meta">
+    <link rel="canonical" href="https://vidsharepro.netlify.app/seussical.html" id="canonical-link">
+    <script src="js/meta-loader.js" data-page="seussical"></script>
+    <link rel="stylesheet" href="styles/gallery-base.css">
+    <link rel="stylesheet" href="styles/gallery-mobile.css">
+    <link rel="stylesheet" href="styles/common.css">
+    <link rel="stylesheet" href="styles/oz-page.css">
+</head>
+<body data-page-key="seussical" data-initially-empty="true">
+    <div class="admin-banner hidden" id="adminBanner">
+        <div class="admin-banner-content">
+            <div class="admin-banner-text">
+                <span class="admin-banner-title">Edit Mode</span>
+                <span class="admin-banner-subtitle">Remember to save your changes</span>
+            </div>
+            <div class="admin-banner-buttons">
+                <div class="admin-accent-controls">
+                    <label for="adminAccentColor" class="admin-accent-label">Accent:</label>
+                    <input type="color" id="adminAccentColor" value="#008f67" class="admin-accent-color-input">
+                    <input type="text" id="adminAccentColorText" value="#008f67" placeholder="#008f67" class="admin-accent-color-text" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+                <button class="admin-add-video-btn" id="adminAddVideoBtn">Add Video</button>
+                <button class="admin-add-video-btn" id="adminManageCategoriesBtn">Manage Categories</button>
+                <button class="admin-add-video-btn" id="adminManageTagsBtn">Manage Tags</button>
+                <button class="admin-add-video-btn" id="adminOrganizeVideosBtn">Organize Videos</button>
+                <button class="admin-save-btn" id="adminSaveBtn">Save Changes</button>
+                <button class="admin-exit-btn" id="adminExitBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="page-header">
+            <div class="vidshare-logo"><span class="vid-green">Vid</span>Share</div>
+            <h1 class="page-title page-title-clickable" id="pageTitle">Seussical</h1>
+        </div>
+        <div class="video-container">
+            <div class="wistia-player" id="wistia-player">
+                <div class="video-placeholder video-placeholder-state">
+                    <div class="video-placeholder-inner"><div>Loading video player...</div></div>
+                </div>
+            </div>
+            <div class="video-title-overlay" id="current-video-title"></div>
+            <button class="video-close-button" id="videoCloseBtn"></button>
+        </div>
+        <div class="mobile-video-title" id="mobile-video-title"></div>
+    </div>
+
+    <main class="content">
+        <div class="navigation-section">
+            <div class="category-dropdown-container">
+                <select id="categoryDropdown" class="category-dropdown">
+                    <option value="all">All Songs</option>
+                </select>
+            </div>
+            <div class="tags-container">
+                <div class="tags" id="tagFilters"><div class="tag active" data-tag="all">All</div></div>
+            </div>
+        </div>
+        <div class="video-grid" id="videoGrid"></div>
+        <div class="footer">Powered by <strong>VidShare</strong> <span class="login-link" id="loginLink">Login</span></div>
+    </main>
+
+    <div class="unsaved-indicator" id="unsavedIndicator">Unsaved Changes</div>
+    <div class="keyboard-shortcuts" id="keyboardShortcuts">
+        <div><kbd>Ctrl+S</kbd> Save changes</div><div><kbd>Esc</kbd> Exit edit mode</div>
+        <div><kbd>Ctrl+A</kbd> Add video</div><div><kbd>?</kbd> Toggle shortcuts</div>
+    </div>
+
+    <div class="login-overlay hidden" id="loginOverlay">
+        <div class="login-popup"><h3>Admin Login</h3><form id="loginForm">
+            <input type="password" id="loginPassword" placeholder="Enter admin password" required>
+            <div class="login-buttons"><button type="submit" class="btn-login">Login</button><button type="button" class="btn-cancel" id="cancelLogin">Cancel</button></div>
+        </form><div class="login-error hidden" id="loginError"></div></div>
+    </div>
+
+    <div class="add-video-overlay hidden" id="addVideoOverlay">
+        <div class="add-video-popup"><h3>Add New Video</h3><form id="addVideoForm">
+            <div class="form-group"><label for="wistiaLink">Wistia Video Link</label><input type="url" id="wistiaLink" placeholder="Paste Wistia video link here..." required><small>Paste any Wistia video URL to auto-populate details</small></div>
+            <div class="form-group"><label for="newVideoTitle">Video Title</label><input type="text" id="newVideoTitle" placeholder="Video title will be loaded..." required></div>
+            <div class="form-group"><label for="newVideoCategory">Category</label><select id="newVideoCategory" required><option value="">Select Category</option></select></div>
+            <div class="form-group"><label>Tags</label><div class="tag-selection-container" id="tagSelectionContainer"></div></div>
+            <div class="add-video-buttons"><button type="submit" class="btn-add-video">Add Video</button><button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button></div>
+        </form><div class="add-video-error hidden" id="addVideoError"></div></div>
+    </div>
+
+    <div class="edit-video-overlay hidden" id="editVideoOverlay">
+        <div class="edit-video-popup"><h3>Edit Video</h3><form id="editVideoForm">
+            <div class="form-group"><label for="editVideoTitle">Video Title</label><input type="text" id="editVideoTitle" placeholder="Enter video title..." required></div>
+            <div class="form-group"><label for="editVideoCategory">Category</label><select id="editVideoCategory" required><option value="">Select Category</option></select></div>
+            <div class="form-group"><label>Tags</label><div class="tag-selection-container" id="editTagSelectionContainer"></div></div>
+            <div class="form-group"><label>Wistia Video ID</label><input type="text" id="editVideoId" readonly class="readonly-input"><small>Video ID cannot be changed</small></div>
+            <div class="edit-video-buttons"><button type="submit" class="btn-save-video">Save Changes</button><button type="button" class="btn-delete-video" id="deleteVideoBtn">Delete Video</button><button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button></div>
+        </form><div class="edit-video-error hidden" id="editVideoError"></div></div>
+    </div>
+
+    <div class="manage-categories-overlay hidden" id="manageCategoriesOverlay">
+        <div class="manage-categories-popup"><h3>Manage Categories</h3>
+            <div class="form-group"><label for="allCategoriesLabel">All Categories Label</label><input type="text" id="allCategoriesLabel" placeholder="All" value="All"><small>Customize the label for showing all videos</small></div>
+            <div class="form-group"><label>Song Categories</label><div class="categories-list" id="categoriesList"></div><button type="button" class="btn-add-category" id="addNewCategoryBtn">+ Add Category</button></div>
+            <div class="manage-categories-buttons"><button type="button" class="btn-save-categories" id="saveCategoriesBtn">Save Changes</button><button type="button" class="btn-cancel-categories" id="cancelManageCategoriesBtn">Cancel</button></div>
+            <div class="manage-categories-error hidden" id="manageCategoriesError"></div>
+        </div>
+    </div>
+
+    <div class="manage-categories-overlay hidden" id="manageTagsOverlay">
+        <div class="manage-categories-popup"><h3>Manage Tags</h3>
+            <p class="oz-dialog-text">Tags identify who should watch each video.</p>
+            <div class="form-group"><label>Filter Tags</label><div class="categories-list" id="tagsList"></div><button type="button" class="btn-add-category" id="addNewTagBtn">+ Add Tag</button></div>
+            <div class="manage-categories-buttons"><button type="button" class="btn-save-categories" id="saveTagsBtn">Save Changes</button><button type="button" class="btn-cancel-categories" id="cancelManageTagsBtn">Cancel</button></div>
+            <div class="manage-categories-error hidden" id="manageTagsError"></div>
+        </div>
+    </div>
+
+    <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+    <script src="js/shared-errors.js"></script>
+    <script src="js/shared-color-utils.js"></script>
+    <script src="js/shared-page-config.js"></script>
+    <script src="js/shared-url-utils.js"></script>
+    <script src="js/shared-cache-utils.js"></script>
+    <script src="js/shared-thumbnail-utils.js"></script>
+    <script src="js/shared-admin-dialogs.js"></script>
+    <script src="js/oz-app.js"></script>
+</body>
+</html>
