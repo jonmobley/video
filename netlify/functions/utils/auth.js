@@ -17,6 +17,7 @@
  */
 
 const crypto = require('crypto');
+const { verifyPageEditorCredential } = require('../../../lib/page-editor-auth');
 
 /**
  * Check if request is authorized
@@ -87,6 +88,33 @@ function requireAuth(event) {
 }
 
 /**
+ * Authorize a write for exactly one standalone content page.
+ * Page-editor credentials never fall back to the site-wide ADMIN_TOKEN.
+ */
+function requirePageAuth(event, page) {
+  const headers = getSecuredCorsHeaders();
+  const result = verifyPageEditorCredential({
+    page,
+    headers: event.headers || {}
+  });
+
+  if (!result.authorized) {
+    return {
+      authorized: false,
+      response: {
+        statusCode: result.status,
+        headers,
+        body: JSON.stringify({
+          error: { code: result.code, message: result.message }
+        })
+      }
+    };
+  }
+
+  return { authorized: true, page, headers };
+}
+
+/**
  * Get CORS headers (for read-only endpoints)
  * @returns {Object} - Headers object
  */
@@ -114,6 +142,7 @@ function getSecuredCorsHeaders() {
 
 module.exports = {
   requireAuth,
+  requirePageAuth,
   getCorsHeaders,
   getSecuredCorsHeaders
 };

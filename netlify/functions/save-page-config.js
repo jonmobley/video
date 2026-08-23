@@ -28,7 +28,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
+const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client with the service role key (bypasses RLS).
 // The anon key must NOT be used here — page_config RLS is read-only for anon.
@@ -74,12 +74,6 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // Admin-only endpoint. Re-enabled per task #14.
-  const authResult = requireAuth(event);
-  if (!authResult.authorized) {
-    return authResult.response;
-  }
-
   try {
     if (event.body && event.body.length > 256 * 1024) {
       return {
@@ -121,12 +115,17 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ error: { code: 'PAGE_REQUIRED', message: 'Page ID is required.' } })
       };
     }
-    if (page.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(page)) {
+    if (page.length > 64 || !/^[a-z0-9_-]+$/.test(page)) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ error: { code: 'BAD_PAGE', message: 'Invalid page ID.' } })
       };
+    }
+
+    const authResult = requirePageAuth(event, page);
+    if (!authResult.authorized) {
+      return authResult.response;
     }
 
     // Validate accent_color is a valid hex color

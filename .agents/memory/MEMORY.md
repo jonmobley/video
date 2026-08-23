@@ -1,0 +1,1 @@
+- [Page editor access](page-editor-access.md) — standalone editors and the global dashboard must use separate credential scopes.

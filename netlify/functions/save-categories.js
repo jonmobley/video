@@ -21,7 +21,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
+const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -30,9 +30,7 @@ let supabase = null;
 
 console.log('Supabase initialization:', {
   hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey,
-  urlLength: supabaseUrl ? supabaseUrl.length : 0,
-  urlStart: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined'
+  hasKey: !!supabaseKey
 });
 
 if (supabaseUrl && supabaseKey) {
@@ -63,12 +61,6 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } })
     };
-  }
-
-  // Admin-only endpoint. Re-enabled per task #14.
-  const authResult = requireAuth(event);
-  if (!authResult.authorized) {
-    return authResult.response;
   }
 
   try {
@@ -109,6 +101,19 @@ exports.handler = async (event, context) => {
       categories = requestBody.categories || [];
       page = requestBody.page || 'oz';
       categoryScope = requestBody.category_scope || 'songs'; // Explicit scope from client
+    }
+
+    if (typeof page !== 'string' || !/^[a-z0-9_-]{1,64}$/.test(page)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { code: 'BAD_PAGE', message: 'Invalid page ID.' } })
+      };
+    }
+
+    const authResult = requirePageAuth(event, page);
+    if (!authResult.authorized) {
+      return authResult.response;
     }
     
     console.log(`Saving ${categories.length} categories for page: ${page}, scope: ${categoryScope}`);

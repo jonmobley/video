@@ -25,9 +25,7 @@ let supabase = null;
 
 console.log('Supabase initialization:', {
   hasUrl: !!supabaseUrl,
-  hasKey: !!supabaseKey,
-  urlLength: supabaseUrl ? supabaseUrl.length : 0,
-  urlStart: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'undefined'
+  hasKey: !!supabaseKey
 });
 
 if (supabaseUrl && supabaseKey) {

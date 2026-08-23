@@ -488,6 +488,40 @@ app.use((req, res, next) => {
   next();
 });
 
+function netlifyFunctionAdapter(functionName) {
+  return async (req, res) => {
+    try {
+      const { handler } = require(`./netlify/functions/${functionName}`);
+      const result = await handler({
+        httpMethod: req.method,
+        headers: req.headers,
+        body: ['GET', 'HEAD'].includes(req.method) ? null : JSON.stringify(req.body || {}),
+        queryStringParameters: req.query || {}
+      });
+
+      for (const [name, value] of Object.entries(result.headers || {})) {
+        res.setHeader(name, value);
+      }
+      res.status(result.statusCode || 200).send(result.body || '');
+    } catch (error) {
+      console.error(`Standalone page function failed (${functionName}):`, error.message);
+      apiError(res, 500, 'FUNCTION_ERROR', 'The standalone page service is unavailable.');
+    }
+  };
+}
+
+[
+  'get-videos',
+  'get-categories',
+  'get-page-config',
+  'verify-page-editor',
+  'save-videos',
+  'save-categories',
+  'save-page-config'
+].forEach((functionName) => {
+  app.all(`/.netlify/functions/${functionName}`, netlifyFunctionAdapter(functionName));
+});
+
 app.post('/api/csp-report',
   express.json({ type: ['application/json', 'application/csp-report', 'application/reports+json'] }),
   (req, res) => {

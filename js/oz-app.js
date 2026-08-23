@@ -3,6 +3,22 @@
         const initiallyEmpty = document.body.dataset.initiallyEmpty === 'true';
         const pageCacheKey = (key) => `${key}_${pageKey}`;
         const pageApiUrl = (endpoint) => `/.netlify/functions/${endpoint}?page=${encodeURIComponent(pageKey)}`;
+        const choreographyBySong = {
+            "Oh, the Thinks You Can Think!": ["All Cast"],
+            "Finale / Oh, the Thinks You Can Think!": ["All Cast"],
+            "Horton Hears a Who": ["Jungle People"],
+            "Biggest Blame Fool": ["Jungle People"],
+            "Here on Who": ["Whos"],
+            "Amayzing Mayzie": ["Mayzie", "Bird Girls"],
+            "Amayzing Gertrude": ["Gertrude", "Bird Girls"],
+            "Chasing the Whos": ["All Cast"],
+            "Monkey Around": ["Wickershams", "Jungle People"],
+            "How Lucky You Are": ["Cat"],
+            "The Military": ["General Schmitz", "Cadets", "JoJo", "Cat"],
+            "It's Possible": ["Fish"],
+            "Egg, Nest and Tree": ["Jungle People"],
+            "Havin' a Hunch": ["Cat", "JoJo", "Hunches"]
+        };
         let currentWistiaVideo = null;
         const videoContainer = document.getElementById('wistia-player');
 
@@ -99,7 +115,7 @@
                 if (showInDropdown) {
                     const option = document.createElement('option');
                     option.value = category.id;
-                    
+
                     // Add icon if available
                     const icon = category.icon && availableIcons[category.icon] ? availableIcons[category.icon] + ' ' : '';
                     option.textContent = icon + category.name;
@@ -816,30 +832,24 @@
             try {
                 const response = await fetch('/.netlify/functions/save-page-config', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({
                         page: pageKey,
                         accent_color: color
                     })
                 });
                 
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('🎨 Force save successful:', result);
-                    // Apply the color immediately
-                    applyAccentColor(color);
-                    // Update admin panel inputs
-                    if (document.getElementById('adminAccentColorText')) {
-                        document.getElementById('adminAccentColorText').value = color;
-                    }
-                    if (document.getElementById('adminAccentColor')) {
-                        document.getElementById('adminAccentColor').value = color;
-                    }
-                } else {
-                    console.error('🎨 Force save failed:', response.status, response.statusText);
+                await requirePageEditorResponse(response, 'Failed to save the accent color.');
+                const result = await response.json();
+                console.log('🎨 Force save successful:', result);
+                // Apply the color immediately
+                applyAccentColor(color);
+                // Update admin panel inputs
+                if (document.getElementById('adminAccentColorText')) {
+                    document.getElementById('adminAccentColorText').value = color;
+                }
+                if (document.getElementById('adminAccentColor')) {
+                    document.getElementById('adminAccentColor').value = color;
                 }
             } catch (error) {
                 console.error('🎨 Force save error:', error);
@@ -884,11 +894,11 @@
             tagFilters.innerHTML = '<div class="tag active" data-tag="all">All</div>';
             
             // Add tags from managed tags (show_in_dropdown = false)
-            const availableTags = getAvailableTags();
+            const availableTags = getVisibleChoreographyFilters(currentActiveCategory);
             
             availableTags.forEach(tag => {
                 const tagElement = document.createElement('div');
-                tagElement.className = 'tag';
+                tagElement.className = `tag${currentActiveTag === tag.id ? ' active' : ''}`;
                 tagElement.setAttribute('data-tag', tag.id);
                 tagElement.textContent = tag.name;
                 tagElement.addEventListener('click', () => filterByTag(tag.id));
@@ -966,16 +976,62 @@
          * Filter videos by tag (Dancers, Kids, Chorus)
          */
         function filterByTag(tagId) {
+            currentActiveTag = tagId;
+
             // Update active tag
             document.querySelectorAll('.tag').forEach(tag => tag.classList.remove('active'));
-            const activeTag = document.querySelector(`[data-tag="${tagId}"]`);
+            const activeTag = Array.from(document.querySelectorAll('.tag'))
+                .find(tag => tag.dataset.tag === tagId);
             if (activeTag) activeTag.classList.add('active');
-            
-            // Filter videos
+
+            applyVideoFilters();
+        }
+
+        function normalizeFilterName(name) {
+            return String(name || '').replace(/[’‘]/g, "'").trim().toLowerCase();
+        }
+
+        function slugifyFilterName(name) {
+            return normalizeFilterName(name)
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        function getSeussicalSongName(categoryId) {
+            const category = (window.serverCategories || []).find(item => item.id === categoryId);
+            return category ? category.name : categoryId;
+        }
+
+        function getVisibleChoreographyFilters(categoryId) {
+            const managedTags = getAvailableTags();
+            if (pageKey !== 'seussical') return managedTags;
+
+            const allMappedNames = [...new Set(Object.values(choreographyBySong).flat())];
+            const selectedSongName = categoryId === 'all' ? null : getSeussicalSongName(categoryId);
+            const mappedSongName = selectedSongName && Object.keys(choreographyBySong).find(songName =>
+                normalizeFilterName(songName) === normalizeFilterName(selectedSongName)
+            );
+            const names = mappedSongName
+                ? choreographyBySong[mappedSongName]
+                : allMappedNames;
+
+            return names.map(name => {
+                const managedTag = managedTags.find(tag =>
+                    normalizeFilterName(tag.name) === normalizeFilterName(name) ||
+                    normalizeFilterName(tag.id) === normalizeFilterName(name)
+                );
+                return managedTag || { id: slugifyFilterName(name), name };
+            });
+        }
+
+        function applyVideoFilters() {
             const videoItems = document.querySelectorAll('.video-item');
             videoItems.forEach(item => {
+                const itemCategory = item.dataset.category;
                 const tags = item.dataset.tags ? item.dataset.tags.split(',') : [];
-                if (tagId === 'all' || tags.includes(tagId)) {
+                const matchesSong = currentActiveCategory === 'all' || itemCategory === currentActiveCategory;
+                const matchesChoreography = currentActiveTag === 'all' || tags.includes(currentActiveTag);
+                if (matchesSong && matchesChoreography) {
                     item.style.display = '';
                 } else {
                     item.style.display = 'none';
@@ -987,15 +1043,18 @@
          * Filter videos by category (song)
          */
         function filterByCategory(categoryId) {
-            const videoItems = document.querySelectorAll('.video-item');
-            videoItems.forEach(item => {
-                const itemCategory = item.dataset.category;
-                if (categoryId === 'all' || itemCategory === categoryId) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
+            currentActiveCategory = categoryId;
+
+            if (pageKey === 'seussical') {
+                const visibleFilters = getVisibleChoreographyFilters(categoryId);
+                if (currentActiveTag !== 'all' &&
+                    !visibleFilters.some(tag => tag.id === currentActiveTag)) {
+                    currentActiveTag = 'all';
                 }
-            });
+                populateTagFilters();
+            }
+
+            applyVideoFilters();
         }
 
         // ===== PAGE INITIALIZATION AND STARTUP =====
@@ -1083,10 +1142,49 @@
         // Edit Mode and Login Functionality
         let isEditMode = false;
         let isOrganizeMode = false;
-        // The password is now the same as the ADMIN_TOKEN you set in Replit Secrets
-        let adminToken = null; // Will be set after login
+        let pageEditorToken = null;
+        let currentActiveCategory = 'all';
+        let currentActiveTag = 'all';
         let loginAttempts = 0;
         let loginCooldown = false;
+
+        function pageEditorHeaders(token = pageEditorToken) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token || ''}`
+            };
+        }
+
+        async function getPageEditorError(response, fallbackMessage) {
+            try {
+                const payload = await response.json();
+                return payload?.error?.message || fallbackMessage;
+            } catch {
+                return fallbackMessage;
+            }
+        }
+
+        async function requirePageEditorResponse(response, fallbackMessage) {
+            if (response.ok) return response;
+
+            const message = await getPageEditorError(response, fallbackMessage);
+            if (response.status === 401 || response.status === 403) {
+                pageEditorToken = null;
+                if (isEditMode) exitEditMode();
+            }
+            throw new Error(message);
+        }
+
+        function registerLoginFailure() {
+            loginAttempts += 1;
+            if (loginAttempts < 5) return;
+
+            loginCooldown = true;
+            setTimeout(() => {
+                loginAttempts = 0;
+                loginCooldown = false;
+            }, 30 * 1000);
+        }
 
         // Login functionality
         document.getElementById('loginLink').addEventListener('click', function() {
@@ -1104,7 +1202,7 @@
             document.getElementById('loginError').style.display = 'none';
         });
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Check if in cooldown period
@@ -1115,18 +1213,39 @@
             }
             
             const password = document.getElementById('loginPassword').value;
-            
-            // Store the password as the admin token
-            // The server will verify it when we try to save
-            adminToken = password;
-            
-            // Enter edit mode - the token will be validated on first save attempt
-            console.log('✅ Admin login - token stored for server validation');
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('loginPassword').value = '';
-            document.getElementById('loginError').style.display = 'none';
-            loginAttempts = 0;
-            enterEditMode();
+            const loginError = document.getElementById('loginError');
+            const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Checking...';
+
+            try {
+                const response = await fetch('/.netlify/functions/verify-page-editor', {
+                    method: 'POST',
+                    headers: pageEditorHeaders(password),
+                    body: JSON.stringify({ page: pageKey })
+                });
+
+                if (!response.ok) {
+                    registerLoginFailure();
+                    const message = await getPageEditorError(response, 'That password cannot edit this page.');
+                    loginError.textContent = message;
+                    loginError.style.display = 'block';
+                    return;
+                }
+
+                pageEditorToken = password;
+                document.getElementById('loginOverlay').style.display = 'none';
+                loginError.style.display = 'none';
+                loginAttempts = 0;
+                enterEditMode();
+            } catch (error) {
+                loginError.textContent = 'Unable to verify editor access. Please try again.';
+                loginError.style.display = 'block';
+            } finally {
+                document.getElementById('loginPassword').value = '';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
+            }
         });
 
         /**
@@ -1164,33 +1283,20 @@
                         // Save to server first
                         const response = await fetch('/.netlify/functions/save-page-config', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${adminToken}`
-                            },
+                            headers: pageEditorHeaders(),
                             body: JSON.stringify({
                                 page: pageKey,
                                 page_title: newTitle
                             })
                         });
                         
-                        if (response.ok) {
-                            titleElement.textContent = newTitle;
-                            // Also save to localStorage as backup
-                            localStorage.setItem(pageCacheKey('page_title'), newTitle);
-                            markUnsavedChanges();
-                        } else {
-                            // If server save fails, still save to localStorage
-                            localStorage.setItem(pageCacheKey('page_title'), newTitle);
-                            titleElement.textContent = newTitle;
-                            console.warn('Server save failed, saved to localStorage only');
-                        }
+                        await requirePageEditorResponse(response, 'Failed to save the page title.');
+                        titleElement.textContent = newTitle;
+                        localStorage.setItem(pageCacheKey('page_title'), newTitle);
+                        markUnsavedChanges();
                     } catch (error) {
                         console.error('Failed to save page title:', error);
-                        // Fallback to localStorage if server is unreachable
-                        localStorage.setItem(pageCacheKey('page_title'), newTitle);
-                        titleElement.textContent = newTitle;
-                        console.warn('Server unreachable, saved to localStorage only');
+                        alert(error.message);
                     }
                 }
                 
@@ -1284,6 +1390,7 @@
         function exitEditMode() {
             isEditMode = false;
             isOrganizeMode = false; // Exit organize mode when exiting edit mode
+            pageEditorToken = null;
             document.body.classList.remove('edit-mode');
             document.body.classList.remove('organize-mode');
             document.getElementById('loginLink').textContent = 'Login';
@@ -2165,50 +2272,20 @@
                 // Save videos
                 const videoResponse = await fetch('/.netlify/functions/save-videos', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({ videos: videos, page: pageKey })
                 });
                 
-                if (!videoResponse.ok) {
-                    let errorMessage = `Failed to save videos (Status: ${videoResponse.status})`;
-                    try {
-                        const videoError = await videoResponse.json();
-                        if (videoError.error) {
-                            errorMessage = `Failed to save videos: ${videoError.error}`;
-                        }
-                    } catch (e) {
-                        // Response body is not valid JSON
-                        console.error('Could not parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
-                }
+                await requirePageEditorResponse(videoResponse, 'Failed to save videos.');
                 
                 // Save categories
                 const categoryResponse = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({ categories: categories, page: pageKey })
                 });
                 
-                if (!categoryResponse.ok) {
-                    let errorMessage = `Failed to save categories (Status: ${categoryResponse.status})`;
-                    try {
-                        const categoryError = await categoryResponse.json();
-                        if (categoryError.error) {
-                            errorMessage = `Failed to save categories: ${categoryError.error}`;
-                        }
-                    } catch (e) {
-                        // Response body is not valid JSON
-                        console.error('Could not parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
-                }
+                await requirePageEditorResponse(categoryResponse, 'Failed to save categories.');
                 
                 const videoResult = await videoResponse.json();
                 const categoryResult = await categoryResponse.json();
@@ -2219,28 +2296,18 @@
                 const currentAccentColor = document.getElementById('adminAccentColorText').value;
                 console.log('🎨 DEBUG: Attempting to save accent color:', currentAccentColor);
                 if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
-                    try {
-                        const colorResponse = await fetch('/.netlify/functions/save-page-config', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${adminToken}`
-                            },
-                            body: JSON.stringify({
-                                page: pageKey,
-                                accent_color: currentAccentColor
-                            })
-                        });
-                        
-                        if (colorResponse.ok) {
-                            const savedConfig = await colorResponse.json();
-                            console.log('🎨 DEBUG: Successfully saved accent color:', savedConfig);
-                        } else {
-                            console.error('🎨 DEBUG: Failed to save accent color - Response not OK:', colorResponse.status, colorResponse.statusText);
-                        }
-                    } catch (colorError) {
-                        console.error('Failed to save accent color:', colorError);
-                    }
+                    const colorResponse = await fetch('/.netlify/functions/save-page-config', {
+                        method: 'POST',
+                        headers: pageEditorHeaders(),
+                        body: JSON.stringify({
+                            page: pageKey,
+                            accent_color: currentAccentColor
+                        })
+                    });
+
+                    await requirePageEditorResponse(colorResponse, 'Failed to save the accent color.');
+                    const savedConfig = await colorResponse.json();
+                    console.log('🎨 DEBUG: Successfully saved accent color:', savedConfig);
                 }
                 
                 // Show success state
@@ -3242,9 +3309,6 @@
             }
         }
 
-        // Current active category state
-        let currentActiveCategory = 'all';
-
         // Category filtering removed - showing all videos by default
 
         // Category navigation removed - showing all videos by default
@@ -3608,9 +3672,7 @@
                 // Save categories to server with explicit scope to prevent cross-scope deletion
                 const categoryResponse = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({ 
                         categories: categories, 
                         page: pageKey,
@@ -3618,19 +3680,7 @@
                     })
                 });
                 
-                if (!categoryResponse.ok) {
-                    let errorMessage = `Failed to save categories (Status: ${categoryResponse.status})`;
-                    try {
-                        const categoryError = await categoryResponse.json();
-                        if (categoryError.error) {
-                            errorMessage = `Failed to save categories: ${categoryError.error}`;
-                        }
-                    } catch (e) {
-                        // Response body is not valid JSON
-                        console.error('Could not parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
-                }
+                await requirePageEditorResponse(categoryResponse, 'Failed to save categories.');
                 
                 const categoryResult = await categoryResponse.json();
                 console.log('🏷️ SUCCESS: Categories saved to server:', categoryResult);
@@ -3813,7 +3863,7 @@
                 // This prevents deleting song categories
                 const response = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({
                         page: pageKey,
                         categories: updatedTags,
@@ -3821,7 +3871,7 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error('Failed to save tags');
+                await requirePageEditorResponse(response, 'Failed to save tags.');
                 
                 console.log('✅ Tags saved successfully');
                 

@@ -55,6 +55,46 @@ body[data-initially-empty] .seussical-coming-soon {
     display: none;
 }
 
+@media screen and (max-width: 767px) {
+    /* Keep the empty-state player aligned with the content below it. */
+    body[data-initially-empty] .seussical-coming-soon {
+        width: calc(100% - 40px);
+        max-width: 1000px;
+        margin: 0 20px;
+        aspect-ratio: 16 / 9;
+        border-width: 1px;
+        border-radius: 8px;
+    }
+
+    body[data-initially-empty] .seussical-coming-soon .video-close-button {
+        display: none !important;
+    }
+
+    body[data-initially-empty] .content {
+        padding: 12px 20px 24px;
+    }
+
+    body[data-initially-empty] .navigation-section {
+        gap: 8px;
+        padding: 0 0 4px;
+    }
+
+    body[data-initially-empty] .tags-container {
+        padding: 8px 12px 10px;
+        min-height: 0;
+    }
+
+    .seussical-placeholder-grid {
+        margin-top: 12px;
+        gap: 12px;
+    }
+
+    .seussical-placeholder-thumbnail-label {
+        padding: 8px 6px;
+        font-size: 0.75rem;
+    }
+}
+
 /* Decorative thumbnail placeholders for the empty Seussical collection. */
 .seussical-placeholder-grid {
     margin-top: 24px;

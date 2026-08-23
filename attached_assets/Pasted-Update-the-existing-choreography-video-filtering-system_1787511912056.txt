@@ -1,0 +1,170 @@
+Update the existing choreography video filtering system. **Do not redesign or replace the current song dropdown or filter UI.** Keep the existing styling and functionality, but make the choreography filters dynamically change based on the selected song.
+
+## Desired behavior
+
+We currently have:
+
+* A **Song** dropdown
+* A set of **Choreography For** filters
+
+Change the filter behavior so that only choreography groups relevant to the selected song are shown.
+
+### Important exception
+
+When the user selects **“All”** from the Song dropdown:
+
+* Show **all available choreography filters**
+* Keep the current behavior of allowing the user to filter across all songs
+
+When a specific song is selected:
+
+* Only show the choreography filters that apply to that song
+* Hide irrelevant filters
+* If a previously selected filter becomes unavailable after changing songs, automatically reset the choreography filter to **All**
+
+## Song → Choreography Filter Mapping
+
+Use this mapping:
+
+* **Oh, the Thinks You Can Think!**
+
+  * All Cast
+
+* **Finale / Oh, the Thinks You Can Think!**
+
+  * All Cast
+
+* **Horton Hears a Who**
+
+  * Jungle People
+
+* **Biggest Blame Fool**
+
+  * Jungle People
+
+* **Here on Who**
+
+  * Whos
+
+* **Amayzing Mayzie**
+
+  * Mayzie
+  * Bird Girls
+
+* **Amayzing Gertrude**
+
+  * Gertrude
+  * Bird Girls
+
+* **Chasing the Whos**
+
+  * All Cast
+
+* **Monkey Around**
+
+  * Wickershams
+  * Jungle People
+
+* **How Lucky You Are**
+
+  * Cat
+
+* **The Military**
+
+  * General Schmitz
+  * Cadets
+  * JoJo
+  * Cat
+
+* **It’s Possible**
+
+  * Fish
+
+* **Egg, Nest and Tree**
+
+  * Jungle People
+
+* **Havin’ a Hunch**
+
+  * Cat
+  * JoJo
+  * Hunches
+
+## Filter UI behavior
+
+The **Choreography For** section should always include an:
+
+**All**
+
+option when a specific song is selected.
+
+Example:
+
+If Song = **Monkey Around**
+
+Show:
+
+* All
+* Wickershams
+* Jungle People
+
+If Song = **It’s Possible**
+
+Show:
+
+* All
+* Fish
+
+If Song = **Havin’ a Hunch**
+
+Show:
+
+* All
+* Cat
+* JoJo
+* Hunches
+
+If Song = **All**
+
+Show every choreography group available in the system.
+
+## Implementation
+
+Please structure the mapping as centralized data rather than hardcoding conditional statements throughout the UI.
+
+For example, use a configuration object such as:
+
+```js
+const choreographyBySong = {
+  "Monkey Around": ["Wickershams", "Jungle People"],
+  "It's Possible": ["Fish"],
+  "Havin' a Hunch": ["Cat", "JoJo", "Hunches"],
+};
+```
+
+Then derive the visible filters from the selected song.
+
+This should make it easy for us to add or modify songs and choreography groups later.
+
+## Preserve existing functionality
+
+Do not:
+
+* Redesign the page
+* Change the current styling
+* Remove existing videos
+* Change the existing Song dropdown design
+* Change how video cards look
+* Break the existing search/filter functionality
+
+Only update the logic controlling which **Choreography For** filters are visible.
+
+## Acceptance criteria
+
+1. Selecting **All Songs** displays every choreography filter.
+2. Selecting a specific song displays only the groups associated with that song.
+3. **All** is always the first choreography filter.
+4. Changing songs resets an incompatible choreography filter back to **All**.
+5. Videos continue filtering correctly by both Song and Choreography For.
+6. Existing layout, responsive behavior, and styling remain unchanged.
+7. Song/group relationships are stored in one centralized configuration so they are easy to edit later.
