@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { ensurePageSchema } = require('./lib/page-store');
 const { postgresSslOption } = require('./lib/pg-ssl');
+const { cookieSecureEnabled } = require('./lib/cookie-secure');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -224,14 +225,7 @@ function requireUploadAuth(req, res, next) {
   next();
 }
 
-function cookieSecureEnabled() {
-  const explicit = process.env.COOKIE_SECURE;
-  if (explicit === '0' || explicit === 'false') return false;
-  if (explicit === '1' || explicit === 'true') return true;
-  return process.env.NODE_ENV === 'production';
-}
-
-function sessionCookieFlags(value, maxAge) {
+function sessionCookieFlags(value, maxAge, req) {
   const flags = [
     `${SESSION_COOKIE}=${value}`,
     'Path=/',
@@ -239,16 +233,16 @@ function sessionCookieFlags(value, maxAge) {
     'SameSite=Lax',
     `Max-Age=${maxAge}`
   ];
-  if (cookieSecureEnabled()) flags.push('Secure');
+  if (cookieSecureEnabled(req)) flags.push('Secure');
   return flags.join('; ');
 }
 
-function setSessionCookie(res, userId) {
+function setSessionCookie(res, userId, req) {
   const token = signSession(userId);
-  res.setHeader('Set-Cookie', sessionCookieFlags(token, Math.floor(SESSION_TTL_MS / 1000)));
+  res.setHeader('Set-Cookie', sessionCookieFlags(token, Math.floor(SESSION_TTL_MS / 1000), req));
 }
-function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', sessionCookieFlags('', 0));
+function clearSessionCookie(res, req) {
+  res.setHeader('Set-Cookie', sessionCookieFlags('', 0, req));
 }
 
 // Lightweight email validation — server-side. We're not strict about RFC 5322;
@@ -1717,7 +1711,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
       userId = ins.rows[0].id;
     }
 
-    setSessionCookie(res, userId);
+    setSessionCookie(res, userId, req);
     res.json({ email });
   } catch (err) {
     console.error('verify-code error:', err);
@@ -1726,14 +1720,14 @@ app.post('/api/auth/verify-code', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  clearSessionCookie(res);
+  clearSessionCookie(res, req);
   res.json({ success: true });
 });
 
 app.get('/api/auth/me', async (req, res) => {
   if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.');
   const result = await pool.query('SELECT email, is_paid FROM vs_users WHERE id = $1', [req.userId]);
-  if (!result.rows.length) { clearSessionCookie(res); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
+  if (!result.rows.length) { clearSessionCookie(res, req); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
   res.json({ email: result.rows[0].email, is_paid: result.rows[0].is_paid });
 });
 

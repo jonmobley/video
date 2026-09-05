@@ -24,11 +24,9 @@ services:
       - path: .env
         required: false
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: "5000"
       DATABASE_URL: ${DATABASE_URL:-postgres://vidshare:vidshare@db:5432/vidshare?sslmode=disable}
-      DATABASE_SSL: ${DATABASE_SSL:-false}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy

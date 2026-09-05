@@ -43,7 +43,7 @@ For a laptop/VPS trial with bundled Postgres:
 docker compose --profile local-db up --build
 ```
 
-Then open `http://localhost:5000`. For production, omit the profile and set `DATABASE_URL` in `.env` to your existing Supabase/Postgres URL.
+Then open `http://localhost:5000`. Session cookies stay non-Secure on HTTP; behind Cloudflare they pick up `req.secure`. For production, omit the profile and set `DATABASE_URL` in `.env` to your existing Supabase/Postgres URL.
 
 Set:
 
