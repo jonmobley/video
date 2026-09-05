@@ -58,20 +58,27 @@ NODE_ENV=production
 
 This repo includes `wrangler.jsonc`, `workers/origin.js`, and the Dockerfile so the same image can run as a [Cloudflare Container](https://developers.cloudflare.com/containers/) behind a Worker — the Node equivalent of shipping a site on Cloudflare Pages.
 
+The container defaults to the `basic` instance type (1 GiB). Native uploads live in Postgres, not container disk.
+
 ```bash
 npm install
 npx wrangler login
+npx wrangler deploy
+# required:
 npx wrangler secret put DATABASE_URL
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put RESEND_FROM_EMAIL
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler secret put ALLOWED_ORIGIN
 npx wrangler secret put PUBLIC_ORIGIN
+# recommended:
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESEND_FROM_EMAIL
+# optional:
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_ANON_KEY
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-npx wrangler deploy
 ```
+
+Or copy `env.example` into GitHub Actions secrets (names below) and let CI run `node scripts/push-worker-secrets.js` after deploy.
 
 Then attach a custom domain on the Worker. Keep `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` on that HTTPS origin.
 
@@ -79,7 +86,31 @@ Do **not** import this repository as a Cloudflare Pages project with publish dir
 
 ## GitHub Actions
 
-Pushing to `main` runs Jest. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow also runs `wrangler deploy`.
+Pushing to `main` runs Jest and builds the Docker image. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow also runs `wrangler deploy` and then pushes Worker secrets from matching GitHub secrets.
+
+Add these repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Required |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Yes (Workers + Containers edit) |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes |
+| `DATABASE_URL` | Yes (deploy writes the Worker secret) |
+| `ADMIN_TOKEN` | Yes |
+| `ALLOWED_ORIGIN` | Yes (your HTTPS origin, no trailing slash) |
+| `PUBLIC_ORIGIN` | Yes (same origin) |
+| `RESEND_API_KEY` | For magic-code email |
+| `RESEND_FROM_EMAIL` | For magic-code email |
+| `SESSION_SECRET` | Optional |
+| `JWT_SECRET` | Optional |
+| `SUPABASE_URL` | Optional |
+| `SUPABASE_ANON_KEY` | Optional |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional |
+| `ALLOW_ANONYMOUS_UPLOADS` | Optional |
+| `WISTIA_API_PASSWORD` | Optional |
+
+After the secrets exist, either push to `main` or run **Actions → CI → Run workflow**. Empty optional secrets are skipped; missing required Worker secrets fail that step.
+
+Until Cloudflare credentials are present, push CI stays green and prints a notice that deploy was skipped. **Run workflow** fails instead, so a manual cutover attempt is obvious.
 
 ## Netlify
 

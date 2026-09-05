@@ -10,6 +10,9 @@
     {
       "class_name": "VidShare",
       "image": "./Dockerfile",
+      // Node + Postgres driver + in-memory finalize of uploaded video.
+      // lite (256 MiB) OOMs; bump to standard-1+ if native uploads exceed ~500 MB.
+      "instance_type": "basic",
       "max_instances": 2
     }
   ],
