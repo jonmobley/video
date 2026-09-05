@@ -24,6 +24,12 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t vidshare:ci .
+
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: test

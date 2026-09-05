@@ -33,7 +33,19 @@ cp env.example .env
 docker compose up --build
 ```
 
-Point a hostname at the host and put Cloudflare in front (orange-cloud proxy, SSL/TLS Full or Full strict). Set:
+Point a hostname at the host and put Cloudflare in front (orange-cloud proxy, SSL/TLS Full or Full strict).
+
+Production today is [vidsharepro.netlify.app](https://vidsharepro.netlify.app): show pages and `/.netlify/functions/*` already work there. Uploads, watch streaming, folders, and magic-code login are Express routes (`/api/*`, `/health`) and currently 404 on Netlify until this Node origin is live.
+
+For a laptop/VPS trial with bundled Postgres:
+
+```bash
+docker compose --profile local-db up --build
+```
+
+Then open `http://localhost:5000`. For production, omit the profile and set `DATABASE_URL` in `.env` to your existing Supabase/Postgres URL.
+
+Set:
 
 ```
 PUBLIC_ORIGIN=https://your.domain
