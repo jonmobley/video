@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { ensurePageSchema } = require('./lib/page-store');
+const { postgresSslOption } = require('./lib/pg-ssl');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -43,9 +44,7 @@ const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost')
-    ? false
-    : { rejectUnauthorized: false }
+  ssl: postgresSslOption(process.env.DATABASE_URL)
 });
 
 // ── Rate limiting ────────────────────────────────────────────────────────────

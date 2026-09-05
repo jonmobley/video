@@ -35,7 +35,7 @@ docker compose up --build
 
 Point a hostname at the host and put Cloudflare in front (orange-cloud proxy, SSL/TLS Full or Full strict).
 
-Production today is [vidsharepro.netlify.app](https://vidsharepro.netlify.app): show pages and `/.netlify/functions/*` already work there. Uploads, watch streaming, folders, and magic-code login are Express routes (`/api/*`, `/health`) and currently 404 on Netlify until this Node origin is live.
+Production today is [vidsharepro.netlify.app](https://vidsharepro.netlify.app): show pages and `/.netlify/functions/*` already work there. Uploads, watch streaming, folders, and magic-code login are Express routes (`/api/*`, `/health`) and 404 on Netlify until this Node origin is live. Do not wire those upload URLs to Netlify Blobs — finalize never writes `vs_uploads`, so watch links would lie.
 
 For a laptop/VPS trial with bundled Postgres:
 

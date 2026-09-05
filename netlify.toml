@@ -131,16 +131,6 @@ status = 200                       # Shared template reads slug from pathname
 # Thumbnail endpoints — match the Express server routes so the Netlify
 # deployment serves stored video frames at the same URLs.
 [[redirects]]
-  from = "/api/upload-chunk"
-  to = "/.netlify/functions/upload-chunk"
-  status = 200
-
-[[redirects]]
-  from = "/api/finalize-video"
-  to = "/.netlify/functions/finalize-video"
-  status = 200
-
-[[redirects]]
   from = "/api/csp-report"
   to = "/.netlify/functions/csp-report"
   status = 200
