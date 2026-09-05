@@ -1,3 +1,5 @@
+require('dotenv').config({ quiet: true });
+
 const express = require('express');
 const { Pool, types } = require('pg');
 const path = require('path');
@@ -31,9 +33,10 @@ function getSupabase() {
 types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 const app = express();
-// Replit's edge proxies the app over HTTPS and sets X-Forwarded-For. Trusting
-// exactly one hop lets Express derive `req.ip` from the real client IP without
-// honouring spoofed headers from arbitrary upstreams.
+// Cloudflare (and most other reverse proxies) terminate TLS and set
+// X-Forwarded-For. Trusting exactly one hop lets Express derive `req.ip`
+// from the real client IP without honouring spoofed headers from arbitrary
+// upstreams.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
@@ -222,21 +225,31 @@ function requireUploadAuth(req, res, next) {
   next();
 }
 
-function setSessionCookie(res, userId) {
-  const token = signSession(userId);
-  // Secure flag: Replit proxies HTTPS in deployment; harmless on local.
+function cookieSecureEnabled() {
+  const explicit = process.env.COOKIE_SECURE;
+  if (explicit === '0' || explicit === 'false') return false;
+  if (explicit === '1' || explicit === 'true') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
+function sessionCookieFlags(value, maxAge) {
   const flags = [
-    `${SESSION_COOKIE}=${token}`,
+    `${SESSION_COOKIE}=${value}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
-    'Secure'
+    `Max-Age=${maxAge}`
   ];
-  res.setHeader('Set-Cookie', flags.join('; '));
+  if (cookieSecureEnabled()) flags.push('Secure');
+  return flags.join('; ');
+}
+
+function setSessionCookie(res, userId) {
+  const token = signSession(userId);
+  res.setHeader('Set-Cookie', sessionCookieFlags(token, Math.floor(SESSION_TTL_MS / 1000)));
 }
 function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+  res.setHeader('Set-Cookie', sessionCookieFlags('', 0));
 }
 
 // Lightweight email validation — server-side. We're not strict about RFC 5322;
@@ -529,6 +542,7 @@ function netlifyFunctionAdapter(functionName) {
   'save-categories',
   'save-page-config',
   'upload-coming-soon-image',
+  'upload-page-image',
   'create-show-page',
   'redeem-page-editor-setup'
 ].forEach((functionName) => {
@@ -728,6 +742,7 @@ app.use((req, res, next) => {
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/ping', (req, res) => res.json({ ok: true }));
 app.get('/api/upload-config', (req, res) => {
   res.json({ requireAuth: process.env.ALLOW_ANONYMOUS_UPLOADS !== 'true' });
 });
@@ -2441,7 +2456,28 @@ if (require.main === module) {
       if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
         console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
       }
-      app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
+      const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`VidShare server running on port ${PORT}`);
+      });
+      server.requestTimeout = 0;
+      server.headersTimeout = 0;
+
+      let shuttingDown = false;
+      const shutdown = (signal) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`${signal} received, draining HTTP connections`);
+        server.close(async () => {
+          try {
+            await pool.end();
+          } catch (err) {
+            console.error('Error closing database pool:', err.message);
+          }
+          process.exit(0);
+        });
+      };
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
     })
     .catch(err => {
       console.error('Startup error:', err);

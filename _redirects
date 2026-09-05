@@ -1,0 +1,24 @@
+/server.js /index.html 404
+/package.json /index.html 404
+/package-lock.json /index.html 404
+/env.example /index.html 404
+/wrangler.jsonc /index.html 404
+/Dockerfile /index.html 404
+/compose.yaml /index.html 404
+/playwright.config.js /index.html 404
+/netlify/* /index.html 404
+/lib/* /index.html 404
+/tests/* /index.html 404
+/scripts/* /index.html 404
+/workers/* /index.html 404
+/*.sql /index.html 404
+
+/admin /admin.html 200
+/oz /oz.html 200
+/disc /disc.html 200
+/vertical /vertical.html 200
+/upload /upload.html 200
+/watch /watch.html 200
+/login /login.html 200
+/account /account.html 200
+/show/* /oz.html 200

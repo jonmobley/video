@@ -1,0 +1,11 @@
+# Copy to .dev.vars for `npx wrangler dev` (never commit .dev.vars)
+DATABASE_URL=
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=
+ADMIN_TOKEN=
+ALLOWED_ORIGIN=http://localhost:8787
+PUBLIC_ORIGIN=http://localhost:8787
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+ALLOW_ANONYMOUS_UPLOADS=false

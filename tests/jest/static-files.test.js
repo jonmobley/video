@@ -28,6 +28,15 @@ describe('isPublicStaticPath', () => {
     expect(isPublicStaticPath('/js/../server.js')).toBe(false);
     expect(isPublicStaticPath('/assets/../../.env')).toBe(false);
   });
+
+  test('blocks hosting and worker config files', () => {
+    expect(isPublicStaticPath('/Dockerfile')).toBe(false);
+    expect(isPublicStaticPath('/compose.yaml')).toBe(false);
+    expect(isPublicStaticPath('/wrangler.jsonc')).toBe(false);
+    expect(isPublicStaticPath('/workers/origin.js')).toBe(false);
+    expect(isPublicStaticPath('/_headers')).toBe(false);
+    expect(isPublicStaticPath('/_redirects')).toBe(false);
+  });
 });
 
 describe('GET static allowlist', () => {
