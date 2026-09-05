@@ -65,8 +65,7 @@ jobs:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           ALLOWED_ORIGIN: ${{ secrets.ALLOWED_ORIGIN }}
           PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
-        run: |
-          node -e "const { missing } = require('./scripts/collect-worker-secrets'); if (missing.length) { console.error('Missing required GitHub secrets: ' + missing.join(', ')); process.exit(1); }"
+        run: node scripts/check-worker-secrets.js
       - name: Deploy Worker and container
         if: steps.cf.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3

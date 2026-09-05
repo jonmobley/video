@@ -1,6 +1,7 @@
 const {
   collectWorkerSecrets,
-  catalog
+  catalog,
+  missingRequiredMessage
 } = require('../../scripts/collect-worker-secrets');
 
 describe('collectWorkerSecrets', () => {
@@ -30,5 +31,22 @@ describe('collectWorkerSecrets', () => {
     expect(Object.keys(secrets).sort()).toEqual(
       [...catalog.required, ...catalog.optional].sort()
     );
+  });
+
+  test('missingRequiredMessage lists required keys and is null when complete', () => {
+    expect(
+      missingRequiredMessage({
+        DATABASE_URL: 'postgres://db',
+        PUBLIC_ORIGIN: 'https://example.com'
+      })
+    ).toBe('Missing required GitHub secrets: ADMIN_TOKEN, ALLOWED_ORIGIN');
+    expect(
+      missingRequiredMessage({
+        DATABASE_URL: 'postgres://db',
+        ADMIN_TOKEN: 'token',
+        ALLOWED_ORIGIN: 'https://example.com',
+        PUBLIC_ORIGIN: 'https://example.com'
+      })
+    ).toBeNull();
   });
 });

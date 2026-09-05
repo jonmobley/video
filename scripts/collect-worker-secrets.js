@@ -15,4 +15,10 @@ function collectWorkerSecrets(env = process.env) {
   return { secrets, missing };
 }
 
-module.exports = { collectWorkerSecrets, catalog };
+function missingRequiredMessage(env = process.env) {
+  const { missing } = collectWorkerSecrets(env);
+  if (!missing.length) return null;
+  return `Missing required GitHub secrets: ${missing.join(', ')}`;
+}
+
+module.exports = { collectWorkerSecrets, catalog, missingRequiredMessage };
