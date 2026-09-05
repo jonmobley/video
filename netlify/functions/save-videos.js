@@ -26,6 +26,36 @@
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
 const { getPool } = require('../../lib/page-store');
 
+const VIDEO_TOKEN_RE = /^[^\s<>"'`]{1,256}$/;
+const ALLOWED_PLATFORMS = new Set(['wistia', 'vimeo', 'youtube', 'dropbox', 'dailymotion', 'loom', 'upload']);
+
+function validateVideoRecord(video) {
+  if (!video || typeof video !== 'object') return 'Invalid video data structure.';
+  if (typeof video.id !== 'string' || !VIDEO_TOKEN_RE.test(video.id)) return 'Invalid video id.';
+  if (typeof video.title !== 'string' || !video.title.trim() || video.title.length > 200) return 'Invalid video title.';
+  if (typeof video.category !== 'string' || !video.category.trim() || video.category.length > 64 || /[<>]/.test(video.category)) {
+    return 'Invalid video category.';
+  }
+  if (typeof video.wistiaId !== 'string' || !VIDEO_TOKEN_RE.test(video.wistiaId)) return 'Invalid wistiaId.';
+  if (video.platform !== undefined && video.platform !== null &&
+      (typeof video.platform !== 'string' || !ALLOWED_PLATFORMS.has(video.platform))) {
+    return 'Invalid video platform.';
+  }
+  if (video.video_url !== undefined && video.video_url !== null && video.video_url !== '') {
+    if (typeof video.video_url !== 'string' || video.video_url.length > 2048 ||
+        !/^(https?:\/\/|\/)/i.test(video.video_url)) {
+      return 'Invalid video_url.';
+    }
+  }
+  if (video.tags !== undefined && video.tags !== null) {
+    if (!Array.isArray(video.tags) || video.tags.length > 32) return 'Invalid video tags.';
+    for (const tag of video.tags) {
+      if (typeof tag !== 'string' || tag.length > 64 || /[<>]/.test(tag)) return 'Invalid video tag.';
+    }
+  }
+  return null;
+}
+
 /**
  * Generate a persistent URL string for a video based on its Wistia ID
  * This creates a consistent, short URL-friendly string for direct video links
@@ -131,8 +161,13 @@ exports.handler = async (event, context) => {
 
     // Validate and enhance each video object
     for (const video of videos) {
-      if (!video.id || !video.title || !video.category || !video.wistiaId) {
-        throw new Error('Invalid video data structure - id, title, category, and wistiaId are required');
+      const validationError = validateVideoRecord(video);
+      if (validationError) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: { code: 'BAD_VIDEO', message: validationError } })
+        };
       }
       
       // Ensure video has a URL string

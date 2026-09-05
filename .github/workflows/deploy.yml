@@ -28,10 +28,19 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
         
+      - name: Stage public site files
+        run: |
+          mkdir -p public-site/js public-site/styles public-site/assets public-site/attached_assets
+          cp *.html public-site/
+          cp -R js/. public-site/js/
+          cp -R styles/. public-site/styles/
+          cp -R assets/. public-site/assets/
+          if [ -d attached_assets ]; then cp -R attached_assets/. public-site/attached_assets/; fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'public-site'
           
       - name: Deploy to GitHub Pages
         id: deployment

@@ -275,6 +275,11 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         // Render video grid
         function renderVideos() {
             const grid = document.getElementById('video-grid');
@@ -287,23 +292,25 @@
             grid.innerHTML = videos.map(video => {
                 const isActive = currentVideoId === video.wistiaId;
                 const thumbnailUrl = platformManager.getThumbnailUrl(video);
+                const safeTitle = escapeHtml(video.title);
+                const safeId = escapeHtml(video.id);
                 
                 return `
-                    <div class="video-item ${isActive ? 'active' : ''}" data-id="${video.id}" data-action="play-video">
+                    <div class="video-item ${isActive ? 'active' : ''}" data-id="${safeId}" data-action="play-video">
                         <div class="thumbnail">
                             ${(video.platform === 'dropbox' && !video.thumbnailUrl) ?
-                                `<div class="thumbnail-placeholder">${platformInfo(video).label} Video</div>` :
-                                `<img src="${thumbnailUrl}" alt="${video.title}" data-img-hide-on-error="true">`
+                                `<div class="thumbnail-placeholder">${escapeHtml(platformInfo(video).label)} Video</div>` :
+                                `<img src="${escapeHtml(thumbnailUrl)}" alt="${safeTitle}" data-img-hide-on-error="true">`
                             }
-                            <div class="platform-badge ${platformInfo(video).key}">${platformInfo(video).label}</div>
+                            <div class="platform-badge ${escapeHtml(platformInfo(video).key)}">${escapeHtml(platformInfo(video).label)}</div>
                         </div>
                         <div class="video-controls">
-                            <button data-action="edit-video" data-id="${video.id}">Edit</button>
-                            <button class="danger" data-action="delete-video" data-id="${video.id}">Delete</button>
+                            <button data-action="edit-video" data-id="${safeId}">Edit</button>
+                            <button class="danger" data-action="delete-video" data-id="${safeId}">Delete</button>
                         </div>
                         <div class="video-info">
-                            <div class="video-item-title">${video.title}</div>
-                            <div class="video-meta">Order: ${video.order}</div>
+                            <div class="video-item-title">${safeTitle}</div>
+                            <div class="video-meta">Order: ${escapeHtml(video.order)}</div>
                         </div>
                     </div>
                 `;

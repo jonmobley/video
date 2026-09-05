@@ -107,4 +107,18 @@ describe('POST /api/upload-chunk validation', () => {
     expect(res.status).toBe(400);
     expectErrorShape(res, 'BAD_JSON');
   });
+
+  test('VIDEO_EXISTS when a finalized upload already uses this id', async () => {
+    const previous = process.env.ALLOW_ANONYMOUS_UPLOADS;
+    process.env.ALLOW_ANONYMOUS_UPLOADS = 'true';
+    pgMock.enqueue({ rows: [], rowCount: 0 });
+    try {
+      const res = await request(app).post('/api/upload-chunk').send(chunkBody());
+      expect(res.status).toBe(409);
+      expectErrorShape(res, 'VIDEO_EXISTS');
+    } finally {
+      if (previous === undefined) delete process.env.ALLOW_ANONYMOUS_UPLOADS;
+      else process.env.ALLOW_ANONYMOUS_UPLOADS = previous;
+    }
+  });
 });

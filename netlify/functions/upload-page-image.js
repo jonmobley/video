@@ -51,6 +51,25 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 // Allowed MIME types
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
+function isMatchingImageSignature(imageBuffer, contentType) {
+  if (contentType === 'image/png') {
+    return imageBuffer.length >= 8 &&
+      imageBuffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+  }
+  if (contentType === 'image/jpeg' || contentType === 'image/jpg') {
+    return imageBuffer.length >= 3 &&
+      imageBuffer[0] === 0xFF &&
+      imageBuffer[1] === 0xD8 &&
+      imageBuffer[2] === 0xFF;
+  }
+  if (contentType === 'image/webp') {
+    return imageBuffer.length >= 12 &&
+      imageBuffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      imageBuffer.subarray(8, 12).toString('ascii') === 'WEBP';
+  }
+  return false;
+}
+
 exports.handler = async (event, context) => {
   // Get secured CORS headers
   const headers = getSecuredCorsHeaders();
@@ -139,6 +158,14 @@ exports.handler = async (event, context) => {
         statusCode: 413,
         headers,
         body: JSON.stringify({ error: { code: 'FILE_TOO_LARGE', message: `Image too large. Max ${MAX_FILE_SIZE / 1024 / 1024} MB.` } })
+      };
+    }
+
+    if (!isMatchingImageSignature(imageBuffer, contentType)) {
+      return {
+        statusCode: 415,
+        headers,
+        body: JSON.stringify({ error: { code: 'UNSUPPORTED_TYPE', message: 'Image bytes do not match the declared type.' } })
       };
     }
 

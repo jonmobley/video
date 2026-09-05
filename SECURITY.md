@@ -216,6 +216,9 @@ Before deploying:
 - [ ] HTTPS is enforced (handled by Netlify)
 - [ ] CSP, HSTS, and Permissions-Policy headers are present on all responses
 - [ ] Token comparison uses constant-time (`crypto.timingSafeEqual`) in both server.js and Netlify functions
+- [ ] Source files (`server.js`, `lib/`, `netlify/`, `*.sql`, `package.json`) are not publicly downloadable
+- [ ] Page editor logins go through `verify-page-editor` (no client-side hardcoded passwords)
+- [ ] `lock-page-config-secrets.sql` has been applied so anon cannot SELECT editor token hashes
 
 ## Reporting Security Issues
 

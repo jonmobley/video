@@ -51,16 +51,24 @@ function sanitizeUrl(url) {
     return '';
   }
   
-  const trimmed = url.trim().toLowerCase();
-  
-  // Block dangerous URL schemes
-  if (trimmed.startsWith('javascript:') || 
-      trimmed.startsWith('data:text/html') ||
-      trimmed.startsWith('vbscript:')) {
+  const trimmed = url.trim();
+  const lowered = Array.from(trimmed.toLowerCase())
+    .filter(ch => ch.charCodeAt(0) > 32 && ch.charCodeAt(0) !== 127)
+    .join('');
+
+  // Block dangerous URL schemes, including obfuscated variants that sneak
+  // whitespace or control characters between characters of the scheme.
+  if (
+    lowered.startsWith('javascript:') ||
+    lowered.startsWith('vbscript:') ||
+    lowered.startsWith('data:') ||
+    lowered.startsWith('file:') ||
+    lowered.startsWith('blob:')
+  ) {
     console.warn('Blocked potentially dangerous URL:', url);
     return '';
   }
-  
+
   return url;
 }
 

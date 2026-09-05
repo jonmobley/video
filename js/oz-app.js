@@ -601,35 +601,38 @@
                 
                 // Use actual tags for display, not category
                 const videoTags = video.tags || [];
-                const tagsString = videoTags.join(',');
+                const safeWistiaId = escapeAttribute(video.wistiaId);
+                const safeTitle = escapeHtml(video.title);
+                const safeCategory = escapeAttribute(video.category);
+                const tagsString = videoTags.map(escapeAttribute).join(',');
                 const displayTags = videoTags
                     .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
                     .map(tag => 
-                        `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                        `<span class="item-tag-pill">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>`
                     ).join('');
                 
                 // Generate arrow controls based on position
                 const arrowControls = `
                     <div class="video-position-controls">
-                        ${!isFirstRow ? `<button class="position-arrow arrow-up" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="up" title="Move Up">↑</button>` : ''}
-                        ${!isLastRow ? `<button class="position-arrow arrow-down" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="down" title="Move Down">↓</button>` : ''}
-                        ${!isFirstCol ? `<button class="position-arrow arrow-left" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="left" title="Move Left">←</button>` : ''}
-                        ${!isLastCol ? `<button class="position-arrow arrow-right" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="right" title="Move Right">→</button>` : ''}
+                        ${!isFirstRow ? `<button class="position-arrow arrow-up" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="up" title="Move Up">↑</button>` : ''}
+                        ${!isLastRow ? `<button class="position-arrow arrow-down" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="down" title="Move Down">↓</button>` : ''}
+                        ${!isFirstCol ? `<button class="position-arrow arrow-left" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="left" title="Move Left">←</button>` : ''}
+                        ${!isLastCol ? `<button class="position-arrow arrow-right" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="right" title="Move Right">→</button>` : ''}
                     </div>
                 `;
                 
                 const html = `
-                    <div class="video-item" data-category="${video.category.replace(/"/g, '&quot;')}" data-tags="${tagsString.replace(/"/g, '&quot;')}" data-title="${video.title.replace(/"/g, '&quot;')}" data-wistia="${video.wistiaId}">
-                        <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${video.wistiaId}" title="Delete Video"></button>
-                        <div class="thumbnail" id="thumb-${video.wistiaId}">
-                            <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" class="thumb-img-cover" data-thumb-fallback="${video.wistiaId}">
-                            <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
+                    <div class="video-item" data-category="${safeCategory}" data-tags="${tagsString}" data-title="${safeTitle}" data-wistia="${safeWistiaId}">
+                        <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${safeWistiaId}" title="Delete Video"></button>
+                        <div class="thumbnail" id="thumb-${safeWistiaId}">
+                            <img src="https://embed-ssl.wistia.com/deliveries/${safeWistiaId}.jpg" alt="${safeTitle}" class="thumb-img-cover" data-thumb-fallback="${safeWistiaId}">
+                            <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
-                                <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" data-action="set-featured" data-wistia-id="${video.wistiaId}">Feature</button>
+                                <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
                             </div>
                             <div class="video-edit-overlay">
-                                <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${video.wistiaId}" data-video-title="${escapeForOnclick(video.title)}" data-video-category="${escapeForOnclick(video.category)}">Edit</button>
+                                <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${safeWistiaId}" data-video-title="${escapeForOnclick(video.title)}" data-video-category="${escapeForOnclick(video.category)}">Edit</button>
                             </div>
                             <div class="thumbnail-close-overlay">
                                 <button class="thumbnail-close-button" data-action="close-player">Close</button>
@@ -638,7 +641,7 @@
                         ${arrowControls}
                         <div class="item-info">
                             <div class="title-row">
-                                <div class="item-title">${video.title}</div>
+                                <div class="item-title">${safeTitle}</div>
                             </div>
                             <div class="item-tags">${displayTags}</div>
                         </div>
@@ -3624,26 +3627,28 @@
             
             // Use actual tags for display, not category
             const videoTags = video.tags || [];
-            const tagsString = videoTags.join(',');
+            const tagsString = videoTags.map(escapeAttribute).join(',');
             videoElement.setAttribute('data-tags', tagsString);
+            const safeWistiaId = escapeAttribute(video.wistiaId);
+            const safeTitle = escapeHtml(video.title);
             
             // Generate tag pills HTML from actual tags
             const displayTags = videoTags
                 .filter(tag => tag !== 'all') // Don't show 'all' as a tag pill
                 .map(tag => 
-                    `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                    `<span class="item-tag-pill">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>`
                 ).join('');
             
             videoElement.innerHTML = `
-                <div class="thumbnail" id="thumb-${video.wistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" class="thumb-img-cover" data-thumb-fallback="${video.wistiaId}">
-                    <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
+                <div class="thumbnail" id="thumb-${safeWistiaId}">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${safeWistiaId}.jpg" alt="${safeTitle}" class="thumb-img-cover" data-thumb-fallback="${safeWistiaId}">
+                    <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
-                        <button class="featured-btn" data-action="set-featured" data-wistia-id="${video.wistiaId}">Feature</button>
+                        <button class="featured-btn" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
                     </div>
                     <div class="video-edit-overlay">
-                        <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${video.wistiaId}" data-video-title="${escapeForOnclick(video.title)}" data-video-category="${escapeForOnclick(video.category)}">Edit</button>
+                        <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${safeWistiaId}" data-video-title="${escapeForOnclick(video.title)}" data-video-category="${escapeForOnclick(video.category)}">Edit</button>
                     </div>
                     <div class="thumbnail-close-overlay">
                         <button class="thumbnail-close-button" data-action="close-player">Close</button>
@@ -3651,7 +3656,7 @@
                 </div>
                 <div class="item-info">
                     <div class="title-row">
-                        <div class="item-title">${video.title}</div>
+                        <div class="item-title">${safeTitle}</div>
                     </div>
                     <div class="item-tags">${displayTags}</div>
                 </div>

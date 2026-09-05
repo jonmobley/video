@@ -102,6 +102,13 @@ function hashPassword(pw) {
   return crypto.createHash('sha256').update('vs2026_' + pw).digest('hex');
 }
 
+function passwordsMatch(provided, storedHash) {
+  if (!provided || !storedHash) return false;
+  const a = Buffer.from(hashPassword(String(provided)));
+  const b = Buffer.from(storedHash);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 function getIp(req) {
   // With `trust proxy` set, Express resolves req.ip from the trusted XFF hop;
   // fall back to the raw socket if the proxy didn't set one (e.g. local dev).
@@ -680,8 +687,44 @@ app.get('/f/:slug', async (req, res) => {
   }
 });
 
-app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d' }));
-app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
+const PUBLIC_STATIC_DIRS = new Set(['js', 'styles', 'assets', 'attached_assets']);
+const PUBLIC_ROOT_EXT = new Set([
+  'html', 'css', 'ico', 'svg', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'txt', 'xml', 'woff', 'woff2'
+]);
+
+function isPublicStaticPath(urlPath) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(String(urlPath || '').split('?')[0]);
+  } catch {
+    return false;
+  }
+  const normalized = path.posix.normalize(decoded);
+  if (!normalized.startsWith('/') || normalized.includes('\0')) return false;
+  if (normalized === '/' || normalized === '/index.html') return true;
+  const segments = normalized.slice(1).split('/').filter(Boolean);
+  if (segments.length === 0) return false;
+  if (segments.some(seg => seg === '.' || seg === '..' || seg.startsWith('.'))) return false;
+  if (PUBLIC_STATIC_DIRS.has(segments[0])) return true;
+  if (segments.length !== 1) return false;
+  const dot = segments[0].lastIndexOf('.');
+  if (dot < 1) return false;
+  return PUBLIC_ROOT_EXT.has(segments[0].slice(dot + 1).toLowerCase());
+}
+
+const publicStatic = express.static(path.join(__dirname), {
+  extensions: ['html'],
+  index: 'index.html',
+  dotfiles: 'deny',
+  fallthrough: true
+});
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (req.path.startsWith('/api/') || req.path.startsWith('/.netlify/')) return next();
+  if (!isPublicStaticPath(req.path)) return next();
+  return publicStatic(req, res, next);
+});
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -724,12 +767,17 @@ app.post('/api/upload-chunk', requireUploadAuth, async (req, res) => {
     if (buffer.length === 0) {
       return apiError(res, 400, 'EMPTY_CHUNK', 'Decoded chunk is empty.');
     }
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO vs_upload_chunks (video_id, chunk_index, data)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (video_id, chunk_index) DO UPDATE SET data = EXCLUDED.data`,
+       SELECT $1, $2, $3
+       WHERE NOT EXISTS (SELECT 1 FROM vs_uploads WHERE id = $1)
+       ON CONFLICT (video_id, chunk_index) DO UPDATE SET data = EXCLUDED.data
+       RETURNING chunk_index`,
       [videoId, chunkIndex, buffer]
     );
+    if (!result.rowCount) {
+      return apiError(res, 409, 'VIDEO_EXISTS', 'A video with this id already exists.');
+    }
 
     res.json({ success: true, chunkIndex, totalChunks });
   } catch (err) {
@@ -819,18 +867,17 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
     // are pruned later by the age-gated orphan cleanup in cleanupExpired().
     await client.query('BEGIN');
     try {
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO vs_uploads (id, content_type, title, expires_at, password_hash, file_size, user_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (id) DO UPDATE SET
-           content_type = EXCLUDED.content_type,
-           title = EXCLUDED.title,
-           expires_at = EXCLUDED.expires_at,
-           password_hash = EXCLUDED.password_hash,
-           file_size = EXCLUDED.file_size,
-           user_id = EXCLUDED.user_id`,
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id`,
         [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length, req.userId || null]
       );
+      if (!inserted.rows.length) {
+        await client.query('ROLLBACK');
+        return apiError(res, 409, 'VIDEO_EXISTS', 'A video with this id already exists.');
+      }
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       await client.query(
         'INSERT INTO vs_upload_chunks (video_id, chunk_index, data) VALUES ($1, 0, $2)',
@@ -1324,9 +1371,7 @@ app.post('/api/verify-password', async (req, res) => {
 
     // Constant-time comparison prevents timing-based hash discovery
     const expected = result.rows[0].password_hash || '';
-    const provided = hashPassword(password);
-    const valid = expected.length === provided.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+    const valid = passwordsMatch(password, expected);
     res.json({ valid });
   } catch (err) {
     console.error('verify-password error:', err);
@@ -1355,7 +1400,7 @@ app.get('/api/video/:id', async (req, res) => {
     // Password check via session token in query string
     if (password_hash) {
       const provided = req.query.pt;
-      if (!provided || hashPassword(provided) !== password_hash) {
+      if (!passwordsMatch(provided, password_hash)) {
         return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
       }
     }
@@ -2119,7 +2164,7 @@ app.post('/api/folders/:slug/videos', async (req, res) => {
         return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
       }
       const folderOwner = c.rows[0].user_id; // may be NULL for anonymous folders
-      const v = await client.query('SELECT user_id FROM vs_uploads WHERE id = $1', [videoId]);
+      const v = await client.query('SELECT user_id, collection_id FROM vs_uploads WHERE id = $1', [videoId]);
       if (!v.rows.length) {
         await client.query('ROLLBACK');
         return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
@@ -2133,6 +2178,15 @@ app.post('/api/folders/:slug/videos', async (req, res) => {
       if (!sameFolder || !sameVideo) {
         await client.query('ROLLBACK');
         return apiError(res, 403, 'FORBIDDEN', 'Not allowed to attach this video to this folder.');
+      }
+
+      // Knowing a watch URL is not enough to yank an already-filed video into
+      // another folder. Owners can reassign; anonymous/capability callers cannot.
+      if (v.rows[0].collection_id && v.rows[0].collection_id !== slug) {
+        if (!req.userId || req.userId !== videoOwner) {
+          await client.query('ROLLBACK');
+          return apiError(res, 403, 'FORBIDDEN', 'This video is already in another folder.');
+        }
       }
 
       await client.query(
@@ -2258,16 +2312,8 @@ app.get('/api/video/:id/download', async (req, res) => {
     if (expires_at && new Date(expires_at) < new Date()) {
       return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
-    if (password_hash) {
-      const provided = req.query.pt;
-      if (!provided) return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
-      // Constant-time comparison so the endpoint can't be used as a timing
-      // oracle to brute-force the password hash.
-      const a = Buffer.from(hashPassword(String(provided)));
-      const b = Buffer.from(password_hash);
-      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-        return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
-      }
+    if (password_hash && !passwordsMatch(req.query.pt, password_hash)) {
+      return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
     }
 
     const data = await pool.query(
@@ -2403,4 +2449,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts };
+module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, isPublicStaticPath };

@@ -592,18 +592,21 @@
                 
                 // Handle both old format (category) and new format (tags array)
                 const videoTags = video.tags || [video.category];
-                const tagsString = videoTags.join(',');
+                const safeWistiaId = escapeHtml(video.wistiaId);
+                const safeTitle = escapeHtml(video.title);
+                const safeCategory = escapeHtml(video.category);
+                const tagsString = videoTags.map(escapeHtml).join(',');
                 const displayTags = videoTags.map(tag => 
-                    `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                    `<span class="item-tag-pill">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>`
                 ).join('');
                 
                 // Generate arrow controls based on position
                 const arrowControls = `
                     <div class="video-position-controls">
-                        ${!isFirstRow ? `<button class="position-arrow arrow-up" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="up" title="Move Up">↑</button>` : ''}
-                        ${!isLastRow ? `<button class="position-arrow arrow-down" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="down" title="Move Down">↓</button>` : ''}
-                        ${!isFirstCol ? `<button class="position-arrow arrow-left" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="left" title="Move Left">←</button>` : ''}
-                        ${!isLastCol ? `<button class="position-arrow arrow-right" data-action="move-video" data-wistia-id="${video.wistiaId}" data-direction="right" title="Move Right">→</button>` : ''}
+                        ${!isFirstRow ? `<button class="position-arrow arrow-up" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="up" title="Move Up">↑</button>` : ''}
+                        ${!isLastRow ? `<button class="position-arrow arrow-down" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="down" title="Move Down">↓</button>` : ''}
+                        ${!isFirstCol ? `<button class="position-arrow arrow-left" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="left" title="Move Left">←</button>` : ''}
+                        ${!isLastCol ? `<button class="position-arrow arrow-right" data-action="move-video" data-wistia-id="${safeWistiaId}" data-direction="right" title="Move Right">→</button>` : ''}
                     </div>
                 `;
                 
@@ -611,17 +614,17 @@
                 const platform = video.platform || detectVideoPlatform(videoUrl) || 'wistia';
                 
                 const html = `
-                    <div class="video-item" data-category="${video.category}" data-tags="${tagsString}" data-title="${video.title}" data-wistia="${video.wistiaId}" data-video-url="${videoUrl}" data-platform="${platform}">
-                        <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${video.wistiaId}" title="Delete Video"></button>
-                        <div class="thumbnail" id="thumb-${video.wistiaId}">
-                            <img src="${getThumbnailUrl(videoUrl, platform, extractVideoId(videoUrl, platform) || video.wistiaId)}" alt="${video.title}" class="thumb-img-cover" data-img-hide-on-error="true">
-                            <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
+                    <div class="video-item" data-category="${safeCategory}" data-tags="${tagsString}" data-title="${safeTitle}" data-wistia="${safeWistiaId}" data-video-url="${escapeHtml(videoUrl)}" data-platform="${escapeHtml(platform)}">
+                        <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${safeWistiaId}" title="Delete Video"></button>
+                        <div class="thumbnail" id="thumb-${safeWistiaId}">
+                            <img src="${escapeHtml(getThumbnailUrl(videoUrl, platform, extractVideoId(videoUrl, platform) || video.wistiaId))}" alt="${safeTitle}" class="thumb-img-cover" data-img-hide-on-error="true">
+                            <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
-                                <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" data-action="set-featured" data-wistia-id="${video.wistiaId}">Feature</button>
+                                <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
                             </div>
                             <div class="video-edit-overlay">
-                                <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${video.wistiaId}" data-video-title="${video.title}" data-video-category="${video.category}">Edit</button>
+                                <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${safeWistiaId}" data-video-title="${safeTitle}" data-video-category="${safeCategory}">Edit</button>
                             </div>
                             <div class="thumbnail-close-overlay">
                                 <button class="thumbnail-close-button" data-action="close-player">Close</button>
@@ -630,7 +633,7 @@
                         ${arrowControls}
                         <div class="item-info">
                             <div class="title-row">
-                                <div class="item-title">${video.title}</div>
+                                <div class="item-title">${safeTitle}</div>
                             </div>
                             <div class="item-tags">${displayTags}</div>
                         </div>
@@ -830,9 +833,11 @@
 
         // Edit Mode and Login Functionality
         let isEditMode = false;
-        // TODO: Move to environment variable for production
-        // This should be set in Netlify environment variables as ADMIN_PASSWORD
-        const ADMIN_PASSWORD = 'admin123'; // SECURITY WARNING: Change this password!
+        const PAGE_KEY = 'disc';
+
+        function pageEditorHeaders() {
+            return (window.PageEditorAuth && window.PageEditorAuth.headers(PAGE_KEY)) || { 'Content-Type': 'application/json' };
+        }
 
         // Login functionality
         document.getElementById('loginLink').addEventListener('click', function() {
@@ -850,22 +855,30 @@
             document.getElementById('loginError').style.display = 'none';
         });
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const password = document.getElementById('loginPassword').value;
-            
-            if (password === ADMIN_PASSWORD) {
-                // Login successful
+            const loginError = document.getElementById('loginError');
+            const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            try {
+                if (!window.PageEditorAuth) throw new Error('Editor auth is unavailable.');
+                const response = await window.PageEditorAuth.verify(PAGE_KEY, password);
+                if (!response.ok) {
+                    loginError.textContent = 'Incorrect password';
+                    loginError.style.display = 'block';
+                    return;
+                }
+                window.PageEditorAuth.setToken(PAGE_KEY, password);
                 document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginError').style.display = 'none';
+                loginError.style.display = 'none';
                 enterEditMode();
-            } else {
-                // Login failed
-                document.getElementById('loginError').textContent = 'Incorrect password';
-                document.getElementById('loginError').style.display = 'block';
+            } catch (err) {
+                loginError.textContent = 'Unable to verify editor access. Please try again.';
+                loginError.style.display = 'block';
+            } finally {
                 document.getElementById('loginPassword').value = '';
-                document.getElementById('loginPassword').focus();
+                submitButton.disabled = false;
             }
         });
 
@@ -903,9 +916,7 @@
                     try {
                         const response = await fetch('/.netlify/functions/save-page-config', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            headers: pageEditorHeaders(),
                             body: JSON.stringify({
                                 page: 'disc',
                                 page_title: newTitle
@@ -1821,9 +1832,7 @@
                 // Save videos
                 const videoResponse = await fetch('/.netlify/functions/save-videos', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({ videos: videos, page: 'disc' })
                 });
                 
@@ -1844,9 +1853,7 @@
                 // Save categories
                 const categoryResponse = await fetch('/.netlify/functions/save-categories', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify({ categories: categories, page: 'disc' })
                 });
                 
@@ -1875,9 +1882,7 @@
                     try {
                         const colorResponse = await fetch('/.netlify/functions/save-page-config', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            headers: pageEditorHeaders(),
                             body: JSON.stringify({
                                 page: 'disc',
                                 accent_color: currentAccentColor
@@ -2465,24 +2470,27 @@
             
             // Handle tags - use tags array if provided, otherwise use category as single tag
             const videoTags = video.tags && video.tags.length > 0 ? video.tags : [video.category];
-            const tagsString = videoTags.join(',');
+            const tagsString = videoTags.map(escapeHtml).join(',');
             videoElement.setAttribute('data-tags', tagsString);
+            const safeWistiaId = escapeHtml(video.wistiaId);
+            const safeTitle = escapeHtml(video.title);
+            const safeCategory = escapeHtml(video.category);
             
             // Generate tag pills HTML
             const displayTags = videoTags.map(tag => 
-                `<span class="item-tag-pill">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>`
+                `<span class="item-tag-pill">${escapeHtml(tag.charAt(0).toUpperCase() + tag.slice(1))}</span>`
             ).join('');
             
             videoElement.innerHTML = `
-                <div class="thumbnail" id="thumb-${video.wistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${video.wistiaId}.jpg" alt="${video.title}" class="thumb-img-cover" data-thumb-fallback="${video.wistiaId}">
-                    <div class="thumbnail-duration" id="thumb-duration-${video.wistiaId}">--:--</div>
+                <div class="thumbnail" id="thumb-${safeWistiaId}">
+                    <img src="https://embed-ssl.wistia.com/deliveries/${safeWistiaId}.jpg" alt="${safeTitle}" class="thumb-img-cover" data-thumb-fallback="${safeWistiaId}">
+                    <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
-                        <button class="featured-btn" data-action="set-featured" data-wistia-id="${video.wistiaId}">Feature</button>
+                        <button class="featured-btn" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
                     </div>
                     <div class="video-edit-overlay">
-                        <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${video.wistiaId}" data-video-title="${video.title}" data-video-category="${video.category}">Edit</button>
+                        <button class="video-edit-btn" data-action="edit-video" data-wistia-id="${safeWistiaId}" data-video-title="${safeTitle}" data-video-category="${safeCategory}">Edit</button>
                     </div>
                     <div class="thumbnail-close-overlay">
                         <button class="thumbnail-close-button" data-action="close-player">Close</button>
@@ -2490,7 +2498,7 @@
                 </div>
                 <div class="item-info">
                     <div class="title-row">
-                        <div class="item-title">${video.title}</div>
+                        <div class="item-title">${safeTitle}</div>
                     </div>
                     <div class="item-tags">${displayTags}</div>
                 </div>
@@ -2853,9 +2861,7 @@
             try {
                 const response = await fetch('/.netlify/functions/save-page-config', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: pageEditorHeaders(),
                     body: JSON.stringify(settings)
                 });
                 
