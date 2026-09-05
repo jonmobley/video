@@ -58,6 +58,11 @@
     const VALID_TIERS = ['all', 'paid', 'free'];
     const VALID_TABS = ['videos', 'users'];
 
+    function escapeHtml(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
     let isPopstateNav = false;
 
     function buildFilterUrl() {
@@ -364,7 +369,7 @@
           row.className = 'video-row';
           row.innerHTML = `
             <div class="video-main">
-              <div class="video-title ${v.title ? '' : 'untitled'}"><span class="video-title-text">${v.title || 'Untitled'}</span>${adminSourceBadge(v.platform)}</div>
+              <div class="video-title ${v.title ? '' : 'untitled'}"><span class="video-title-text">${escapeHtml(v.title || 'Untitled')}</span>${adminSourceBadge(v.platform)}</div>
               <div class="video-meta">
                 <span>${formatDate(v.uploaded_at)}</span>
                 <span>${formatBytes(v.file_size)}</span>
@@ -408,7 +413,7 @@
         });
       } catch (err) {
         if (err.name === 'AbortError') return;
-        videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${err.message}</div></div>`;
+          videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${escapeHtml(err.message)}</div></div>`;
         videoFilterStatus.textContent = 'Loading failed';
         statsRow.innerHTML = '';
       } finally {

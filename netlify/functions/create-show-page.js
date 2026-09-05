@@ -33,6 +33,8 @@ exports.handler = async event => {
     const duplicate = error.code === '23505';
     return { statusCode: duplicate ? 409 : 500, headers, body: JSON.stringify({ error: { code: duplicate ? 'PAGE_EXISTS' : 'DB_ERROR', message: duplicate ? 'That show slug already exists.' : 'Could not create the show.' } }) };
   }
-  const origin = event.headers?.origin || (event.headers?.host ? `${event.headers['x-forwarded-proto'] || 'https'}://${event.headers.host}` : '');
-  return { statusCode: 201, headers, body: JSON.stringify({ page, title, setup_url: `${origin}/show/${page}?setup=${encodeURIComponent(setupToken)}` }) };
+  let configuredOrigin = String(process.env.PUBLIC_ORIGIN || process.env.ALLOWED_ORIGIN || '').replace(/\/$/, '');
+  if (configuredOrigin === '*') configuredOrigin = '';
+  const setupPath = `/show/${page}?setup=${encodeURIComponent(setupToken)}`;
+  return { statusCode: 201, headers, body: JSON.stringify({ page, title, setup_url: configuredOrigin ? `${configuredOrigin}${setupPath}` : setupPath }) };
 };

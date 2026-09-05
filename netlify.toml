@@ -11,6 +11,68 @@
   port = 5000
 
 # URL redirects for cleaner URLs
+# Sensitive source/config files are published with the static site; force 404
+# so they cannot be downloaded from the CDN even though they exist on disk.
+[[redirects]]
+  from = "/server.js"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/env.example"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/playwright.config.js"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/lib/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tests/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/scripts/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/*.sql"
+  to = "/index.html"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/admin"
   to = "/admin.html"
@@ -20,6 +82,36 @@
   from = "/oz"
   to = "/oz.html"
   status = 200                       # Rewrite (URL stays as /oz)
+
+[[redirects]]
+  from = "/disc"
+  to = "/disc.html"
+  status = 200
+
+[[redirects]]
+  from = "/vertical"
+  to = "/vertical.html"
+  status = 200
+
+[[redirects]]
+  from = "/seussical"
+  to = "/seussical.html"
+  status = 200
+
+[[redirects]]
+  from = "/dropbox"
+  to = "/dropbox.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/account"
+  to = "/account.html"
+  status = 200
 
 [[redirects]]
 from = "/show/*"

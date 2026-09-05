@@ -99,13 +99,22 @@ exports.handler = async (event, context) => {
 
     // Validate each category object
     for (const category of categories) {
-      if (!category.id || !category.name) {
-        throw new Error('Invalid category data structure - id and name are required');
+      if (typeof category.id !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(category.id) ||
+          typeof category.name !== 'string' || !category.name.trim() || category.name.length > 80) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: { code: 'BAD_CATEGORY', message: 'Invalid category id or name.' } })
+        };
       }
       
       // Validate color format (hex color)
       if (category.color && !/^#[0-9A-F]{6}$/i.test(category.color)) {
-        throw new Error(`Invalid color format for category ${category.name}. Use hex format like #ff6b6b`);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: { code: 'BAD_COLOR', message: `Invalid color format for category ${category.name}. Use hex format like #ff6b6b` } })
+        };
       }
     }
 

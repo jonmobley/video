@@ -72,24 +72,17 @@ describe('upload-widget: empty file rejection', () => {
     dropEvt.dataTransfer = { files: [emptyFile] };
     dropZone.dispatchEvent(dropEvt);
 
-    // Title is auto-filled by setFile() from the filename.
-    const titleInput = root.querySelector('[data-el="titleInput"]');
-    expect(titleInput.value.trim().length).toBeGreaterThan(0);
+    await Promise.resolve();
 
-    // Click upload.
-    const uploadBtn = root.querySelector('[data-el="uploadBtn"]');
-    expect(uploadBtn.disabled).toBe(false);
-    uploadBtn.click();
-
-    // Give startUpload a chance to throw and render the error.
-    await new Promise(r => setTimeout(r, 10));
-
-    // The user-facing error message should be present.
+    // Empty files are rejected in setFile(), before a title is filled or
+    // the upload button is enabled.
     const errorMsg = root.querySelector('[data-el="errorMsg"]');
-    expect(errorMsg.textContent).toMatch(/empty|0 bytes/i);
+    expect(errorMsg.textContent).toMatch(/empty|unreadable|0 bytes/i);
     expect(errorMsg.classList.contains('visible')).toBe(true);
 
-    // The critical assertion: NO chunk upload was attempted.
+    const uploadBtn = root.querySelector('[data-el="uploadBtn"]');
+    expect(uploadBtn.classList.contains('visible')).toBe(false);
+
     const uploadChunkCalls = fetchMock.mock.calls.filter(
       ([url]) => String(url).includes('/api/upload-chunk')
     );

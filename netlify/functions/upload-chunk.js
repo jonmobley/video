@@ -51,6 +51,13 @@ exports.handler = async (event) => {
     if (typeof videoId !== 'string' || !VIDEO_ID_RE.test(videoId)) {
       return apiError(400, headers, 'BAD_VIDEO_ID', 'Invalid video id.');
     }
+
+    const store = getStore('video-uploads');
+    const existing = await store.get(videoId, { type: 'arrayBuffer' });
+    if (existing) {
+      return apiError(409, headers, 'VIDEO_EXISTS', 'A video with this id already exists.');
+    }
+
     if (!Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 100000) {
       return apiError(400, headers, 'BAD_TOTAL_CHUNKS', 'Invalid totalChunks.');
     }
@@ -75,7 +82,6 @@ exports.handler = async (event) => {
       return apiError(413, headers, 'PAYLOAD_TOO_LARGE', 'Chunk too large.');
     }
 
-    const store = getStore('video-uploads');
     const chunkKey = `chunks/${videoId}/${String(chunkIndex).padStart(6, '0')}`;
 
     await store.set(chunkKey, chunkBuffer, {

@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 jest.mock('../../lib/page-store', () => ({ query: jest.fn() }));
 
 const pageStore = require('../../lib/page-store');
@@ -38,5 +41,20 @@ describe('PostgreSQL standalone show migration', () => {
     expect(result.authorized).toBe(true);
     expect(pageStore.query.mock.calls[0][0]).toMatch(/editor_token_hash/);
     expect(pageStore.query.mock.calls[0][1][1]).not.toBe('dynamic-token');
+  });
+
+  test('revokes replace_page helpers only after they are created', () => {
+    const sql = fs.readFileSync(
+      path.join(__dirname, '../../complete-supabase-schema.sql'),
+      'utf8'
+    );
+    const createVideos = sql.indexOf('CREATE OR REPLACE FUNCTION replace_page_videos');
+    const createCategories = sql.indexOf('CREATE OR REPLACE FUNCTION replace_page_categories');
+    const revokeVideos = sql.indexOf('REVOKE ALL ON FUNCTION replace_page_videos');
+    const revokeCategories = sql.indexOf('REVOKE ALL ON FUNCTION replace_page_categories');
+    expect(createVideos).toBeGreaterThan(-1);
+    expect(createCategories).toBeGreaterThan(-1);
+    expect(revokeVideos).toBeGreaterThan(createVideos);
+    expect(revokeCategories).toBeGreaterThan(createCategories);
   });
 });

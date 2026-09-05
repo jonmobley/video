@@ -1,9 +1,13 @@
+require('dotenv').config({ quiet: true });
+
 const express = require('express');
 const { Pool, types } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { ensurePageSchema } = require('./lib/page-store');
+const { postgresSslOption } = require('./lib/pg-ssl');
+const { cookieSecureEnabled } = require('./lib/cookie-secure');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -31,18 +35,17 @@ function getSupabase() {
 types.setTypeParser(20, val => (val === null ? null : parseInt(val, 10)));
 
 const app = express();
-// Replit's edge proxies the app over HTTPS and sets X-Forwarded-For. Trusting
-// exactly one hop lets Express derive `req.ip` from the real client IP without
-// honouring spoofed headers from arbitrary upstreams.
+// Cloudflare (and most other reverse proxies) terminate TLS and set
+// X-Forwarded-For. Trusting exactly one hop lets Express derive `req.ip`
+// from the real client IP without honouring spoofed headers from arbitrary
+// upstreams.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost')
-    ? false
-    : { rejectUnauthorized: false }
+  ssl: postgresSslOption(process.env.DATABASE_URL)
 });
 
 // ── Rate limiting ────────────────────────────────────────────────────────────
@@ -100,6 +103,13 @@ function evictExpiredRateLimits() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function hashPassword(pw) {
   return crypto.createHash('sha256').update('vs2026_' + pw).digest('hex');
+}
+
+function passwordsMatch(provided, storedHash) {
+  if (!provided || !storedHash) return false;
+  const a = Buffer.from(hashPassword(String(provided)));
+  const b = Buffer.from(storedHash);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function getIp(req) {
@@ -215,21 +225,24 @@ function requireUploadAuth(req, res, next) {
   next();
 }
 
-function setSessionCookie(res, userId) {
-  const token = signSession(userId);
-  // Secure flag: Replit proxies HTTPS in deployment; harmless on local.
+function sessionCookieFlags(value, maxAge, req) {
   const flags = [
-    `${SESSION_COOKIE}=${token}`,
+    `${SESSION_COOKIE}=${value}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
-    'Secure'
+    `Max-Age=${maxAge}`
   ];
-  res.setHeader('Set-Cookie', flags.join('; '));
+  if (cookieSecureEnabled(req)) flags.push('Secure');
+  return flags.join('; ');
 }
-function clearSessionCookie(res) {
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`);
+
+function setSessionCookie(res, userId, req) {
+  const token = signSession(userId);
+  res.setHeader('Set-Cookie', sessionCookieFlags(token, Math.floor(SESSION_TTL_MS / 1000), req));
+}
+function clearSessionCookie(res, req) {
+  res.setHeader('Set-Cookie', sessionCookieFlags('', 0, req));
 }
 
 // Lightweight email validation — server-side. We're not strict about RFC 5322;
@@ -522,6 +535,7 @@ function netlifyFunctionAdapter(functionName) {
   'save-categories',
   'save-page-config',
   'upload-coming-soon-image',
+  'upload-page-image',
   'create-show-page',
   'redeem-page-editor-setup'
 ].forEach((functionName) => {
@@ -680,11 +694,54 @@ app.get('/f/:slug', async (req, res) => {
   }
 });
 
-app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d' }));
-app.use(express.static(path.join(__dirname), { extensions: ['html'] }));
+const PUBLIC_STATIC_DIRS = new Set(['js', 'styles', 'assets', 'attached_assets']);
+const PUBLIC_ROOT_EXT = new Set([
+  'html', 'css', 'ico', 'svg', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'txt', 'xml', 'woff', 'woff2'
+]);
+const PUBLIC_HTML_SLUGS = new Set(
+  fs.readdirSync(__dirname, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
+    .map((entry) => entry.name.slice(0, -'.html'.length))
+);
+
+function isPublicStaticPath(urlPath) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(String(urlPath || '').split('?')[0]);
+  } catch {
+    return false;
+  }
+  const normalized = path.posix.normalize(decoded);
+  if (!normalized.startsWith('/') || normalized.includes('\0')) return false;
+  if (normalized === '/' || normalized === '/index.html') return true;
+  const segments = normalized.slice(1).split('/').filter(Boolean);
+  if (segments.length === 0) return false;
+  if (segments.some(seg => seg === '.' || seg === '..' || seg.startsWith('.'))) return false;
+  if (PUBLIC_STATIC_DIRS.has(segments[0])) return true;
+  if (segments.length !== 1) return false;
+  const name = segments[0];
+  const dot = name.lastIndexOf('.');
+  if (dot < 1) return PUBLIC_HTML_SLUGS.has(name);
+  return PUBLIC_ROOT_EXT.has(name.slice(dot + 1).toLowerCase());
+}
+
+const publicStatic = express.static(path.join(__dirname), {
+  extensions: ['html'],
+  index: 'index.html',
+  dotfiles: 'deny',
+  fallthrough: true
+});
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (req.path.startsWith('/api/') || req.path.startsWith('/.netlify/')) return next();
+  if (!isPublicStaticPath(req.path)) return next();
+  return publicStatic(req, res, next);
+});
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/ping', (req, res) => res.json({ ok: true }));
 app.get('/api/upload-config', (req, res) => {
   res.json({ requireAuth: process.env.ALLOW_ANONYMOUS_UPLOADS !== 'true' });
 });
@@ -724,12 +781,17 @@ app.post('/api/upload-chunk', requireUploadAuth, async (req, res) => {
     if (buffer.length === 0) {
       return apiError(res, 400, 'EMPTY_CHUNK', 'Decoded chunk is empty.');
     }
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO vs_upload_chunks (video_id, chunk_index, data)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (video_id, chunk_index) DO UPDATE SET data = EXCLUDED.data`,
+       SELECT $1, $2, $3
+       WHERE NOT EXISTS (SELECT 1 FROM vs_uploads WHERE id = $1)
+       ON CONFLICT (video_id, chunk_index) DO UPDATE SET data = EXCLUDED.data
+       RETURNING chunk_index`,
       [videoId, chunkIndex, buffer]
     );
+    if (!result.rowCount) {
+      return apiError(res, 409, 'VIDEO_EXISTS', 'A video with this id already exists.');
+    }
 
     res.json({ success: true, chunkIndex, totalChunks });
   } catch (err) {
@@ -819,18 +881,17 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
     // are pruned later by the age-gated orphan cleanup in cleanupExpired().
     await client.query('BEGIN');
     try {
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO vs_uploads (id, content_type, title, expires_at, password_hash, file_size, user_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (id) DO UPDATE SET
-           content_type = EXCLUDED.content_type,
-           title = EXCLUDED.title,
-           expires_at = EXCLUDED.expires_at,
-           password_hash = EXCLUDED.password_hash,
-           file_size = EXCLUDED.file_size,
-           user_id = EXCLUDED.user_id`,
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id`,
         [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length, req.userId || null]
       );
+      if (!inserted.rows.length) {
+        await client.query('ROLLBACK');
+        return apiError(res, 409, 'VIDEO_EXISTS', 'A video with this id already exists.');
+      }
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       await client.query(
         'INSERT INTO vs_upload_chunks (video_id, chunk_index, data) VALUES ($1, 0, $2)',
@@ -1324,9 +1385,7 @@ app.post('/api/verify-password', async (req, res) => {
 
     // Constant-time comparison prevents timing-based hash discovery
     const expected = result.rows[0].password_hash || '';
-    const provided = hashPassword(password);
-    const valid = expected.length === provided.length &&
-      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+    const valid = passwordsMatch(password, expected);
     res.json({ valid });
   } catch (err) {
     console.error('verify-password error:', err);
@@ -1355,7 +1414,7 @@ app.get('/api/video/:id', async (req, res) => {
     // Password check via session token in query string
     if (password_hash) {
       const provided = req.query.pt;
-      if (!provided || hashPassword(provided) !== password_hash) {
+      if (!passwordsMatch(provided, password_hash)) {
         return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
       }
     }
@@ -1652,7 +1711,7 @@ app.post('/api/auth/verify-code', async (req, res) => {
       userId = ins.rows[0].id;
     }
 
-    setSessionCookie(res, userId);
+    setSessionCookie(res, userId, req);
     res.json({ email });
   } catch (err) {
     console.error('verify-code error:', err);
@@ -1661,14 +1720,14 @@ app.post('/api/auth/verify-code', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  clearSessionCookie(res);
+  clearSessionCookie(res, req);
   res.json({ success: true });
 });
 
 app.get('/api/auth/me', async (req, res) => {
   if (!req.userId) return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.');
   const result = await pool.query('SELECT email, is_paid FROM vs_users WHERE id = $1', [req.userId]);
-  if (!result.rows.length) { clearSessionCookie(res); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
+  if (!result.rows.length) { clearSessionCookie(res, req); return apiError(res, 401, 'AUTH_REQUIRED', 'Not signed in.'); }
   res.json({ email: result.rows[0].email, is_paid: result.rows[0].is_paid });
 });
 
@@ -2119,7 +2178,7 @@ app.post('/api/folders/:slug/videos', async (req, res) => {
         return apiError(res, 404, 'NOT_FOUND', 'Folder not found.');
       }
       const folderOwner = c.rows[0].user_id; // may be NULL for anonymous folders
-      const v = await client.query('SELECT user_id FROM vs_uploads WHERE id = $1', [videoId]);
+      const v = await client.query('SELECT user_id, collection_id FROM vs_uploads WHERE id = $1', [videoId]);
       if (!v.rows.length) {
         await client.query('ROLLBACK');
         return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
@@ -2133,6 +2192,15 @@ app.post('/api/folders/:slug/videos', async (req, res) => {
       if (!sameFolder || !sameVideo) {
         await client.query('ROLLBACK');
         return apiError(res, 403, 'FORBIDDEN', 'Not allowed to attach this video to this folder.');
+      }
+
+      // Knowing a watch URL is not enough to yank an already-filed video into
+      // another folder. Owners can reassign; anonymous/capability callers cannot.
+      if (v.rows[0].collection_id && v.rows[0].collection_id !== slug) {
+        if (!req.userId || req.userId !== videoOwner) {
+          await client.query('ROLLBACK');
+          return apiError(res, 403, 'FORBIDDEN', 'This video is already in another folder.');
+        }
       }
 
       await client.query(
@@ -2258,16 +2326,8 @@ app.get('/api/video/:id/download', async (req, res) => {
     if (expires_at && new Date(expires_at) < new Date()) {
       return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
-    if (password_hash) {
-      const provided = req.query.pt;
-      if (!provided) return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
-      // Constant-time comparison so the endpoint can't be used as a timing
-      // oracle to brute-force the password hash.
-      const a = Buffer.from(hashPassword(String(provided)));
-      const b = Buffer.from(password_hash);
-      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-        return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
-      }
+    if (password_hash && !passwordsMatch(req.query.pt, password_hash)) {
+      return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
     }
 
     const data = await pool.query(
@@ -2372,8 +2432,11 @@ app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html
 app.get('/admin',   (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));
-app.get('/oz',      (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
-app.get('/disc',    (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+app.get('/oz',        (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
+app.get('/disc',      (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+app.get('/vertical',  (req, res) => res.sendFile(path.join(__dirname, 'vertical.html')));
+app.get('/seussical', (req, res) => res.sendFile(path.join(__dirname, 'seussical.html')));
+app.get('/dropbox',   (req, res) => res.sendFile(path.join(__dirname, 'dropbox.html')));
 // Generic show pages share the gallery template. New show slugs resolve here
 // rather than requiring a new HTML file and route for each production.
 app.get('/show/:slug', (req, res, next) => {
@@ -2395,7 +2458,28 @@ if (require.main === module) {
       if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
         console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
       }
-      app.listen(PORT, '0.0.0.0', () => console.log(`VidShare server running on port ${PORT}`));
+      const server = app.listen(PORT, '0.0.0.0', () => {
+        console.log(`VidShare server running on port ${PORT}`);
+      });
+      server.requestTimeout = 0;
+      server.headersTimeout = 0;
+
+      let shuttingDown = false;
+      const shutdown = (signal) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`${signal} received, draining HTTP connections`);
+        server.close(async () => {
+          try {
+            await pool.end();
+          } catch (err) {
+            console.error('Error closing database pool:', err.message);
+          }
+          process.exit(0);
+        });
+      };
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
     })
     .catch(err => {
       console.error('Startup error:', err);
@@ -2403,4 +2487,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts };
+module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, isPublicStaticPath };

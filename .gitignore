@@ -1,6 +1,7 @@
 # Local Netlify folder
 .netlify
 .env
+.dev.vars
 node_modules/
 
 # Replit

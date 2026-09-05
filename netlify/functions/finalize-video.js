@@ -61,6 +61,10 @@ exports.handler = async (event) => {
     }
 
     store = getStore('video-uploads');
+    const existing = await store.get(videoId, { type: 'arrayBuffer' });
+    if (existing) {
+      return apiError(409, headers, 'VIDEO_EXISTS', 'A video with this id already exists.');
+    }
 
     // Read and concatenate all chunks in order. Any missing chunk is treated
     // as a hard integrity failure — we wipe the partial upload so the client

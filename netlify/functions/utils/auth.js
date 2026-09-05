@@ -34,9 +34,6 @@ function requireAuth(event) {
   };
 
   const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
-  
-  console.log('🔐 Auth check - ADMIN_TOKEN present:', !!ADMIN_TOKEN);
-  console.log('🔐 Auth check - Authorization header:', event.headers.authorization ? 'present' : 'missing');
 
   if (!ADMIN_TOKEN) {
     return {

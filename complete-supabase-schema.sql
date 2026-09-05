@@ -265,16 +265,14 @@ CREATE POLICY "Allow public read access to categories" ON categories
 CREATE POLICY "Allow public read access to page_config" ON page_config
     FOR SELECT TO anon USING (true);
 
--- For authenticated users (admin), allow all operations
--- Note: You'll need to set up authentication in Supabase for this to work
-CREATE POLICY "Allow authenticated users full access to videos" ON videos
-    FOR ALL TO authenticated USING (true);
-
-CREATE POLICY "Allow authenticated users full access to categories" ON categories
-    FOR ALL TO authenticated USING (true);
-
-CREATE POLICY "Allow authenticated users full access to page_config" ON page_config
-    FOR ALL TO authenticated USING (true);
+-- Anon/authenticated must not read editor/setup token hashes even if they
+-- query page_config directly with the Supabase anon key.
+REVOKE SELECT ON page_config FROM anon, authenticated, PUBLIC;
+GRANT SELECT (
+    page, accent_color, page_title, meta_description, meta_keywords,
+    canonical_url, og_title, og_description, og_image_url, coming_soon_image_url,
+    twitter_title, twitter_description, presentation, created_at, updated_at
+) ON page_config TO anon, authenticated;
 
 -- ============================================================================
 -- ATOMIC SAVE PROCEDURES
@@ -339,3 +337,8 @@ BEGIN
   FROM jsonb_array_elements(COALESCE(p_categories, '[]'::JSONB)) AS v;
 END;
 $$;
+
+-- CREATE FUNCTION grants EXECUTE to PUBLIC. Revoke after the helpers exist
+-- so a fresh apply does not leave anon able to bulk-replace page rows.
+REVOKE ALL ON FUNCTION replace_page_videos(TEXT, JSONB) FROM PUBLIC;
+REVOKE ALL ON FUNCTION replace_page_categories(TEXT, JSONB, BOOLEAN) FROM PUBLIC;

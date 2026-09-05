@@ -22,7 +22,7 @@ All admin endpoints require authentication via the `ADMIN_TOKEN` environment var
    openssl rand -hex 32
    ```
 
-2. Add to Netlify environment variables:
+2. Add to the host environment (Docker `.env`, Cloudflare Worker secrets, or Netlify):
    ```
    ADMIN_TOKEN=your_generated_token_here
    ```
@@ -57,7 +57,7 @@ Both `server.js` and Netlify function auth (`netlify/functions/utils/auth.js`) u
 
 ## Security Headers
 
-The following headers are set on all responses (via `netlify.toml` for Netlify and middleware in `server.js` for the Replit dev server):
+The following headers are set on all responses (via middleware in `server.js`, and `netlify.toml` if you still deploy there):
 
 ### Content-Security-Policy (CSP)
 
@@ -199,7 +199,7 @@ ALLOWED_ORIGIN=https://your-domain.com
 ### Variable Security
 
 1. **Never commit secrets to git**
-2. **Use Netlify environment variables** for production
+2. **Use host environment variables / Worker secrets** for production (see HOSTING.md)
 3. **Rotate admin token** if compromised
 4. **Keep Supabase keys secure** - never expose service role key
 
@@ -213,9 +213,12 @@ Before deploying:
 - [ ] All admin operations require authentication
 - [ ] User-generated content is sanitized before rendering
 - [ ] File uploads are validated
-- [ ] HTTPS is enforced (handled by Netlify)
+- [ ] HTTPS is enforced (Cloudflare or your reverse proxy)
 - [ ] CSP, HSTS, and Permissions-Policy headers are present on all responses
 - [ ] Token comparison uses constant-time (`crypto.timingSafeEqual`) in both server.js and Netlify functions
+- [ ] Source files (`server.js`, `lib/`, `netlify/`, `*.sql`, `package.json`) are not publicly downloadable
+- [ ] Page editor logins go through `verify-page-editor` (no client-side hardcoded passwords)
+- [ ] `lock-page-config-secrets.sql` has been applied so anon cannot SELECT editor token hashes
 
 ## Reporting Security Issues
 
@@ -229,7 +232,7 @@ If you discover a security vulnerability:
 ## Security Updates
 
 This application uses:
-- Netlify Functions (automatically updated)
+- Express (`server.js`) plus optional Netlify Functions
 - Supabase SDK (check for updates regularly)
 - No client-side frameworks (reduced attack surface)
 

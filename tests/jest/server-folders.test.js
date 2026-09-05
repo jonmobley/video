@@ -108,3 +108,23 @@ describe('DELETE /api/upload-chunks/:videoId — cancel cleanup', () => {
     expect(res.body.success).toBe(true);
   });
 });
+
+describe('POST /api/folders/:slug/videos — cannot steal filed videos', () => {
+  const slug = 'bbbbbbbbbbbb';
+  const videoId = 'c'.repeat(24) + '.mp4';
+
+  test('rejects attaching an anonymous video that is already in another folder', async () => {
+    pgMock.enqueue({ rows: [] }); // BEGIN
+    pgMock.enqueue({ rows: [{ user_id: null }] }); // folder is anonymous
+    pgMock.enqueue({ rows: [{ user_id: null, collection_id: 'aaaaaaaaaaaa' }] }); // already filed
+    pgMock.enqueue({ rows: [] }); // ROLLBACK
+
+    const res = await request(app)
+      .post(`/api/folders/${slug}/videos`)
+      .send({ videoId });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.message).toMatch(/already in another folder/i);
+  });
+});
