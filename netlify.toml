@@ -84,6 +84,36 @@
   status = 200                       # Rewrite (URL stays as /oz)
 
 [[redirects]]
+  from = "/disc"
+  to = "/disc.html"
+  status = 200
+
+[[redirects]]
+  from = "/vertical"
+  to = "/vertical.html"
+  status = 200
+
+[[redirects]]
+  from = "/seussical"
+  to = "/seussical.html"
+  status = 200
+
+[[redirects]]
+  from = "/dropbox"
+  to = "/dropbox.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/account"
+  to = "/account.html"
+  status = 200
+
+[[redirects]]
 from = "/show/*"
 to = "/oz.html"
 status = 200                       # Shared template reads slug from pathname

@@ -274,9 +274,6 @@ GRANT SELECT (
     twitter_title, twitter_description, presentation, created_at, updated_at
 ) ON page_config TO anon, authenticated;
 
-REVOKE ALL ON FUNCTION replace_page_videos(TEXT, JSONB) FROM PUBLIC;
-REVOKE ALL ON FUNCTION replace_page_categories(TEXT, JSONB, BOOLEAN) FROM PUBLIC;
-
 -- ============================================================================
 -- ATOMIC SAVE PROCEDURES
 -- ============================================================================
@@ -340,3 +337,8 @@ BEGIN
   FROM jsonb_array_elements(COALESCE(p_categories, '[]'::JSONB)) AS v;
 END;
 $$;
+
+-- CREATE FUNCTION grants EXECUTE to PUBLIC. Revoke after the helpers exist
+-- so a fresh apply does not leave anon able to bulk-replace page rows.
+REVOKE ALL ON FUNCTION replace_page_videos(TEXT, JSONB) FROM PUBLIC;
+REVOKE ALL ON FUNCTION replace_page_categories(TEXT, JSONB, BOOLEAN) FROM PUBLIC;

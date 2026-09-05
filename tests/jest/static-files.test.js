@@ -4,13 +4,14 @@ const request = require('supertest');
 const { app, isPublicStaticPath } = require('../../server');
 
 describe('isPublicStaticPath', () => {
-  test('allows public UI assets and HTML', () => {
-    expect(isPublicStaticPath('/')).toBe(true);
-    expect(isPublicStaticPath('/index.html')).toBe(true);
-    expect(isPublicStaticPath('/watch.html')).toBe(true);
-    expect(isPublicStaticPath('/js/sanitize.js')).toBe(true);
-    expect(isPublicStaticPath('/styles/watch.css')).toBe(true);
-    expect(isPublicStaticPath('/assets/vidshare-og.png')).toBe(true);
+  test('allows extensionless pretty URLs that map to HTML pages', () => {
+    expect(isPublicStaticPath('/vertical')).toBe(true);
+    expect(isPublicStaticPath('/seussical')).toBe(true);
+    expect(isPublicStaticPath('/dropbox')).toBe(true);
+    expect(isPublicStaticPath('/disc')).toBe(true);
+    expect(isPublicStaticPath('/oz')).toBe(true);
+    expect(isPublicStaticPath('/server')).toBe(false);
+    expect(isPublicStaticPath('/package')).toBe(false);
   });
 
   test('blocks source, config, and secret files', () => {
@@ -54,5 +55,20 @@ describe('GET static allowlist', () => {
     const res = await request(app).get('/js/sanitize.js');
     expect(res.status).toBe(200);
     expect(res.text).toContain('function escapeHtml');
+  });
+
+  test('serves pretty URLs for show pages', async () => {
+    const vertical = await request(app).get('/vertical');
+    expect(vertical.status).toBe(200);
+    expect(vertical.text).toMatch(/<html/i);
+
+    const seussical = await request(app).get('/seussical');
+    expect(seussical.status).toBe(200);
+    expect(seussical.text).toMatch(/<html/i);
+  });
+
+  test('does not invent HTML for source-file stems', async () => {
+    const res = await request(app).get('/server');
+    expect(res.status).toBe(404);
   });
 });

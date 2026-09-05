@@ -705,6 +705,11 @@ const PUBLIC_STATIC_DIRS = new Set(['js', 'styles', 'assets', 'attached_assets']
 const PUBLIC_ROOT_EXT = new Set([
   'html', 'css', 'ico', 'svg', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'txt', 'xml', 'woff', 'woff2'
 ]);
+const PUBLIC_HTML_SLUGS = new Set(
+  fs.readdirSync(__dirname, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
+    .map((entry) => entry.name.slice(0, -'.html'.length))
+);
 
 function isPublicStaticPath(urlPath) {
   let decoded;
@@ -721,9 +726,10 @@ function isPublicStaticPath(urlPath) {
   if (segments.some(seg => seg === '.' || seg === '..' || seg.startsWith('.'))) return false;
   if (PUBLIC_STATIC_DIRS.has(segments[0])) return true;
   if (segments.length !== 1) return false;
-  const dot = segments[0].lastIndexOf('.');
-  if (dot < 1) return false;
-  return PUBLIC_ROOT_EXT.has(segments[0].slice(dot + 1).toLowerCase());
+  const name = segments[0];
+  const dot = name.lastIndexOf('.');
+  if (dot < 1) return PUBLIC_HTML_SLUGS.has(name);
+  return PUBLIC_ROOT_EXT.has(name.slice(dot + 1).toLowerCase());
 }
 
 const publicStatic = express.static(path.join(__dirname), {
@@ -2433,8 +2439,11 @@ app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html
 app.get('/admin',   (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));
-app.get('/oz',      (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
-app.get('/disc',    (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+app.get('/oz',        (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
+app.get('/disc',      (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
+app.get('/vertical',  (req, res) => res.sendFile(path.join(__dirname, 'vertical.html')));
+app.get('/seussical', (req, res) => res.sendFile(path.join(__dirname, 'seussical.html')));
+app.get('/dropbox',   (req, res) => res.sendFile(path.join(__dirname, 'dropbox.html')));
 // Generic show pages share the gallery template. New show slugs resolve here
 // rather than requiring a new HTML file and route for each production.
 app.get('/show/:slug', (req, res, next) => {
