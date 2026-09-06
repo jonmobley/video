@@ -31,7 +31,24 @@ describe('writeSecretsFile', () => {
     const file = path.join(os.tmpdir(), `worker-secrets-missing-${process.pid}.json`);
     const result = writeSecretsFile(file, { DATABASE_URL: 'postgres://db' });
     expect(result.ok).toBe(false);
-    expect(result.missing).toEqual(['ADMIN_TOKEN', 'ALLOWED_ORIGIN', 'PUBLIC_ORIGIN']);
+    expect(result.missing).toEqual(['ADMIN_TOKEN']);
     expect(fs.existsSync(file)).toBe(false);
+  });
+
+  test('writes with only DATABASE_URL and ADMIN_TOKEN because origin is a Worker var', () => {
+    const file = path.join(os.tmpdir(), `worker-secrets-required-${process.pid}.json`);
+    try {
+      const result = writeSecretsFile(file, {
+        DATABASE_URL: 'postgres://db',
+        ADMIN_TOKEN: 'token'
+      });
+      expect(result.ok).toBe(true);
+      expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({
+        DATABASE_URL: 'postgres://db',
+        ADMIN_TOKEN: 'token'
+      });
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
   });
 });

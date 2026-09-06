@@ -50,7 +50,7 @@ jobs:
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Cloudflare deploy skipped::Add GitHub secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, plus DATABASE_URL, ADMIN_TOKEN, PUBLIC_ORIGIN, and ALLOWED_ORIGIN. Then re-run this workflow (Actions → CI → Run workflow)."
+            echo "::notice title=Cloudflare deploy skipped::Add GitHub secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, plus DATABASE_URL and ADMIN_TOKEN. Add vidshare.co as a Cloudflare zone (see HOSTING.md), then re-run this workflow."
             if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
               echo "::error::Cannot deploy: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not set."
               exit 1

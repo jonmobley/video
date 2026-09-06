@@ -2,10 +2,21 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "vidshare",
   "main": "workers/origin.js",
-  "compatibility_date": "2026-09-05",
+  "compatibility_date": "2026-09-06",
+  "workers_dev": true,
   "observability": {
     "enabled": true
   },
+  // Production hostname. Requires vidshare.co as an active Cloudflare zone
+  // (move nameservers off Netlify/NS1 first — see HOSTING.md).
+  "vars": {
+    "PUBLIC_ORIGIN": "https://vidshare.co",
+    "ALLOWED_ORIGIN": "https://vidshare.co"
+  },
+  "routes": [
+    { "pattern": "vidshare.co", "custom_domain": true },
+    { "pattern": "www.vidshare.co", "custom_domain": true }
+  ],
   "containers": [
     {
       "class_name": "VidShare",

@@ -44,11 +44,11 @@ All admin endpoints require authentication via the `ADMIN_TOKEN` environment var
 Admin endpoints use restricted CORS headers via `getSecuredCorsHeaders()`. Read-only handlers use `getCorsHeaders()` which returns `Access-Control-Allow-Origin: *`. Admin/write handlers respect the `ALLOWED_ORIGIN` environment variable.
 
 - Default: `Access-Control-Allow-Origin: *` (for development)
-- Production: Set `ALLOWED_ORIGIN` environment variable to your domain
+- Production: Worker vars set `ALLOWED_ORIGIN` to `https://vidshare.co`
 
 **Example:**
 ```
-ALLOWED_ORIGIN=https://your-domain.com
+ALLOWED_ORIGIN=https://vidshare.co
 ```
 
 ### Constant-Time Token Comparison
@@ -193,7 +193,7 @@ SUPABASE_ANON_KEY=your_anon_key
 ADMIN_TOKEN=your_secure_token
 
 # CORS (optional - defaults to *)
-ALLOWED_ORIGIN=https://your-domain.com
+ALLOWED_ORIGIN=https://vidshare.co
 ```
 
 ### Variable Security
@@ -208,7 +208,7 @@ ALLOWED_ORIGIN=https://your-domain.com
 Before deploying:
 
 - [ ] `ADMIN_TOKEN` is set and secure (32+ characters)
-- [ ] `ALLOWED_ORIGIN` is set to your domain (not `*`)
+- [ ] `ALLOWED_ORIGIN` is `https://vidshare.co` (not `*`)
 - [ ] Supabase RLS policies are enabled
 - [ ] All admin operations require authentication
 - [ ] User-generated content is sanitized before rendering

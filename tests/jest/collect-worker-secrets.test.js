@@ -9,14 +9,14 @@ describe('collectWorkerSecrets', () => {
     const { secrets, missing } = collectWorkerSecrets({
       DATABASE_URL: 'postgres://db',
       ADMIN_TOKEN: '',
-      PUBLIC_ORIGIN: 'https://example.com',
+      PUBLIC_ORIGIN: 'https://vidshare.co',
       RESEND_API_KEY: 're_test',
       WISTIA_API_PASSWORD: ''
     });
-    expect(missing).toEqual(['ADMIN_TOKEN', 'ALLOWED_ORIGIN']);
+    expect(missing).toEqual(['ADMIN_TOKEN']);
     expect(secrets).toEqual({
       DATABASE_URL: 'postgres://db',
-      PUBLIC_ORIGIN: 'https://example.com',
+      PUBLIC_ORIGIN: 'https://vidshare.co',
       RESEND_API_KEY: 're_test'
     });
   });
@@ -36,16 +36,13 @@ describe('collectWorkerSecrets', () => {
   test('missingRequiredMessage lists required keys and is null when complete', () => {
     expect(
       missingRequiredMessage({
-        DATABASE_URL: 'postgres://db',
-        PUBLIC_ORIGIN: 'https://example.com'
+        DATABASE_URL: 'postgres://db'
       })
-    ).toBe('Missing required GitHub secrets: ADMIN_TOKEN, ALLOWED_ORIGIN');
+    ).toBe('Missing required GitHub secrets: ADMIN_TOKEN');
     expect(
       missingRequiredMessage({
         DATABASE_URL: 'postgres://db',
-        ADMIN_TOKEN: 'token',
-        ALLOWED_ORIGIN: 'https://example.com',
-        PUBLIC_ORIGIN: 'https://example.com'
+        ADMIN_TOKEN: 'token'
       })
     ).toBeNull();
   });

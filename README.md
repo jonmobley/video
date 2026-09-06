@@ -6,12 +6,12 @@ Mobile-first video sharing for theater groups: Wistia/YouTube/Vimeo show pages p
 
 ```bash
 cp env.example .env
-# fill DATABASE_URL, RESEND_API_KEY, RESEND_FROM_EMAIL, ADMIN_TOKEN, PUBLIC_ORIGIN
+# fill DATABASE_URL, RESEND_API_KEY, RESEND_FROM_EMAIL, ADMIN_TOKEN
 npm install
 npm start
 ```
 
-Open `http://localhost:5000`. See [HOSTING.md](HOSTING.md) to deploy on Docker or Cloudflare (this app is no longer tied to Replit). Cloudflare CI deploy needs `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABASE_URL`, `ADMIN_TOKEN`, `PUBLIC_ORIGIN`, and `ALLOWED_ORIGIN` as GitHub Actions secrets.
+Open `http://localhost:5000`. Production is [https://vidshare.co](https://vidshare.co). See [HOSTING.md](HOSTING.md) to deploy on Cloudflare Containers. Cloudflare CI deploy needs `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABASE_URL`, and `ADMIN_TOKEN` as GitHub Actions secrets.
 
 ## Features
 

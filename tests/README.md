@@ -13,7 +13,7 @@ This directory contains comprehensive tests to ensure your Supabase and Netlify 
    ```bash
    SUPABASE_URL=your_supabase_project_url
    SUPABASE_ANON_KEY=your_supabase_anon_public_key
-   NETLIFY_SITE_URL=https://yoursite.netlify.app
+   SITE_URL=https://vidshare.co
    ```
 
 3. **Run all tests**:
@@ -122,8 +122,8 @@ Create a `.env` file in your project root with:
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_public_key
 
-# Netlify Configuration (for production tests)
-NETLIFY_SITE_URL=https://yoursite.netlify.app
+# Production origin (for production tests)
+SITE_URL=https://vidshare.co
 ```
 
 ### Local Development Testing
@@ -132,7 +132,7 @@ To test your local development environment:
 
 1. Start the local development server:
    ```bash
-   netlify dev
+   npm start
    ```
 
 2. Run tests against local server:
@@ -163,10 +163,10 @@ To test your local development environment:
    - Solution: Verify SUPABASE_URL and SUPABASE_ANON_KEY
    - Check Supabase project status
 
-3. **Netlify Functions Not Responding**
-   - Solution: Ensure functions are deployed
-   - Check NETLIFY_SITE_URL is correct
-   - For local tests, ensure `netlify dev` is running
+3. **API routes not responding**
+   - Solution: Ensure the Express origin is deployed
+   - Check SITE_URL is `https://vidshare.co`
+   - For local tests, ensure `npm start` is running
 
 4. **RLS Permission Denied**
    - Solution: Check Row Level Security policies in Supabase
@@ -193,7 +193,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
+          SITE_URL: ${{ secrets.SITE_URL }}
 ```
 
 CI for this repo is GitHub Actions (`.github/workflows/ci.yml`), not a Netlify build plugin.

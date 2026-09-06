@@ -2,6 +2,7 @@
   "name": "vidshare-dance-hub",
   "version": "1.0.0",
   "description": "Dance instruction video sharing platform for theater groups",
+  "homepage": "https://vidshare.co",
   "main": "index.html",
   "scripts": {
     "start": "node server.js",

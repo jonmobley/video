@@ -7,7 +7,7 @@
  * Run with: node tests/netlify-functions-test.js
  * 
  * Environment Variables Required:
- * - NETLIFY_SITE_URL: Your Netlify site URL (e.g., https://yoursite.netlify.app)
+ * - SITE_URL: Production origin (defaults to https://vidshare.co)
  * - TEST_LOCAL: Set to 'true' to test local functions (requires netlify dev running)
  */
 
@@ -20,7 +20,7 @@ const TEST_CONFIG = {
   retries: 2,
   testPages: ['oz', 'disc', 'vertical'],
   localUrl: 'http://localhost:8888',
-  productionUrl: process.env.NETLIFY_SITE_URL || 'https://vidsharepro.netlify.app'
+  productionUrl: process.env.SITE_URL || process.env.NETLIFY_SITE_URL || 'https://vidshare.co'
 };
 
 // Colors for console output
