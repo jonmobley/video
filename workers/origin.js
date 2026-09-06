@@ -9,14 +9,14 @@ const CONTAINER_SECRET_KEYS = [
   ...secretCatalog.optional
 ];
 
-function containerEnvVars() {
+function containerEnvVars(workerEnv = env) {
   const vars = {
     NODE_ENV: "production",
     PORT: "5000",
     COOKIE_SECURE: "true"
   };
   for (const key of CONTAINER_SECRET_KEYS) {
-    const value = env[key];
+    const value = workerEnv?.[key];
     if (typeof value === "string" && value.length > 0) {
       vars[key] = value;
     }
@@ -27,10 +27,13 @@ function containerEnvVars() {
 export class VidShare extends Container {
   defaultPort = 5000;
   sleepAfter = "30m";
-  // Read Worker secrets at container start, not once at isolate load, so
-  // `wrangler deploy --secrets-file` values are present on the next boot.
-  get envVars() {
-    return containerEnvVars();
+
+  constructor(ctx, workerEnv, options) {
+    super(ctx, workerEnv, options);
+    // Container defines `envVars` as an instance field (default {}). A subclass
+    // getter is shadowed by that own property; assign after super() so start()
+    // reads this Worker version's secrets.
+    this.envVars = containerEnvVars(workerEnv);
   }
 }
 
