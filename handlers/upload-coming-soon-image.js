@@ -1,14 +1,12 @@
 /**
- * Netlify Function: upload-coming-soon-image
- *
- * Stores page-template artwork and updates only that page's
- * coming_soon_image_url setting. This endpoint intentionally uses the
- * page-scoped editor credential rather than the global admin token.
+ * Stores page-template artwork in Postgres and updates only that page's
+ * coming_soon_image_url setting. This endpoint uses the page-scoped editor
+ * credential rather than the global admin token.
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { buildPageConfigWrite } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_REQUEST_SIZE = 8 * 1024 * 1024;
@@ -119,31 +117,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const extension = contentType === 'image/jpeg' || contentType === 'image/jpg'
-      ? 'jpg'
-      : contentType.split('/')[1];
-    const filename = `coming-soon-${page}.${extension}`;
-    const { getStore } = await import('@netlify/blobs');
-    const store = getStore('page-images');
-    await store.set(filename, imageBuffer, {
-      metadata: {
-        contentType,
-        page,
-        purpose: 'coming-soon',
-        uploadedAt: new Date().toISOString()
-      }
-    });
-
-    const imageUrl = `/.netlify/blobs/page-images/${filename}`;
+    const imageUrl = `/api/coming-soon-image/${page}?v=${Date.now()}`;
     const existing = await query('SELECT page FROM page_config WHERE page = $1', [page]);
     const config = buildPageConfigWrite(page, { coming_soon_image_url: imageUrl }, existing.rows[0]);
-    const result = await query(`INSERT INTO page_config (page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-      ON CONFLICT (page) DO UPDATE SET coming_soon_image_url = EXCLUDED.coming_soon_image_url, updated_at = NOW()
+    const result = await query(`INSERT INTO page_config (page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation, coming_soon_image_data, coming_soon_image_content_type)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      ON CONFLICT (page) DO UPDATE SET coming_soon_image_url = EXCLUDED.coming_soon_image_url, coming_soon_image_data = EXCLUDED.coming_soon_image_data, coming_soon_image_content_type = EXCLUDED.coming_soon_image_content_type, updated_at = NOW()
       RETURNING page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation`,
       [config.page, config.accent_color, config.page_title, config.meta_description, config.meta_keywords,
         config.canonical_url, config.og_title, config.og_description, config.og_image_url,
-        config.coming_soon_image_url, config.twitter_title, config.twitter_description, JSON.stringify(config.presentation)]);
+        config.coming_soon_image_url, config.twitter_title, config.twitter_description, JSON.stringify(config.presentation),
+        imageBuffer, contentType]);
 
     return response(200, headers, {
       imageUrl,

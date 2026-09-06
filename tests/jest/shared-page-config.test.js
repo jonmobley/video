@@ -28,14 +28,14 @@ describe('shared page configuration', () => {
       fetchFn: async () => ({
         accent_color: '#123456',
         page_title: 'Seussical',
-        coming_soon_image_url: '/.netlify/blobs/page-images/coming-soon-seussical.png'
+        coming_soon_image_url: '/api/coming-soon-image/seussical'
       }),
       onComingSoonImageLoaded
     });
 
     expect(context.applyAccentColor).toHaveBeenCalledWith('#123456');
     expect(context.document.getElementById('pageTitle').textContent).toBe('Seussical');
-    expect(onComingSoonImageLoaded).toHaveBeenCalledWith('/.netlify/blobs/page-images/coming-soon-seussical.png');
+    expect(onComingSoonImageLoaded).toHaveBeenCalledWith('/api/coming-soon-image/seussical');
   });
 
   test('uses the page fallback when configuration cannot be loaded', async () => {

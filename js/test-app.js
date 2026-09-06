@@ -513,7 +513,7 @@
         async function loadVideosFromServer() {
             try {
                 console.log('Loading videos from server...');
-                const videos = await fetchWithCache('/.netlify/functions/get-videos?page=disc');
+                const videos = await fetchWithCache('/api/get-videos?page=disc');
                 console.log('Videos loaded:', videos);
                     
                     // Check if there's a featured video saved
@@ -782,7 +782,7 @@
          */
         async function loadCurrentAccentColor() {
             try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=test');
+                const response = await fetch('/api/get-page-config?page=test');
                 if (response.ok) {
                     const config = await response.json();
                     if (config.accent_color) {
@@ -914,7 +914,7 @@
                 const newTitle = input.value.trim();
                 if (newTitle && newTitle !== currentTitle) {
                     try {
-                        const response = await fetch('/.netlify/functions/save-page-config', {
+                        const response = await fetch('/api/save-page-config', {
                             method: 'POST',
                             headers: pageEditorHeaders(),
                             body: JSON.stringify({
@@ -1787,7 +1787,7 @@
             
             try {
                 // Get current video data from server to ensure we don't lose any existing data
-                const getResponse = await fetch('/.netlify/functions/get-videos?page=disc');
+                const getResponse = await fetch('/api/get-videos?page=disc');
                 const allServerVideos = await getResponse.json();
                 
                 // Create a map of server videos for easy lookup
@@ -1830,7 +1830,7 @@
                 console.log('Saving categories:', categories);
                 
                 // Save videos
-                const videoResponse = await fetch('/.netlify/functions/save-videos', {
+                const videoResponse = await fetch('/api/save-videos', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ videos: videos, page: 'disc' })
@@ -1851,7 +1851,7 @@
                 }
                 
                 // Save categories
-                const categoryResponse = await fetch('/.netlify/functions/save-categories', {
+                const categoryResponse = await fetch('/api/save-categories', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ categories: categories, page: 'disc' })
@@ -1880,7 +1880,7 @@
                 const currentAccentColor = document.getElementById('adminAccentColorText').value;
                 if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
                     try {
-                        const colorResponse = await fetch('/.netlify/functions/save-page-config', {
+                        const colorResponse = await fetch('/api/save-page-config', {
                             method: 'POST',
                             headers: pageEditorHeaders(),
                             body: JSON.stringify({
@@ -2812,7 +2812,7 @@
         async function openPageSettingsModal() {
             try {
                 // Load current page config
-                const response = await fetch('/.netlify/functions/get-page-config?page=disc');
+                const response = await fetch('/api/get-page-config?page=disc');
                 if (response.ok) {
                     const config = await response.json();
                     
@@ -2859,7 +2859,7 @@
             };
             
             try {
-                const response = await fetch('/.netlify/functions/save-page-config', {
+                const response = await fetch('/api/save-page-config', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify(settings)

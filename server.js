@@ -8,6 +8,7 @@ const fs = require('fs');
 const { ensurePageSchema } = require('./lib/page-store');
 const { postgresSslOption } = require('./lib/pg-ssl');
 const { cookieSecureEnabled } = require('./lib/cookie-secure');
+const { publicOrigin, absoluteUrl, absolutizeHtmlMeta } = require('./lib/absolute-url');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -504,10 +505,10 @@ app.use((req, res, next) => {
   next();
 });
 
-function netlifyFunctionAdapter(functionName) {
+function cmsHandlerAdapter(functionName) {
   return async (req, res) => {
     try {
-      const { handler } = require(`./netlify/functions/${functionName}`);
+      const { handler } = require(`./handlers/${functionName}`);
       const result = await handler({
         httpMethod: req.method,
         headers: req.headers,
@@ -520,8 +521,8 @@ function netlifyFunctionAdapter(functionName) {
       }
       res.status(result.statusCode || 200).send(result.body || '');
     } catch (error) {
-      console.error(`Standalone page function failed (${functionName}):`, error.message);
-      apiError(res, 500, 'FUNCTION_ERROR', 'The standalone page service is unavailable.');
+      console.error(`Page handler failed (${functionName}):`, error.message);
+      apiError(res, 500, 'FUNCTION_ERROR', 'The page service is unavailable.');
     }
   };
 }
@@ -539,7 +540,61 @@ function netlifyFunctionAdapter(functionName) {
   'create-show-page',
   'redeem-page-editor-setup'
 ].forEach((functionName) => {
-  app.all(`/.netlify/functions/${functionName}`, netlifyFunctionAdapter(functionName));
+  const run = cmsHandlerAdapter(functionName);
+  app.all(`/api/${functionName}`, run);
+  app.all(`/.netlify/functions/${functionName}`, (req, res) => {
+    const query = req.originalUrl.includes('?')
+      ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
+      : '';
+    res.redirect(308, `/api/${functionName}${query}`);
+  });
+});
+
+async function sendStoredPageImage(req, res, sql, page) {
+  if (typeof page !== 'string' || page.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(page)) {
+    return res.status(404).end();
+  }
+  const result = await pool.query(sql, [page]);
+  const row = result.rows[0];
+  if (!row || !row.data) return res.status(404).end();
+  const etag = `"${crypto.createHash('sha256').update(row.data).digest('hex').slice(0, 32)}"`;
+  res.setHeader('ETag', etag);
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  if (req.headers['if-none-match'] === etag) return res.status(304).end();
+  res.setHeader('Content-Type', row.content_type || 'application/octet-stream');
+  return res.send(row.data);
+}
+
+app.get('/api/page-image/:page', async (req, res) => {
+  try {
+    await sendStoredPageImage(
+      req,
+      res,
+      'SELECT og_image_data AS data, og_image_content_type AS content_type FROM page_config WHERE page = $1 AND og_image_data IS NOT NULL',
+      req.params.page
+    );
+  } catch (error) {
+    console.error('page-image error:', error);
+    res.status(500).end();
+  }
+});
+
+app.get('/api/coming-soon-image/:page', async (req, res) => {
+  try {
+    await sendStoredPageImage(
+      req,
+      res,
+      `SELECT coming_soon_image_data AS data, coming_soon_image_content_type AS content_type
+         FROM page_config
+        WHERE page = $1
+          AND coming_soon_image_url IS NOT NULL
+          AND coming_soon_image_data IS NOT NULL`,
+      req.params.page
+    );
+  } catch (error) {
+    console.error('coming-soon-image error:', error);
+    res.status(500).end();
+  }
 });
 
 app.post('/api/csp-report',
@@ -725,6 +780,36 @@ function isPublicStaticPath(urlPath) {
   return PUBLIC_ROOT_EXT.has(name.slice(dot + 1).toLowerCase());
 }
 
+function publicHtmlFile(urlPath) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(String(urlPath || '').split('?')[0]);
+  } catch {
+    return null;
+  }
+  const normalized = path.posix.normalize(decoded);
+  if (normalized === '/' || normalized === '/index.html') return 'index.html';
+  if (normalized.startsWith('/show/')) return 'oz.html';
+  const name = normalized.slice(1);
+  if (name.endsWith('.html')) {
+    const slug = name.slice(0, -'.html'.length);
+    return PUBLIC_HTML_SLUGS.has(slug) ? name : null;
+  }
+  return PUBLIC_HTML_SLUGS.has(name) ? `${name}.html` : null;
+}
+
+function sendPublicHtml(res, fileName, origin) {
+  const filePath = path.join(__dirname, fileName);
+  let html;
+  try {
+    html = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return false;
+  }
+  res.type('html').send(absolutizeHtmlMeta(html, origin));
+  return true;
+}
+
 const publicStatic = express.static(path.join(__dirname), {
   extensions: ['html'],
   index: 'index.html',
@@ -736,6 +821,8 @@ app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   if (req.path.startsWith('/api/') || req.path.startsWith('/.netlify/')) return next();
   if (!isPublicStaticPath(req.path)) return next();
+  const htmlFile = publicHtmlFile(req.path);
+  if (htmlFile && sendPublicHtml(res, htmlFile, publicOrigin(req))) return;
   return publicStatic(req, res, next);
 });
 
@@ -2432,16 +2519,16 @@ app.get('/upload',  (req, res) => res.sendFile(path.join(__dirname, 'upload.html
 app.get('/admin',   (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/login',   (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/account', (req, res) => res.sendFile(path.join(__dirname, 'account.html')));
-app.get('/oz',        (req, res) => res.sendFile(path.join(__dirname, 'oz.html')));
-app.get('/disc',      (req, res) => res.sendFile(path.join(__dirname, 'disc.html')));
-app.get('/vertical',  (req, res) => res.sendFile(path.join(__dirname, 'vertical.html')));
-app.get('/seussical', (req, res) => res.sendFile(path.join(__dirname, 'seussical.html')));
+app.get('/oz',        (req, res, next) => { if (!sendPublicHtml(res, 'oz.html', publicOrigin(req))) return next(); });
+app.get('/disc',      (req, res, next) => { if (!sendPublicHtml(res, 'disc.html', publicOrigin(req))) return next(); });
+app.get('/vertical',  (req, res, next) => { if (!sendPublicHtml(res, 'vertical.html', publicOrigin(req))) return next(); });
+app.get('/seussical', (req, res, next) => { if (!sendPublicHtml(res, 'seussical.html', publicOrigin(req))) return next(); });
 app.get('/dropbox',   (req, res) => res.sendFile(path.join(__dirname, 'dropbox.html')));
 // Generic show pages share the gallery template. New show slugs resolve here
 // rather than requiring a new HTML file and route for each production.
 app.get('/show/:slug', (req, res, next) => {
   if (!/^[a-z0-9-]+$/i.test(req.params.slug)) return next();
-  res.sendFile(path.join(__dirname, 'oz.html'));
+  if (!sendPublicHtml(res, 'oz.html', publicOrigin(req))) return next();
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

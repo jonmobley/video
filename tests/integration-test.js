@@ -7,7 +7,7 @@
  * Run with: node tests/integration-test.js
  * 
  * Environment Variables Required:
- * - NETLIFY_SITE_URL: Your Netlify site URL
+ * - SITE_URL: Production origin (defaults to https://vidshare.co)
  * - SUPABASE_URL: Your Supabase project URL
  * - SUPABASE_ANON_KEY: Your Supabase anonymous key
  */
@@ -20,7 +20,7 @@ require('dotenv').config();
 const TEST_CONFIG = {
   timeout: 20000, // 20 seconds
   testPages: ['oz', 'disc'],
-  siteUrl: process.env.NETLIFY_SITE_URL || 'https://vidsharepro.netlify.app',
+  siteUrl: process.env.SITE_URL || process.env.NETLIFY_SITE_URL || 'https://vidshare.co',
   cleanupAfterTests: true
 };
 
@@ -68,7 +68,7 @@ class IntegrationTester {
   }
 
   async makeRequest(endpoint, options = {}) {
-    const url = `${this.siteUrl}/.netlify/functions/${endpoint}`;
+    const url = `${this.siteUrl}/api/${endpoint}`;
     const defaultOptions = {
       timeout: TEST_CONFIG.timeout,
       headers: {

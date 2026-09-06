@@ -708,7 +708,7 @@
       submit.disabled = true;
       createShowError.classList.remove('visible');
       try {
-        const response = await fetch('/.netlify/functions/create-show-page', {
+        const response = await fetch('/api/create-show-page', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({

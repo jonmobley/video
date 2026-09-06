@@ -8,7 +8,7 @@ async function loadPageConfig(pageName, options) {
     var fetchFn = opts.fetchFn || null;
     var debug = opts.debug || false;
 
-    var url = '/.netlify/functions/get-page-config?page=' + pageName;
+    var url = '/api/get-page-config?page=' + pageName;
 
     try {
         var config;

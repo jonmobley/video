@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -31,7 +32,7 @@ jobs:
       - run: docker build -t vidshare:ci .
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [test, image]
     runs-on: ubuntu-latest
     env:
@@ -44,10 +45,53 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Deploy to Cloudflare
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+      - name: Check Cloudflare credentials
+        id: cf
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Cloudflare deploy skipped::Add GitHub secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, plus DATABASE_URL and ADMIN_TOKEN. Add vidshare.co as a Cloudflare zone (see HOSTING.md), then re-run this workflow."
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "::error::Cannot deploy: CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not set."
+              exit 1
+            fi
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Check required Worker secrets
+        if: steps.cf.outputs.ready == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          ALLOWED_ORIGIN: ${{ secrets.ALLOWED_ORIGIN }}
+          PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
+        run: node scripts/check-worker-secrets.js
+      - name: Write Worker secrets for deploy
+        if: steps.cf.outputs.ready == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          ALLOWED_ORIGIN: ${{ secrets.ALLOWED_ORIGIN }}
+          PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ALLOW_ANONYMOUS_UPLOADS: ${{ secrets.ALLOW_ANONYMOUS_UPLOADS }}
+          WISTIA_API_PASSWORD: ${{ secrets.WISTIA_API_PASSWORD }}
+        run: node scripts/push-worker-secrets.js --write "${{ runner.temp }}/worker-secrets.json"
+      - name: Deploy Worker and container
+        if: steps.cf.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          # Bind secrets in the same version the container boots from, so
+          # DATABASE_URL is present on first start (not only after a recycle).
+          command: deploy --secrets-file ${{ runner.temp }}/worker-secrets.json --containers-rollout immediate
+      - name: Remove Worker secrets file
+        if: always()
+        run: rm -f "${{ runner.temp }}/worker-secrets.json"

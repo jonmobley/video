@@ -6,7 +6,7 @@
 
     (async function() {
         try {
-            var response = await fetch('/.netlify/functions/get-page-config?page=' + page);
+            var response = await fetch('/api/get-page-config?page=' + page);
             if (response.ok) {
                 var config = await response.json();
 
@@ -37,7 +37,7 @@
                     if (ogImage) {
                         ogImage.content = config.og_image_url.startsWith('http')
                             ? config.og_image_url
-                            : 'https://vidsharepro.netlify.app' + config.og_image_url;
+                            : window.location.origin + config.og_image_url;
                     }
                 }
 
@@ -57,7 +57,7 @@
                     if (twitterImage) {
                         twitterImage.content = config.og_image_url.startsWith('http')
                             ? config.og_image_url
-                            : 'https://vidsharepro.netlify.app' + config.og_image_url;
+                            : window.location.origin + config.og_image_url;
                     }
                 }
 
