@@ -33,7 +33,7 @@
   }
 
   function verify(page, token) {
-    return fetch('/.netlify/functions/verify-page-editor', {
+    return fetch('/api/verify-page-editor', {
       method: 'POST',
       headers: headers(page, token),
       body: JSON.stringify({ page: page })

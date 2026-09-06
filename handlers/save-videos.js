@@ -24,7 +24,7 @@
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { getPool } = require('../../lib/page-store');
+const { getPool } = require('../lib/page-store');
 
 const VIDEO_TOKEN_RE = /^[^\s<>"'`]{1,256}$/;
 const ALLOWED_PLATFORMS = new Set(['wistia', 'vimeo', 'youtube', 'dropbox', 'dailymotion', 'loom', 'upload']);

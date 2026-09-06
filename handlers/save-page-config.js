@@ -29,8 +29,8 @@
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { buildPageConfigWrite } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
 
 const PRESENTATION_FIELDS = new Set([
   'template_key',

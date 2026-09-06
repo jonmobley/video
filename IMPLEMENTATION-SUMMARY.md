@@ -12,8 +12,8 @@ This implementation adds two major features to the VidShare video management sys
 - `add-page-title.sql` - Adds page_title column for editable titles
 
 ### Netlify Functions
-- `netlify/functions/get-page-config.js` - Retrieves page configuration from database
-- `netlify/functions/save-page-config.js` - Saves page configuration changes
+- `handlers/get-page-config.js` - Retrieves page configuration from database
+- `handlers/save-page-config.js` - Saves page configuration changes
 
 ### Documentation
 - `MIGRATION-ACCENT-COLORS.md` - Migration guide for applying these features

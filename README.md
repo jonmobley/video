@@ -38,7 +38,7 @@ server.js                 # Express app (static files + APIs)
 lib/                      # Postgres helpers, Resend, page-editor auth
 js/, styles/, assets/     # Browser UI
 oz.html / disc.html / …   # Show pages
-netlify/functions/        # Show-page CMS handlers (also mounted on Express)
+handlers/                 # Show-page CMS (mounted on Express at /api/*)
 workers/origin.js         # Cloudflare Worker that fronts the container
 Dockerfile                # Production image
 ```

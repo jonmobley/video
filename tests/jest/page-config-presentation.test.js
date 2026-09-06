@@ -3,8 +3,8 @@ jest.mock('@supabase/supabase-js', () => ({
 }));
 
 const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
-const { mergePageConfig } = require('../../netlify/functions/get-page-config');
-const { validatePresentation } = require('../../netlify/functions/save-page-config');
+const { mergePageConfig } = require('../../handlers/get-page-config');
+const { validatePresentation } = require('../../handlers/save-page-config');
 
 describe('page configuration presentation backend support', () => {
   test('merges a partial stored presentation over page defaults', () => {

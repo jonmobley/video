@@ -15,7 +15,7 @@ describe('PostgreSQL standalone show migration', () => {
     pageStore.query.mockResolvedValueOnce({
       rows: [{ page: 'oz', page_title: 'Oz', presentation: {}, editor_token_hash: 'secret' }]
     });
-    const { handler } = require('../../netlify/functions/get-page-config');
+    const { handler } = require('../../handlers/get-page-config');
     const response = await handler({ httpMethod: 'GET', headers: {}, queryStringParameters: { page: 'oz' } });
     expect(pageStore.query.mock.calls[0][0]).not.toMatch(/editor_token_hash|setup_token_hash/);
     expect(JSON.parse(response.body)).not.toHaveProperty('editor_token_hash');
@@ -23,7 +23,7 @@ describe('PostgreSQL standalone show migration', () => {
 
   test('setup redemption relies on one atomic conditional update', async () => {
     pageStore.query.mockResolvedValueOnce({ rows: [{ page: 'new-show' }] });
-    const { handler } = require('../../netlify/functions/redeem-page-editor-setup');
+    const { handler } = require('../../handlers/redeem-page-editor-setup');
     const response = await handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({ page: 'new-show', token: 'once' }) });
     expect(response.statusCode).toBe(200);
     expect(pageStore.query.mock.calls[0][0]).toMatch(/setup_token_used_at IS NULL/);
@@ -36,7 +36,7 @@ describe('PostgreSQL standalone show migration', () => {
 
   test('dynamic editor credential authorizes against hashed page token', async () => {
     pageStore.query.mockResolvedValueOnce({ rows: [{ page: 'oz' }] });
-    const { requirePageAuth } = require('../../netlify/functions/utils/auth');
+    const { requirePageAuth } = require('../../handlers/utils/auth');
     const result = await requirePageAuth({ headers: { authorization: 'Bearer dynamic-token' } }, 'oz');
     expect(result.authorized).toBe(true);
     expect(pageStore.query.mock.calls[0][0]).toMatch(/editor_token_hash/);

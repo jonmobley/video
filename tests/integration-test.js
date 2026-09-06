@@ -68,7 +68,7 @@ class IntegrationTester {
   }
 
   async makeRequest(endpoint, options = {}) {
-    const url = `${this.siteUrl}/.netlify/functions/${endpoint}`;
+    const url = `${this.siteUrl}/api/${endpoint}`;
     const defaultOptions = {
       timeout: TEST_CONFIG.timeout,
       headers: {

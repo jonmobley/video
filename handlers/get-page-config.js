@@ -14,8 +14,8 @@
  */
 
 const { getCorsHeaders } = require('./utils/auth');
-const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { getDefaultPageConfig } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
 
 function mergePageConfig(config) {
   const defaults = getDefaultPageConfig(config.page);

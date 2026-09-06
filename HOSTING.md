@@ -35,8 +35,6 @@ docker compose up --build
 
 Point a hostname at the host and put Cloudflare in front (orange-cloud proxy, SSL/TLS Full or Full strict).
 
-Production today is [vidsharepro.netlify.app](https://vidsharepro.netlify.app): show pages and `/.netlify/functions/*` already work there. Uploads, watch streaming, folders, and magic-code login are Express routes (`/api/*`, `/health`) and 404 on Netlify until this Node origin is live. Do not wire those upload URLs to Netlify Blobs — finalize never writes `vs_uploads`, so watch links would lie.
-
 For a laptop/VPS trial with bundled Postgres:
 
 ```bash
@@ -112,9 +110,14 @@ After the secrets exist, either push to `main` or run **Actions → CI → Run w
 
 Until Cloudflare credentials are present, push CI stays green and prints a notice that deploy was skipped. **Run workflow** fails instead, so a manual cutover attempt is obvious.
 
-## Netlify
+## Leave Netlify
 
-`netlify.toml` and `netlify/functions` still work if you want to keep that path. The Node server already mounts the show-page functions at `/.netlify/functions/*`, so a single `npm start` origin is enough for oz/seussical/disc/vertical editors.
+This repo no longer includes a Netlify site. After the Cloudflare Worker hostname is live (`GET /health` returns `{"ok":true}`):
+
+1. Point your custom domain at the Worker.
+2. Set `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` to that `https://` origin and re-run CI.
+3. Re-upload Coming Soon / share images in the page editor (old Netlify Blob URLs will 404).
+4. Delete the `vidsharepro` site in Netlify so it cannot keep serving a stale copy.
 
 ## Required environment variables
 

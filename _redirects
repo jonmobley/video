@@ -6,7 +6,6 @@
 /Dockerfile /index.html 404
 /compose.yaml /index.html 404
 /playwright.config.js /index.html 404
-/netlify/* /index.html 404
 /lib/* /index.html 404
 /tests/* /index.html 404
 /scripts/* /index.html 404

@@ -494,7 +494,7 @@
         async function loadVideosFromServer() {
             try {
                 console.log('Loading videos from server...');
-                const response = await fetch('/.netlify/functions/get-videos?page=vertical');
+                const response = await fetch('/api/get-videos?page=vertical');
                 if (response.ok) {
                     videos = await response.json();
                     console.log('Videos loaded:', videos);
@@ -749,7 +749,7 @@
          */
         async function loadCurrentAccentColor() {
             try {
-                const response = await fetch('/.netlify/functions/get-page-config?page=vertical');
+                const response = await fetch('/api/get-page-config?page=vertical');
                 if (response.ok) {
                     const config = await response.json();
                     if (config.accent_color) {
@@ -864,7 +864,7 @@
                 const newTitle = input.value.trim();
                 if (newTitle && newTitle !== currentTitle) {
                     try {
-                        const response = await fetch('/.netlify/functions/save-page-config', {
+                        const response = await fetch('/api/save-page-config', {
                             method: 'POST',
                             headers: pageEditorHeaders(),
                             body: JSON.stringify({
@@ -1724,7 +1724,7 @@
             
             try {
                 // Get current video data from server to ensure we don't lose any existing data
-                const getResponse = await fetch('/.netlify/functions/get-videos?page=vertical');
+                const getResponse = await fetch('/api/get-videos?page=vertical');
                 const allServerVideos = await getResponse.json();
                 
                 // Create a map of server videos for easy lookup
@@ -1767,7 +1767,7 @@
                 console.log('Saving categories:', categories);
                 
                 // Save videos
-                const videoResponse = await fetch('/.netlify/functions/save-videos', {
+                const videoResponse = await fetch('/api/save-videos', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ videos: videos, page: 'vertical' })
@@ -1788,7 +1788,7 @@
                 }
                 
                 // Save categories
-                const categoryResponse = await fetch('/.netlify/functions/save-categories', {
+                const categoryResponse = await fetch('/api/save-categories', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ categories: categories, page: 'vertical' })
@@ -1817,7 +1817,7 @@
                 const currentAccentColor = document.getElementById('adminAccentColorText').value;
                 if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
                     try {
-                        const colorResponse = await fetch('/.netlify/functions/save-page-config', {
+                        const colorResponse = await fetch('/api/save-page-config', {
                             method: 'POST',
                             headers: pageEditorHeaders(),
                             body: JSON.stringify({

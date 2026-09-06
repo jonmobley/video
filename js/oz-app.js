@@ -3,7 +3,7 @@
         const pageKey = (routeShowSlug && routeShowSlug[1].toLowerCase()) ||
             document.body.dataset.pageKey || 'oz';
         const pageCacheKey = (key) => `${key}_${pageKey}`;
-        const pageApiUrl = (endpoint) => `/.netlify/functions/${endpoint}?page=${encodeURIComponent(pageKey)}`;
+        const pageApiUrl = (endpoint) => `/api/${endpoint}?page=${encodeURIComponent(pageKey)}`;
         const DEFAULT_COMING_SOON_IMAGE = '/assets/og-image.png';
         let comingSoonImageUrl = DEFAULT_COMING_SOON_IMAGE;
         let hasConfiguredComingSoonImage = false;
@@ -900,7 +900,7 @@
         window.forceSaveAccentColor = async function(color = '#008f67') {
             console.log('🎨 Force saving accent color:', color);
             try {
-                const response = await fetch('/.netlify/functions/save-page-config', {
+                const response = await fetch('/api/save-page-config', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({
@@ -1372,7 +1372,7 @@
 
             try {
                 const image = await readImageFileAsDataUrl(file);
-                const response = await fetch('/.netlify/functions/upload-coming-soon-image', {
+                const response = await fetch('/api/upload-coming-soon-image', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ page: pageKey, image, contentType: file.type })
@@ -1399,7 +1399,7 @@
             setComingSoonImageStatus('Restoring default…');
 
             try {
-                const response = await fetch('/.netlify/functions/save-page-config', {
+                const response = await fetch('/api/save-page-config', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ page: pageKey, coming_soon_image_url: null })
@@ -1579,7 +1579,7 @@
             status.textContent = 'Saving page settings…';
             status.style.color = 'rgba(255, 255, 255, 0.8)';
             try {
-                const response = await fetch('/.netlify/functions/save-page-config', {
+                const response = await fetch('/api/save-page-config', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({
@@ -1651,7 +1651,7 @@
             submitButton.textContent = 'Checking...';
 
             try {
-                const response = await fetch('/.netlify/functions/verify-page-editor', {
+                const response = await fetch('/api/verify-page-editor', {
                     method: 'POST',
                     headers: pageEditorHeaders(password),
                     body: JSON.stringify({ page: pageKey })
@@ -1684,7 +1684,7 @@
             const setupToken = new URLSearchParams(window.location.search).get('setup');
             if (!setupToken) return;
             try {
-                const response = await fetch('/.netlify/functions/redeem-page-editor-setup', {
+                const response = await fetch('/api/redeem-page-editor-setup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ page: pageKey, token: setupToken })
@@ -1711,7 +1711,7 @@
             }
             if (!token || new URLSearchParams(window.location.search).get('setup')) return;
             try {
-                const response = await fetch('/.netlify/functions/verify-page-editor', {
+                const response = await fetch('/api/verify-page-editor', {
                     method: 'POST',
                     headers: pageEditorHeaders(token),
                     body: JSON.stringify({ page: pageKey })
@@ -1769,7 +1769,7 @@
                 if (newTitle && newTitle !== currentTitle) {
                     try {
                         // Save to server first
-                        const response = await fetch('/.netlify/functions/save-page-config', {
+                        const response = await fetch('/api/save-page-config', {
                             method: 'POST',
                             headers: pageEditorHeaders(),
                             body: JSON.stringify({
@@ -2760,7 +2760,7 @@
                 console.log('Saving categories:', categories);
                 
                 // Save videos
-                const videoResponse = await fetch('/.netlify/functions/save-videos', {
+                const videoResponse = await fetch('/api/save-videos', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ videos: videos, page: pageKey })
@@ -2769,7 +2769,7 @@
                 await requirePageEditorResponse(videoResponse, 'Failed to save videos.');
                 
                 // Save categories
-                const categoryResponse = await fetch('/.netlify/functions/save-categories', {
+                const categoryResponse = await fetch('/api/save-categories', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ categories: categories, page: pageKey })
@@ -2786,7 +2786,7 @@
                 const currentAccentColor = document.getElementById('adminAccentColorText').value;
                 console.log('🎨 DEBUG: Attempting to save accent color:', currentAccentColor);
                 if (currentAccentColor && /^#[0-9A-Fa-f]{6}$/i.test(currentAccentColor)) {
-                    const colorResponse = await fetch('/.netlify/functions/save-page-config', {
+                    const colorResponse = await fetch('/api/save-page-config', {
                         method: 'POST',
                         headers: pageEditorHeaders(),
                         body: JSON.stringify({
@@ -4162,7 +4162,7 @@
                 console.log('🏷️ DEBUG: Saving categories to server:', categories, 'scope:', categoryScope);
                 
                 // Save categories to server with explicit scope to prevent cross-scope deletion
-                const categoryResponse = await fetch('/.netlify/functions/save-categories', {
+                const categoryResponse = await fetch('/api/save-categories', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({ 
@@ -4353,7 +4353,7 @@
                 
                 // Save ONLY tags to server with explicit 'tags' scope
                 // This prevents deleting song categories
-                const response = await fetch('/.netlify/functions/save-categories', {
+                const response = await fetch('/api/save-categories', {
                     method: 'POST',
                     headers: pageEditorHeaders(),
                     body: JSON.stringify({

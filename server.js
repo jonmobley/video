@@ -504,10 +504,10 @@ app.use((req, res, next) => {
   next();
 });
 
-function netlifyFunctionAdapter(functionName) {
+function cmsHandlerAdapter(functionName) {
   return async (req, res) => {
     try {
-      const { handler } = require(`./netlify/functions/${functionName}`);
+      const { handler } = require(`./handlers/${functionName}`);
       const result = await handler({
         httpMethod: req.method,
         headers: req.headers,
@@ -520,8 +520,8 @@ function netlifyFunctionAdapter(functionName) {
       }
       res.status(result.statusCode || 200).send(result.body || '');
     } catch (error) {
-      console.error(`Standalone page function failed (${functionName}):`, error.message);
-      apiError(res, 500, 'FUNCTION_ERROR', 'The standalone page service is unavailable.');
+      console.error(`Page handler failed (${functionName}):`, error.message);
+      apiError(res, 500, 'FUNCTION_ERROR', 'The page service is unavailable.');
     }
   };
 }
@@ -539,7 +539,52 @@ function netlifyFunctionAdapter(functionName) {
   'create-show-page',
   'redeem-page-editor-setup'
 ].forEach((functionName) => {
-  app.all(`/.netlify/functions/${functionName}`, netlifyFunctionAdapter(functionName));
+  const run = cmsHandlerAdapter(functionName);
+  app.all(`/api/${functionName}`, run);
+  app.all(`/.netlify/functions/${functionName}`, (req, res) => {
+    const query = req.originalUrl.includes('?')
+      ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
+      : '';
+    res.redirect(308, `/api/${functionName}${query}`);
+  });
+});
+
+async function sendStoredPageImage(res, sql, page) {
+  if (typeof page !== 'string' || page.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(page)) {
+    return res.status(404).end();
+  }
+  const result = await pool.query(sql, [page]);
+  const row = result.rows[0];
+  if (!row || !row.data) return res.status(404).end();
+  res.setHeader('Content-Type', row.content_type || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.send(row.data);
+}
+
+app.get('/api/page-image/:page', async (req, res) => {
+  try {
+    await sendStoredPageImage(
+      res,
+      'SELECT og_image_data AS data, og_image_content_type AS content_type FROM page_config WHERE page = $1',
+      req.params.page
+    );
+  } catch (error) {
+    console.error('page-image error:', error);
+    res.status(500).end();
+  }
+});
+
+app.get('/api/coming-soon-image/:page', async (req, res) => {
+  try {
+    await sendStoredPageImage(
+      res,
+      'SELECT coming_soon_image_data AS data, coming_soon_image_content_type AS content_type FROM page_config WHERE page = $1',
+      req.params.page
+    );
+  } catch (error) {
+    console.error('coming-soon-image error:', error);
+    res.status(500).end();
+  }
 });
 
 app.post('/api/csp-report',
