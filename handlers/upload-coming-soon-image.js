@@ -117,7 +117,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const imageUrl = `/api/coming-soon-image/${page}`;
+    const imageUrl = `/api/coming-soon-image/${page}?v=${Date.now()}`;
     const existing = await query('SELECT page FROM page_config WHERE page = $1', [page]);
     const config = buildPageConfigWrite(page, { coming_soon_image_url: imageUrl }, existing.rows[0]);
     const result = await query(`INSERT INTO page_config (page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation, coming_soon_image_data, coming_soon_image_content_type)

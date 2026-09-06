@@ -117,7 +117,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const imageUrl = `/api/page-image/${page}`;
+    const imageUrl = `/api/page-image/${page}?v=${Date.now()}`;
     const result = await query(
       `UPDATE page_config
        SET og_image_url = $2, og_image_data = $3, og_image_content_type = $4, updated_at = NOW()

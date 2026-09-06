@@ -76,7 +76,7 @@ npx wrangler secret put SUPABASE_ANON_KEY
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
-Or copy `env.example` into GitHub Actions secrets (names below) and let CI run `node scripts/push-worker-secrets.js` after deploy.
+Or copy `env.example` into GitHub Actions secrets (names below). CI writes them into the Worker with `wrangler deploy --secrets-file` so the container boots with `DATABASE_URL` already set.
 
 Then attach a custom domain on the Worker. Keep `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` on that HTTPS origin.
 
@@ -84,7 +84,7 @@ Do **not** import this repository as a Cloudflare Pages project with publish dir
 
 ## GitHub Actions
 
-Pushing to `main` runs Jest and builds the Docker image. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow also runs `wrangler deploy` and then pushes Worker secrets from matching GitHub secrets.
+Pushing to `main` runs Jest and builds the Docker image. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow deploys the Worker and uploads matching GitHub secrets in the same `wrangler deploy` so new containers start with them.
 
 Add these repository secrets (Settings → Secrets and variables → Actions):
 

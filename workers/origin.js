@@ -27,7 +27,11 @@ function containerEnvVars() {
 export class VidShare extends Container {
   defaultPort = 5000;
   sleepAfter = "30m";
-  envVars = containerEnvVars();
+  // Read Worker secrets at container start, not once at isolate load, so
+  // `wrangler deploy --secrets-file` values are present on the next boot.
+  get envVars() {
+    return containerEnvVars();
+  }
 }
 
 export default {

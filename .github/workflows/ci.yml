@@ -66,14 +66,7 @@ jobs:
           ALLOWED_ORIGIN: ${{ secrets.ALLOWED_ORIGIN }}
           PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
         run: node scripts/check-worker-secrets.js
-      - name: Deploy Worker and container
-        if: steps.cf.outputs.ready == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
-      - name: Push Worker secrets into the container
+      - name: Write Worker secrets for deploy
         if: steps.cf.outputs.ready == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -89,4 +82,16 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ALLOW_ANONYMOUS_UPLOADS: ${{ secrets.ALLOW_ANONYMOUS_UPLOADS }}
           WISTIA_API_PASSWORD: ${{ secrets.WISTIA_API_PASSWORD }}
-        run: node scripts/push-worker-secrets.js
+        run: node scripts/push-worker-secrets.js --write "${{ runner.temp }}/worker-secrets.json"
+      - name: Deploy Worker and container
+        if: steps.cf.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Bind secrets in the same version the container boots from, so
+          # DATABASE_URL is present on first start (not only after a recycle).
+          command: deploy --secrets-file ${{ runner.temp }}/worker-secrets.json --containers-rollout immediate
+      - name: Remove Worker secrets file
+        if: always()
+        run: rm -f "${{ runner.temp }}/worker-secrets.json"

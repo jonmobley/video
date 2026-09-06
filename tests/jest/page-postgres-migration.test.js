@@ -11,6 +11,48 @@ describe('PostgreSQL standalone show migration', () => {
     delete process.env.OZ_EDITOR_TOKEN;
   });
 
+  test('public config image URLs are absolute when PUBLIC_ORIGIN is set', async () => {
+    const previous = process.env.PUBLIC_ORIGIN;
+    process.env.PUBLIC_ORIGIN = 'https://videos.example';
+    pageStore.query.mockResolvedValueOnce({
+      rows: [{
+        page: 'oz',
+        page_title: 'Oz',
+        presentation: {},
+        og_image_url: '/api/page-image/oz',
+        coming_soon_image_url: '/api/coming-soon-image/oz',
+        canonical_url: '/oz.html'
+      }]
+    });
+    const { handler } = require('../../handlers/get-page-config');
+    const response = await handler({ httpMethod: 'GET', headers: {}, queryStringParameters: { page: 'oz' } });
+    const body = JSON.parse(response.body);
+    expect(body.og_image_url).toBe('https://videos.example/api/page-image/oz');
+    expect(body.coming_soon_image_url).toBe('https://videos.example/api/coming-soon-image/oz');
+    expect(body.canonical_url).toBe('https://videos.example/oz.html');
+    if (previous === undefined) delete process.env.PUBLIC_ORIGIN;
+    else process.env.PUBLIC_ORIGIN = previous;
+  });
+
+  test('resetting Coming Soon also nulls stored image bytes', async () => {
+    process.env.OZ_EDITOR_TOKEN = 'oz-editor';
+    pageStore.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ page: 'oz', presentation: {} }] })
+      .mockResolvedValueOnce({ rows: [{ page: 'oz', coming_soon_image_url: null }] });
+    const { handler } = require('../../handlers/save-page-config');
+    const response = await handler({
+      httpMethod: 'POST',
+      headers: { authorization: 'Bearer oz-editor' },
+      body: JSON.stringify({ page: 'oz', coming_soon_image_url: null })
+    });
+    expect(response.statusCode).toBe(200);
+    const upsert = pageStore.query.mock.calls.find((call) => /ON CONFLICT/.test(call[0]));
+    expect(upsert).toBeTruthy();
+    expect(upsert[0]).toMatch(/coming_soon_image_data = NULL/);
+    expect(upsert[0]).toMatch(/coming_soon_image_content_type = NULL/);
+  });
+
   test('public config projection excludes credential hashes', async () => {
     pageStore.query.mockResolvedValueOnce({
       rows: [{ page: 'oz', page_title: 'Oz', presentation: {}, editor_token_hash: 'secret' }]
