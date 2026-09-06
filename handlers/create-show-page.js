@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { PAGE_ID_RE } = require('../../lib/page-editor-auth');
-const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { PAGE_ID_RE } = require('../lib/page-editor-auth');
+const { getDefaultPageConfig } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 

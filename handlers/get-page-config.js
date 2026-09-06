@@ -14,8 +14,20 @@
  */
 
 const { getCorsHeaders } = require('./utils/auth');
-const { getDefaultPageConfig } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { getDefaultPageConfig } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
+const { configuredPublicOrigin, absoluteUrl } = require('../lib/absolute-url');
+
+function absolutizePublicUrls(config) {
+  const origin = configuredPublicOrigin();
+  if (!origin || !config) return config;
+  return {
+    ...config,
+    canonical_url: absoluteUrl(config.canonical_url, origin),
+    og_image_url: absoluteUrl(config.og_image_url, origin),
+    coming_soon_image_url: absoluteUrl(config.coming_soon_image_url, origin)
+  };
+}
 
 function mergePageConfig(config) {
   const defaults = getDefaultPageConfig(config.page);
@@ -71,10 +83,13 @@ exports.handler = async (event, context) => {
     const responseData = page
       ? (result.rows.length ? mergePageConfig(result.rows[0]) : getDefaultPageConfig(page))
       : result.rows.map(mergePageConfig);
+    const body = Array.isArray(responseData)
+      ? responseData.map(absolutizePublicUrls)
+      : absolutizePublicUrls(responseData);
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(responseData)
+      body: JSON.stringify(body)
     };
   } catch (error) {
     console.error('Error:', error);

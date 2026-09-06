@@ -35,8 +35,6 @@ docker compose up --build
 
 Point a hostname at the host and put Cloudflare in front (orange-cloud proxy, SSL/TLS Full or Full strict).
 
-Production today is [vidsharepro.netlify.app](https://vidsharepro.netlify.app): show pages and `/.netlify/functions/*` already work there. Uploads, watch streaming, folders, and magic-code login are Express routes (`/api/*`, `/health`) and 404 on Netlify until this Node origin is live. Do not wire those upload URLs to Netlify Blobs — finalize never writes `vs_uploads`, so watch links would lie.
-
 For a laptop/VPS trial with bundled Postgres:
 
 ```bash
@@ -58,20 +56,27 @@ NODE_ENV=production
 
 This repo includes `wrangler.jsonc`, `workers/origin.js`, and the Dockerfile so the same image can run as a [Cloudflare Container](https://developers.cloudflare.com/containers/) behind a Worker — the Node equivalent of shipping a site on Cloudflare Pages.
 
+The container defaults to the `basic` instance type (1 GiB). Native uploads live in Postgres, not container disk.
+
 ```bash
 npm install
 npx wrangler login
+npx wrangler deploy
+# required:
 npx wrangler secret put DATABASE_URL
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put RESEND_FROM_EMAIL
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler secret put ALLOWED_ORIGIN
 npx wrangler secret put PUBLIC_ORIGIN
+# recommended:
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put RESEND_FROM_EMAIL
+# optional:
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_ANON_KEY
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-npx wrangler deploy
 ```
+
+Or copy `env.example` into GitHub Actions secrets (names below). CI writes them into the Worker with `wrangler deploy --secrets-file` so the container boots with `DATABASE_URL` already set.
 
 Then attach a custom domain on the Worker. Keep `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` on that HTTPS origin.
 
@@ -79,11 +84,40 @@ Do **not** import this repository as a Cloudflare Pages project with publish dir
 
 ## GitHub Actions
 
-Pushing to `main` runs Jest. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow also runs `wrangler deploy`.
+Pushing to `main` runs Jest and builds the Docker image. If `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set as repo secrets, the workflow deploys the Worker and uploads matching GitHub secrets in the same `wrangler deploy` so new containers start with them.
 
-## Netlify
+Add these repository secrets (Settings → Secrets and variables → Actions):
 
-`netlify.toml` and `netlify/functions` still work if you want to keep that path. The Node server already mounts the show-page functions at `/.netlify/functions/*`, so a single `npm start` origin is enough for oz/seussical/disc/vertical editors.
+| Secret | Required |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Yes (Workers + Containers edit) |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes |
+| `DATABASE_URL` | Yes (deploy writes the Worker secret) |
+| `ADMIN_TOKEN` | Yes |
+| `ALLOWED_ORIGIN` | Yes (your HTTPS origin, no trailing slash) |
+| `PUBLIC_ORIGIN` | Yes (same origin) |
+| `RESEND_API_KEY` | For magic-code email |
+| `RESEND_FROM_EMAIL` | For magic-code email |
+| `SESSION_SECRET` | Optional |
+| `JWT_SECRET` | Optional |
+| `SUPABASE_URL` | Optional |
+| `SUPABASE_ANON_KEY` | Optional |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional |
+| `ALLOW_ANONYMOUS_UPLOADS` | Optional |
+| `WISTIA_API_PASSWORD` | Optional |
+
+After the secrets exist, either push to `main` or run **Actions → CI → Run workflow**. Empty optional secrets are skipped; missing required Worker secrets fail that step.
+
+Until Cloudflare credentials are present, push CI stays green and prints a notice that deploy was skipped. **Run workflow** fails instead, so a manual cutover attempt is obvious.
+
+## Leave Netlify
+
+This repo no longer includes a Netlify site. After the Cloudflare Worker hostname is live (`GET /health` returns `{"ok":true}`):
+
+1. Point your custom domain at the Worker.
+2. Set `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` to that `https://` origin and re-run CI.
+3. Re-upload Coming Soon / share images in the page editor (old Netlify Blob URLs will 404).
+4. Delete the `vidsharepro` site in Netlify so it cannot keep serving a stale copy.
 
 ## Required environment variables
 

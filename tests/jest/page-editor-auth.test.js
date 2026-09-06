@@ -24,7 +24,7 @@ describe('page-bound standalone editor authorization', () => {
 
   test('accepts the page editor token for its own page', async () => {
     const response = await request(app)
-      .post('/.netlify/functions/verify-page-editor')
+      .post('/api/verify-page-editor')
       .set('Authorization', 'Bearer seussical-editor-test-token')
       .send({ page: 'seussical' });
 
@@ -34,7 +34,7 @@ describe('page-bound standalone editor authorization', () => {
 
   test('rejects the same page editor token for another page', async () => {
     const response = await request(app)
-      .post('/.netlify/functions/verify-page-editor')
+      .post('/api/verify-page-editor')
       .set('Authorization', 'Bearer seussical-editor-test-token')
       .send({ page: 'oz' });
 
@@ -43,10 +43,10 @@ describe('page-bound standalone editor authorization', () => {
   });
 
   test.each([
-    ['videos', '/.netlify/functions/save-videos', { page: 'oz', videos: [] }],
-    ['categories', '/.netlify/functions/save-categories', { page: 'oz', categories: [] }],
-    ['page config', '/.netlify/functions/save-page-config', { page: 'oz', page_title: 'Blocked' }],
-    ['Coming Soon image', '/.netlify/functions/upload-coming-soon-image', { page: 'oz', image: tinyPng, contentType: 'image/png' }]
+    ['videos', '/api/save-videos', { page: 'oz', videos: [] }],
+    ['categories', '/api/save-categories', { page: 'oz', categories: [] }],
+    ['page config', '/api/save-page-config', { page: 'oz', page_title: 'Blocked' }],
+    ['Coming Soon image', '/api/upload-coming-soon-image', { page: 'oz', image: tinyPng, contentType: 'image/png' }]
   ])('rejects cross-page credentials on %s writes', async (_label, path, body) => {
     const response = await request(app)
       .post(path)
@@ -58,10 +58,10 @@ describe('page-bound standalone editor authorization', () => {
   });
 
   test.each([
-    ['videos', '/.netlify/functions/save-videos', { page: 'seussical', videos: [] }],
-    ['categories', '/.netlify/functions/save-categories', { page: 'seussical', categories: [] }],
-    ['page config', '/.netlify/functions/save-page-config', { page: 'seussical', page_title: 'Blocked' }],
-    ['Coming Soon image', '/.netlify/functions/upload-coming-soon-image', { page: 'seussical', image: tinyPng, contentType: 'image/png' }]
+    ['videos', '/api/save-videos', { page: 'seussical', videos: [] }],
+    ['categories', '/api/save-categories', { page: 'seussical', categories: [] }],
+    ['page config', '/api/save-page-config', { page: 'seussical', page_title: 'Blocked' }],
+    ['Coming Soon image', '/api/upload-coming-soon-image', { page: 'seussical', image: tinyPng, contentType: 'image/png' }]
   ])('does not accept the global admin token on %s writes', async (_label, path, body) => {
     const response = await request(app)
       .post(path)

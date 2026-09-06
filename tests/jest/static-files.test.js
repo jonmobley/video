@@ -20,7 +20,7 @@ describe('isPublicStaticPath', () => {
     expect(isPublicStaticPath('/package-lock.json')).toBe(false);
     expect(isPublicStaticPath('/env.example')).toBe(false);
     expect(isPublicStaticPath('/complete-supabase-schema.sql')).toBe(false);
-    expect(isPublicStaticPath('/netlify/functions/save-videos.js')).toBe(false);
+    expect(isPublicStaticPath('/handlers/save-videos.js')).toBe(false);
     expect(isPublicStaticPath('/lib/page-editor-auth.js')).toBe(false);
     expect(isPublicStaticPath('/tests/jest/static-files.test.js')).toBe(false);
   });

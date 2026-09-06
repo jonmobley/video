@@ -16,7 +16,7 @@
  *   - Graceful fallback behavior
  */
 
-const { query } = require('../../lib/page-store');
+const { query } = require('../lib/page-store');
 
 // Default categories for fallback
 // Used when Supabase is unavailable or not configured

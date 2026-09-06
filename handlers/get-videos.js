@@ -16,7 +16,7 @@
  *   - Field name transformation (snake_case to camelCase)
  */
 
-const { query } = require('../../lib/page-store');
+const { query } = require('../lib/page-store');
 
 // Default videos for fallback
 // These are used when Supabase is not configured or unavailable

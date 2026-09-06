@@ -1,54 +1,13 @@
 /**
- * Netlify Function: upload-page-image
- * 
- * Purpose: Handles image uploads for page share images (Open Graph images)
- * 
- * Request Body (JSON):
- *   - page (required): Page ID to update (e.g., 'oz', 'disc')
- *   - image (required): Base64 encoded image data
- *   - contentType (required): MIME type of the image (e.g., 'image/png', 'image/jpeg')
- * 
- * Returns:
- *   - imageUrl: Public URL of the uploaded image
- *   - Updated page config object on success
- *   - Error message on failure
- * 
- * Notes:
- *   - Images are stored in Netlify's public folder during build
- *   - For production, consider using a CDN or image hosting service
- *   - Validates image format and size
+ * Upload Open Graph / share images for a show page.
+ * Bytes live in Postgres (page_config.og_image_data) and are served at
+ * /api/page-image/:page.
  */
 
-const { createClient } = require('@supabase/supabase-js');
 const { requireAuth, getSecuredCorsHeaders } = require('./utils/auth');
+const { query } = require('../lib/page-store');
 
-// Initialize Supabase client with the service role key (bypasses RLS).
-// The anon key must NOT be used here — page_config RLS is read-only for anon.
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-let supabase = null;
-
-if (!supabaseServiceRoleKey && process.env.SUPABASE_URL) {
-  console.error(
-    'SUPABASE_SERVICE_ROLE_KEY is not set. ' +
-    'upload-page-image requires the service role key to bypass RLS. ' +
-    'Set it in Netlify environment variables.'
-  );
-}
-
-if (supabaseUrl && supabaseServiceRoleKey) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-    console.log('Supabase client created successfully for metadata storage');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-  }
-}
-
-// Maximum file size in bytes (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
-// Allowed MIME types
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 function isMatchingImageSignature(imageBuffer, contentType) {
@@ -70,17 +29,11 @@ function isMatchingImageSignature(imageBuffer, contentType) {
   return false;
 }
 
-exports.handler = async (event, context) => {
-  // Get secured CORS headers
+exports.handler = async (event) => {
   const headers = getSecuredCorsHeaders();
 
-  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
   if (event.httpMethod !== 'POST') {
@@ -91,7 +44,6 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // Require authentication for admin operations
   const authResult = requireAuth(event);
   if (!authResult.authorized) {
     return authResult.response;
@@ -117,7 +69,6 @@ exports.handler = async (event, context) => {
     }
     const { page, image, contentType } = body;
 
-    // Validate input
     if (!page || !image || !contentType) {
       return {
         statusCode: 400,
@@ -133,7 +84,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Validate content type
     if (!ALLOWED_TYPES.includes(contentType)) {
       return {
         statusCode: 415,
@@ -142,7 +92,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Decode base64 image
     const imageBuffer = Buffer.from(image, 'base64');
     if (imageBuffer.length === 0) {
       return {
@@ -152,7 +101,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Validate file size
     if (imageBuffer.length > MAX_FILE_SIZE) {
       return {
         statusCode: 413,
@@ -169,48 +117,22 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Generate filename
-    const extension = contentType.split('/')[1];
-    const filename = `og-image-${page}.${extension}`;
-    
-    // Upload to Netlify Blobs
-    const { getStore } = await import('@netlify/blobs');
-    const store = getStore('page-images');
-    
-    await store.set(filename, imageBuffer, {
-      metadata: {
-        contentType: contentType,
-        page: page,
-        uploadedAt: new Date().toISOString()
-      }
-    });
-    
-    // Generate public URL for the blob
-    // The blob will be accessible via Netlify's blob storage URL
-    const imageUrl = `/.netlify/blobs/page-images/${filename}`;
-    
-    if (!supabase) {
-      console.error('Supabase client not available — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: { code: 'DB_NOT_CONFIGURED', message: 'Database is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' } })
-      };
-    }
+    const imageUrl = `/api/page-image/${page}?v=${Date.now()}`;
+    const result = await query(
+      `UPDATE page_config
+       SET og_image_url = $2, og_image_data = $3, og_image_content_type = $4, updated_at = NOW()
+       WHERE page = $1
+       RETURNING page, accent_color, page_title, meta_description, meta_keywords, canonical_url,
+                 og_title, og_description, og_image_url, coming_soon_image_url,
+                 twitter_title, twitter_description, presentation`,
+      [page, imageUrl, imageBuffer, contentType]
+    );
 
-    const { data, error } = await supabase
-      .from('page_config')
-      .update({ og_image_url: imageUrl })
-      .eq('page', page)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Supabase error updating page config:', error);
+    if (!result.rowCount) {
       return {
-        statusCode: 500,
+        statusCode: 404,
         headers,
-        body: JSON.stringify({ error: { code: 'DB_ERROR', message: 'Failed to update page config with image URL.' } })
+        body: JSON.stringify({ error: { code: 'PAGE_NOT_FOUND', message: 'That show page does not exist.' } })
       };
     }
 
@@ -219,7 +141,7 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         imageUrl,
-        pageConfig: data,
+        pageConfig: result.rows[0],
         message: 'Image uploaded successfully'
       })
     };
