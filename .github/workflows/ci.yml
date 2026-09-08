@@ -58,6 +58,18 @@ jobs:
             exit 0
           fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Trim Cloudflare credentials
+        id: cfcreds
+        if: steps.cf.outputs.ready == 'true'
+        run: |
+          TOKEN=$(printf '%s' "$CLOUDFLARE_API_TOKEN" | tr -d '\r\n')
+          ACCOUNT=$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | tr -d '\r\n')
+          echo "::add-mask::$TOKEN"
+          echo "::add-mask::$ACCOUNT"
+          echo "CLOUDFLARE_API_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "CLOUDFLARE_ACCOUNT_ID=$ACCOUNT" >> "$GITHUB_ENV"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          echo "account=$ACCOUNT" >> "$GITHUB_OUTPUT"
       - name: Check required Worker secrets
         if: steps.cf.outputs.ready == 'true'
         env:
@@ -87,8 +99,8 @@ jobs:
         if: steps.cf.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ steps.cfcreds.outputs.token }}
+          accountId: ${{ steps.cfcreds.outputs.account }}
           # Bind secrets in the same version the container boots from, so
           # DATABASE_URL is present on first start (not only after a recycle).
           command: deploy --secrets-file ${{ runner.temp }}/worker-secrets.json --containers-rollout immediate
