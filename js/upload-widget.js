@@ -216,19 +216,13 @@
   }
 
   function genId() {
-    const arr = new Uint8Array(12);
+    // 6-char lowercase alphanumeric share slug — no file extension.
+    const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz';
+    const arr = new Uint8Array(6);
     crypto.getRandomValues(arr);
-    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  function getExt(file) {
-    const parts = file.name.split('.');
-    if (parts.length > 1) return parts.pop().toLowerCase();
-    const m = file.type;
-    if (m === 'video/mp4') return 'mp4';
-    if (m === 'video/quicktime') return 'mov';
-    if (m === 'video/webm') return 'webm';
-    return 'mp4';
+    let id = '';
+    for (let i = 0; i < arr.length; i++) id += alphabet[arr[i] % alphabet.length];
+    return id;
   }
 
   // Capture a frame from the just-uploaded file and POST it to the server
@@ -730,8 +724,7 @@
         return;
       }
       const file = selectedFile;
-      const ext = getExt(file);
-      const videoId = genId() + '.' + ext;
+      const videoId = genId();
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const expiryDays = expirySelect.value;
       const password = passwordInput.value;
@@ -922,8 +915,7 @@
         const e = new Error('File is empty (0 bytes).');
         throw e;
       }
-      const ext = getExt(file);
-      const videoId = genId() + '.' + ext;
+      const videoId = genId();
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
       const fileTitle = deriveTitleFromFilename(file.name) || file.name;
 

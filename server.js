@@ -274,12 +274,34 @@ function isAllowedVideoType(ct) {
   return ALLOWED_VIDEO_PREFIXES.some(p => ct.toLowerCase().startsWith(p));
 }
 
-// Conservative video-id sanity: hex blob optionally followed by a short
-// extension. Rejects path traversal attempts (`../`), nulls, and obviously
-// malformed ids before they hit any DB query.
-const VIDEO_ID_RE = /^[a-f0-9]{12,64}(\.[a-z0-9]{1,8})?$/i;
+// Shareable video ids: short lowercase alphanumeric codes (6 chars for new
+// uploads/links). Also accepts legacy hex blobs (12–64 chars) optionally
+// followed by a short extension so older /watch?id=… links keep working.
+// Rejects path traversal attempts (`../`), nulls, and obviously malformed
+// ids before they hit any DB query.
+const VIDEO_ID_RE = /^[a-z0-9]{6,64}(\.[a-z0-9]{1,8})?$/i;
+const VIDEO_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
+const VIDEO_ID_LENGTH = 6;
 function isValidVideoId(id) {
   return typeof id === 'string' && id.length <= 80 && VIDEO_ID_RE.test(id);
+}
+function generateVideoId() {
+  let id = '';
+  for (let i = 0; i < VIDEO_ID_LENGTH; i++) {
+    id += VIDEO_ID_ALPHABET[crypto.randomInt(VIDEO_ID_ALPHABET.length)];
+  }
+  return id;
+}
+function extFromContentType(ct) {
+  const map = {
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/quicktime': 'mov',
+    'video/x-msvideo': 'avi',
+    'video/x-matroska': 'mkv',
+    'video/ogg': 'ogv'
+  };
+  return map[String(ct || '').toLowerCase()] || 'mp4';
 }
 
 // Collection slugs: short URL-safe lowercase hex (12 chars by default).
@@ -931,8 +953,8 @@ app.post('/api/upload-thumbnail', requireUploadAuth, async (req, res) => {
     if (!owner.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
     const { user_id, thumbnail_data } = owner.rows[0];
     // Owned video can only get a thumbnail from its owner. Anonymous uploads
-    // can be thumbnailed by anyone (the videoId is a 96-bit random secret,
-    // so this is effectively a capability token).
+    // can be thumbnailed by anyone (the videoId is an unguessable share
+    // token, so this is effectively a capability URL).
     if (user_id && user_id !== req.userId) {
       return apiError(res, 403, 'FORBIDDEN', 'Cannot set thumbnail for this video.');
     }
@@ -1311,17 +1333,28 @@ app.post('/api/create-link-video', requireUploadAuth, async (req, res) => {
       : null;
     const passwordHash = password ? hashPassword(password) : null;
 
-    // Random opaque ID — no extension, distinct shape from upload IDs to keep
-    // the watch URL pattern identical (?id=...) without leaking the platform.
-    const videoId = crypto.randomBytes(12).toString('hex');
+    // Short opaque share id (no file extension) — same /watch?id= shape as
+    // native uploads, without leaking the platform or a media suffix.
     const contentType = `link/${parsed.platform}`;
-
-    await pool.query(
-      `INSERT INTO vs_uploads
-         (id, content_type, title, expires_at, password_hash, file_size, user_id, platform, embed_video_id)
-       VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8)`,
-      [videoId, contentType, trimmedTitle, expiresAt, passwordHash, req.userId || null, parsed.platform, parsed.videoId]
-    );
+    let videoId = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateVideoId();
+      try {
+        await pool.query(
+          `INSERT INTO vs_uploads
+             (id, content_type, title, expires_at, password_hash, file_size, user_id, platform, embed_video_id)
+           VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8)`,
+          [candidate, contentType, trimmedTitle, expiresAt, passwordHash, req.userId || null, parsed.platform, parsed.videoId]
+        );
+        videoId = candidate;
+        break;
+      } catch (err) {
+        if (err.code !== '23505') throw err;
+      }
+    }
+    if (!videoId) {
+      return apiError(res, 500, 'INTERNAL', 'Could not generate a unique share link. Please try again.');
+    }
 
     const response = {
       success: true,
@@ -2334,9 +2367,10 @@ app.get('/api/video/:id/download', async (req, res) => {
     );
     if (!data.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
 
-    // Pull extension from id (uploads embed `.mp4` / `.mov` / etc), default mp4.
+    // Legacy upload ids may embed `.mp4` / `.mov`; new short ids do not —
+    // fall back to the stored content type for the download filename.
     const extMatch = id.match(/\.([a-z0-9]{1,8})$/i);
-    const ext = extMatch ? extMatch[1] : 'mp4';
+    const ext = extMatch ? extMatch[1] : extFromContentType(content_type);
     const filename = safeFilename(title, 'video') + '.' + ext;
 
     res.setHeader('Content-Type', content_type || 'application/octet-stream');
@@ -2409,7 +2443,7 @@ app.get('/api/folders/:slug/download', async (req, res) => {
       );
       if (!dataResult.rows.length) continue;
       const extMatch = row.id.match(/\.([a-z0-9]{1,8})$/i);
-      const ext = extMatch ? extMatch[1] : 'mp4';
+      const ext = extMatch ? extMatch[1] : extFromContentType(row.content_type);
       const base = safeFilename(row.title, 'video');
       let name = `${base}.${ext}`;
       let n = 2;
@@ -2521,4 +2555,15 @@ if (require.main === module) {
   startHttpServer();
 }
 
-module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, isPublicStaticPath };
+module.exports = {
+  app,
+  pool,
+  uploadCounts,
+  embedAvailabilityCache,
+  folderCreateCounts,
+  isPublicStaticPath,
+  isValidVideoId,
+  generateVideoId,
+  extFromContentType,
+  VIDEO_ID_LENGTH
+};
