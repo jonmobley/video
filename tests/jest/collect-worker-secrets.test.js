@@ -49,4 +49,16 @@ describe('collectWorkerSecrets', () => {
       })
     ).toBeNull();
   });
+
+  test('strips CR/LF so GitHub secret pastes cannot break HTTP headers', () => {
+    const { secrets, missing } = collectWorkerSecrets({
+      DATABASE_URL: 'postgres://db\n',
+      ADMIN_TOKEN: 'token\r\n',
+      ALLOWED_ORIGIN: 'https://vidshare.link\n',
+      PUBLIC_ORIGIN: 'https://vidshare.link\r'
+    });
+    expect(missing).toEqual([]);
+    expect(secrets.ADMIN_TOKEN).toBe('token');
+    expect(secrets.DATABASE_URL).toBe('postgres://db');
+  });
 });
