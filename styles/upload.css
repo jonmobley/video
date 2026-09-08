@@ -249,6 +249,9 @@
   background-clip: text;
 }
 .upload-card .account-nudge a:hover { filter: brightness(1.1); }
+.upload-card .account-nudge-hint {
+  display: block; margin-top: 4px; font-size: 0.75rem; color: #6e6e73;
+}
 
 .upload-card .error-msg {
   display: none; margin-top: 14px; padding: 12px 14px;

@@ -231,7 +231,7 @@ function showPasswordPrompt(videoId) {
         if (videoMeta && ['youtube','vimeo','dailymotion','loom','wistia'].includes(videoMeta.platform)) {
           showEmbed(videoMeta);
         } else {
-          loadVideo(videoId, pw);
+          loadVideo(videoId, data.accessToken || null);
         }
       } else {
         pwError.classList.add('visible');
@@ -248,20 +248,20 @@ function showPasswordPrompt(videoId) {
   setTimeout(function() { pwInput.focus(); }, 100);
 }
 
-function buildVideoUrl(videoId, password) {
+function buildVideoUrl(videoId, accessToken) {
   var url = '/api/video/' + encodeURIComponent(videoId);
-  if (password) url += '?pt=' + encodeURIComponent(password);
+  if (accessToken) url += '?t=' + encodeURIComponent(accessToken);
   return url;
 }
 
-function buildDownloadUrl(videoId, password) {
+function buildDownloadUrl(videoId, accessToken) {
   var url = '/api/video/' + encodeURIComponent(videoId) + '/download';
-  if (password) url += '?pt=' + encodeURIComponent(password);
+  if (accessToken) url += '?t=' + encodeURIComponent(accessToken);
   return url;
 }
 
-async function loadVideo(videoId, password) {
-  var videoUrl = buildVideoUrl(videoId, password);
+async function loadVideo(videoId, accessToken) {
+  var videoUrl = buildVideoUrl(videoId, accessToken);
   try {
     var probe = await fetch(videoUrl, { method: 'HEAD' });
     if (probe.status === 403) { showPasswordPrompt(videoId); return; }
@@ -270,7 +270,7 @@ async function loadVideo(videoId, password) {
   } catch (_) {}
   // Only uploaded files have a backing blob to download — external embeds don't.
   var canDownload = !videoMeta || !videoMeta.platform || videoMeta.platform === 'upload';
-  showVideo(videoUrl, canDownload ? buildDownloadUrl(videoId, password) : null);
+  showVideo(videoUrl, canDownload ? buildDownloadUrl(videoId, accessToken) : null);
 }
 
 async function init() {

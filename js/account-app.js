@@ -62,19 +62,110 @@
       emailPill.innerHTML = 'Signed in as <strong>' + escapeHtml(meData.email) + '</strong>' + paidBadge;
       window.__isPaidUser = !!meData.is_paid;
 
-      const res = await fetch('/api/my-videos');
+      const [videosRes, foldersRes] = await Promise.all([
+        fetch('/api/my-videos'),
+        fetch('/api/my-folders')
+      ]);
       // Session may have expired between the /me check and this call —
       // bounce the user to login so they can re-authenticate cleanly.
-      if (res.status === 401) return redirectToLogin({ expired: true });
-      if (!res.ok) {
+      if (videosRes.status === 401 || foldersRes.status === 401) {
+        return redirectToLogin({ expired: true });
+      }
+      if (!videosRes.ok) {
         content.innerHTML = '<div class="empty"><div class="empty-title">Could not load videos</div><div class="empty-sub">Please refresh the page.</div></div>';
         headerSub.textContent = '';
         return;
       }
-      const { videos } = await res.json();
-      renderVideos(videos);
+      const { videos } = await videosRes.json();
+      let folders = [];
+      if (foldersRes.ok) {
+        try {
+          const data = await foldersRes.json();
+          folders = Array.isArray(data.folders) ? data.folders : [];
+        } catch (_) { folders = []; }
+      }
+      renderAccount(videos, folders);
       checkEmbedStatus(videos);
       backfillThumbnails(videos);
+    }
+
+    function renderAccount(videos, folders) {
+      const parts = [];
+      if (folders && folders.length) {
+        parts.push(
+          '<section class="account-section" aria-labelledby="foldersHeading">' +
+            '<h2 class="section-heading" id="foldersHeading">Folders</h2>' +
+            '<div class="folder-list">' + folders.map(renderFolderCard).join('') + '</div>' +
+          '</section>'
+        );
+      }
+      parts.push(
+        '<section class="account-section" aria-labelledby="videosHeading">' +
+          (folders && folders.length ? '<h2 class="section-heading" id="videosHeading">Videos</h2>' : '') +
+          '<div id="videosSection"></div>' +
+        '</section>'
+      );
+      content.innerHTML = parts.join('');
+      const videosSection = document.getElementById('videosSection') || content;
+      renderVideos(videos, videosSection);
+      attachFolderHandlers();
+    }
+
+    function renderFolderCard(f) {
+      const count = f.video_count || 0;
+      const url = '/f/' + encodeURIComponent(f.slug);
+      return (
+        '<div class="folder-card" data-slug="' + escapeHtml(f.slug) + '">' +
+          '<div class="folder-main">' +
+            '<div class="folder-title">' + escapeHtml(f.title || 'Folder') + '</div>' +
+            '<div class="folder-meta">' +
+              count + ' video' + (count === 1 ? '' : 's') +
+              (f.created_at ? ' · ' + formatDate(f.created_at) : '') +
+            '</div>' +
+          '</div>' +
+          '<div class="folder-actions">' +
+            '<a class="vc-btn" href="' + escapeHtml(url) + '">Open</a>' +
+            '<button type="button" class="vc-btn copy-folder-btn">Copy link</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function attachFolderHandlers() {
+      content.querySelectorAll('.copy-folder-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const card = btn.closest('.folder-card');
+          if (!card) return;
+          const url = window.location.origin + '/f/' + encodeURIComponent(card.dataset.slug);
+          try {
+            await navigator.clipboard.writeText(url);
+            showToast('Folder link copied');
+          } catch (_) {
+            showToast('Could not copy link');
+          }
+        });
+      });
+    }
+
+    function renderVideos(videos, mountEl) {
+      const mount = mountEl || content;
+      // Reset and repopulate the lookup whenever the list re-renders.
+      for (const k of Object.keys(videosById)) delete videosById[k];
+      videos.forEach(v => { videosById[v.id] = v; });
+
+      if (!videos.length) {
+        headerSub.textContent = 'You haven\u2019t uploaded any videos yet.';
+        mount.innerHTML = `
+          <div class="empty">
+            <div class="empty-title">No videos yet</div>
+            <div class="empty-sub">Upload your first video to get a shareable link.</div>
+            <a href="/upload" class="upload-cta empty-upload-cta">+ Upload a video</a>
+          </div>`;
+        return;
+      }
+      headerSub.textContent = `${videos.length} video${videos.length === 1 ? '' : 's'}`;
+      mount.innerHTML = '<div class="video-list">' + videos.map(renderCard).join('') + '</div>';
+      attachCardHandlers();
     }
 
     // One-time, client-driven sweep that captures a real frame for any of
@@ -189,28 +280,8 @@
     }
 
     // Lookup so the thumbnail dialog can read metadata (e.g. password
-     // status, platform) without re-fetching the full list.
+    // status, platform) without re-fetching the full list.
     const videosById = Object.create(null);
-
-    function renderVideos(videos) {
-      // Reset and repopulate the lookup whenever the list re-renders.
-      for (const k of Object.keys(videosById)) delete videosById[k];
-      videos.forEach(v => { videosById[v.id] = v; });
-
-      if (!videos.length) {
-        headerSub.textContent = 'You haven\u2019t uploaded any videos yet.';
-        content.innerHTML = `
-          <div class="empty">
-            <div class="empty-title">No videos yet</div>
-            <div class="empty-sub">Upload your first video to get a shareable link.</div>
-            <a href="/upload" class="upload-cta empty-upload-cta">+ Upload a video</a>
-          </div>`;
-        return;
-      }
-      headerSub.textContent = `${videos.length} video${videos.length === 1 ? '' : 's'}`;
-      content.innerHTML = '<div class="video-list">' + videos.map(renderCard).join('') + '</div>';
-      attachCardHandlers();
-    }
 
     const PLACEHOLDER_SVG = `
       <div class="vc-thumb-placeholder">

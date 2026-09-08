@@ -96,10 +96,8 @@ describe('POST /api/finalize-video validation', () => {
   });
 
   test('EMPTY_FILE deletes orphan chunks before responding', async () => {
-    // Continuity check OK (1 chunk, idx 0..0)
-    pgMock.enqueue({ rows: [{ cnt: 1, min_idx: 0, max_idx: 0 }] });
-    // Chunk data: empty buffer
-    pgMock.enqueue({ rows: [{ data: Buffer.alloc(0) }] });
+    // Continuity check OK but total bytes = 0
+    pgMock.enqueue({ rows: [{ cnt: 1, min_idx: 0, max_idx: 0, total: '0' }] });
     // The cleanup DELETE
     pgMock.enqueue({ rowCount: 1 });
 
@@ -114,16 +112,10 @@ describe('POST /api/finalize-video validation', () => {
     expect(calls[calls.length - 1].params).toEqual([VALID_ID]);
   });
 
-  test('FILE_TOO_LARGE when assembled size > MAX_FILE_SIZE, with cleanup', async () => {
-    // Mock a tiny over-cap by patching the buffer length via a Proxy-ish trick:
-    // we assemble two chunks whose combined Buffer.concat exceeds 1 GB. Use
-    // a stub buffer object that lies about .length so we don't actually
-    // allocate a gigabyte in the test process.
-    const fakeBig = Buffer.alloc(1);
-    Object.defineProperty(fakeBig, 'length', { value: 2 * 1024 * 1024 * 1024 });
-
-    pgMock.enqueue({ rows: [{ cnt: 1, min_idx: 0, max_idx: 0 }] });
-    pgMock.enqueue({ rows: [{ data: fakeBig }] });
+  test('FILE_TOO_LARGE when total size > MAX_FILE_SIZE, with cleanup', async () => {
+    pgMock.enqueue({
+      rows: [{ cnt: 1, min_idx: 0, max_idx: 0, total: String(2 * 1024 * 1024 * 1024) }]
+    });
     pgMock.enqueue({ rowCount: 1 });
 
     const res = await request(app).post('/api/finalize-video').send(finalizeBody());

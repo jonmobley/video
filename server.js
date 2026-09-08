@@ -10,6 +10,17 @@ const { applyAppSchema, migrateLegacyPasswords } = require('./lib/app-schema');
 const { postgresSslOption } = require('./lib/pg-ssl');
 const { cookieSecureEnabled } = require('./lib/cookie-secure');
 const { publicOrigin, absoluteUrl, absolutizeHtmlMeta } = require('./lib/absolute-url');
+const {
+  hashPassword,
+  passwordsMatch,
+  signAccessToken,
+  authorizeVideoAccess
+} = require('./lib/video-password');
+const {
+  sumChunkBytes,
+  readByteRange,
+  streamAllChunks
+} = require('./lib/video-chunks');
 
 // Optional Supabase client — only initialised if env vars are present.
 // Used to best-effort propagate thumbnail URLs to the public `videos`
@@ -113,17 +124,6 @@ function evictExpiredRateLimits() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function hashPassword(pw) {
-  return crypto.createHash('sha256').update('vs2026_' + pw).digest('hex');
-}
-
-function passwordsMatch(provided, storedHash) {
-  if (!provided || !storedHash) return false;
-  const a = Buffer.from(hashPassword(String(provided)));
-  const b = Buffer.from(storedHash);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
-
 function getIp(req) {
   // With `trust proxy` set, Express resolves req.ip from the trusted XFF hop;
   // fall back to the raw socket if the proxy didn't set one (e.g. local dev).
@@ -828,11 +828,12 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
     const continuity = await client.query(
       `SELECT COUNT(*)::int AS cnt,
               MIN(chunk_index)::int AS min_idx,
-              MAX(chunk_index)::int AS max_idx
+              MAX(chunk_index)::int AS max_idx,
+              COALESCE(SUM(LENGTH(data)), 0)::bigint AS total
        FROM vs_upload_chunks WHERE video_id = $1`,
       [videoId]
     );
-    const { cnt, min_idx, max_idx } = continuity.rows[0];
+    const { cnt, min_idx, max_idx, total } = continuity.rows[0];
     if (cnt !== totalChunks || min_idx !== 0 || max_idx !== totalChunks - 1) {
       return apiError(
         res, 400, 'CHUNK_INTEGRITY',
@@ -840,17 +841,12 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
       );
     }
 
-    const dataResult = await client.query(
-      'SELECT data FROM vs_upload_chunks WHERE video_id = $1 ORDER BY chunk_index ASC',
-      [videoId]
-    );
-    const assembled = Buffer.concat(dataResult.rows.map(r => r.data));
-
-    if (assembled.length === 0) {
+    const fileSize = parseInt(total, 10) || 0;
+    if (fileSize === 0) {
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       return apiError(res, 400, 'EMPTY_FILE', 'The uploaded file is empty (0 bytes).');
     }
-    if (assembled.length > MAX_FILE_SIZE) {
+    if (fileSize > MAX_FILE_SIZE) {
       await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
       return apiError(
         res, 413, 'FILE_TOO_LARGE',
@@ -864,9 +860,9 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
       : null;
     const passwordHash = password ? hashPassword(password) : null;
 
-    // Atomic finalize: insert metadata, swap chunks → assembled blob, all-or-nothing.
-    // ROLLBACK on error keeps state consistent; abandoned chunks (no parent row)
-    // are pruned later by the age-gated orphan cleanup in cleanupExpired().
+    // Atomic finalize: insert metadata and keep upload chunks in place.
+    // Avoid Buffer.concat of the whole file into Node memory / a single BYTEA
+    // row — serving streams the ordered chunks instead.
     await client.query('BEGIN');
     try {
       const inserted = await client.query(
@@ -874,17 +870,12 @@ app.post('/api/finalize-video', requireUploadAuth, async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (id) DO NOTHING
          RETURNING id`,
-        [videoId, contentType, trimmedTitle, expiresAt, passwordHash, assembled.length, req.userId || null]
+        [videoId, contentType, trimmedTitle, expiresAt, passwordHash, fileSize, req.userId || null]
       );
       if (!inserted.rows.length) {
         await client.query('ROLLBACK');
         return apiError(res, 409, 'VIDEO_EXISTS', 'A video with this id already exists.');
       }
-      await client.query('DELETE FROM vs_upload_chunks WHERE video_id = $1', [videoId]);
-      await client.query(
-        'INSERT INTO vs_upload_chunks (video_id, chunk_index, data) VALUES ($1, 0, $2)',
-        [videoId, assembled]
-      );
       await client.query('COMMIT');
     } catch (txErr) {
       await client.query('ROLLBACK').catch(() => {});
@@ -1473,7 +1464,19 @@ app.post('/api/verify-password', async (req, res) => {
     // Constant-time comparison prevents timing-based hash discovery
     const expected = result.rows[0].password_hash || '';
     const valid = passwordsMatch(password, expected);
-    res.json({ valid });
+    if (!valid) return res.json({ valid: false });
+
+    // Mint a short-lived access token so the watch page can stream/download
+    // without putting the cleartext password in media URLs.
+    let accessToken = null;
+    try {
+      if (SESSION_SECRET) {
+        accessToken = signAccessToken(videoId, SESSION_SECRET);
+      }
+    } catch (e) {
+      console.warn('access token mint failed:', e.message);
+    }
+    res.json({ valid: true, accessToken });
   } catch (err) {
     console.error('verify-password error:', err);
     apiError(res, 500, 'INTERNAL', 'Could not verify password.');
@@ -1487,80 +1490,82 @@ app.get('/api/video/:id', async (req, res) => {
     if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
     const metaResult = await pool.query(
-      'SELECT content_type, expires_at, password_hash FROM vs_uploads WHERE id = $1',
+      'SELECT content_type, expires_at, password_hash, file_size, user_id FROM vs_uploads WHERE id = $1',
       [id]
     );
     if (!metaResult.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
 
-    const { content_type, expires_at, password_hash } = metaResult.rows[0];
+    const { content_type, expires_at, password_hash, file_size, user_id } = metaResult.rows[0];
 
     if (expires_at && new Date(expires_at) < new Date()) {
       return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
 
-    // Password check via session token in query string
-    if (password_hash) {
-      const provided = req.query.pt;
-      if (!passwordsMatch(provided, password_hash)) {
-        return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
-      }
+    if (!authorizeVideoAccess(id, password_hash, req.query, SESSION_SECRET)) {
+      return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
     }
 
-    // Get total size first
-    const sizeResult = await pool.query(
-      'SELECT LENGTH(data) as size FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
-      [id]
-    );
-    if (!sizeResult.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
+    let fileSize = parseInt(file_size, 10) || 0;
+    if (!fileSize) {
+      const sized = await sumChunkBytes(pool, id);
+      fileSize = sized.total;
+    }
+    if (!fileSize) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
 
-    const fileSize = parseInt(sizeResult.rows[0].size);
     const range = req.headers.range;
 
     // Increment view count (fire and forget). Skip when the owner is the
     // one fetching — e.g. the dashboard's thumbnail picker loads the video
     // to extract candidate frames and shouldn't inflate their stats.
-    const ownerOnly = await pool.query('SELECT user_id FROM vs_uploads WHERE id = $1', [id]);
-    const isOwner = ownerOnly.rows.length && ownerOnly.rows[0].user_id && ownerOnly.rows[0].user_id === req.userId;
-    if (!isOwner) {
+    const isOwner = user_id && user_id === req.userId;
+    if (!isOwner && req.method !== 'HEAD') {
       pool.query('UPDATE vs_uploads SET view_count = view_count + 1 WHERE id = $1', [id]).catch(() => {});
+    }
+
+    // HEAD probes (watch page) only need headers — don't stream the body.
+    if (req.method === 'HEAD') {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': content_type,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'private, max-age=3600'
+      });
+      return res.end();
     }
 
     if (range) {
       const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
       const start = parseInt(startStr, 10);
       const end = endStr ? parseInt(endStr, 10) : Math.min(start + 1024 * 1024 - 1, fileSize - 1);
-      const chunkLen = end - start + 1;
-
-      // Use PostgreSQL SUBSTRING to read only the needed bytes (1-indexed)
-      const dataResult = await pool.query(
-        'SELECT SUBSTRING(data FROM $2::int FOR $3::int) as chunk FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
-        [id, start + 1, chunkLen]
-      );
+      if (!Number.isFinite(start) || start < 0 || start >= fileSize) {
+        res.status(416).set('Content-Range', `bytes */${fileSize}`).end();
+        return;
+      }
+      const safeEnd = Math.min(end, fileSize - 1);
+      const chunkLen = safeEnd - start + 1;
+      const chunk = await readByteRange(pool, id, start, safeEnd);
+      if (!chunk) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
 
       res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Content-Range': `bytes ${start}-${safeEnd}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunkLen,
         'Content-Type': content_type,
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'private, max-age=3600'
       });
-      res.end(dataResult.rows[0].chunk);
+      res.end(chunk);
     } else {
-      const dataResult = await pool.query(
-        'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
-        [id]
-      );
       res.writeHead(200, {
         'Content-Length': fileSize,
         'Content-Type': content_type,
         'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=3600'
+        'Cache-Control': 'private, max-age=3600'
       });
-      res.end(dataResult.rows[0].data);
+      await streamAllChunks(pool, id, res);
     }
   } catch (err) {
-    console.error('get-video error:', err);
-    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not stream the video.');
+    console.error('video serve error:', err);
+    if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not stream video.');
   }
 });
 
@@ -2378,7 +2383,7 @@ app.get('/api/my-folders', requireUser, async (req, res) => {
 // (cancel during upload, or finalize failed). We only allow this when no
 // vs_uploads row exists for that id, so a malicious caller can't wipe a real
 // video's bytes by guessing the id.
-app.delete('/api/upload-chunks/:videoId', async (req, res) => {
+app.delete('/api/upload-chunks/:videoId', requireUploadAuth, async (req, res) => {
   try {
     const { videoId } = req.params;
     if (!isValidVideoId(videoId)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
@@ -2418,7 +2423,7 @@ app.get('/api/video/:id/download', async (req, res) => {
     if (!isValidVideoId(id)) return apiError(res, 400, 'BAD_VIDEO_ID', 'Invalid video id.');
 
     const meta = await pool.query(
-      'SELECT content_type, expires_at, password_hash, title, platform FROM vs_uploads WHERE id = $1',
+      'SELECT content_type, expires_at, password_hash, title, platform, file_size FROM vs_uploads WHERE id = $1',
       [id]
     );
     if (!meta.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video not found.');
@@ -2430,15 +2435,16 @@ app.get('/api/video/:id/download', async (req, res) => {
     if (expires_at && new Date(expires_at) < new Date()) {
       return apiError(res, 410, 'EXPIRED', 'This video has expired.');
     }
-    if (password_hash && !passwordsMatch(req.query.pt, password_hash)) {
+    if (!authorizeVideoAccess(id, password_hash, req.query, SESSION_SECRET)) {
       return apiError(res, 403, 'PASSWORD_REQUIRED', 'Password required.');
     }
 
-    const data = await pool.query(
-      'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
-      [id]
-    );
-    if (!data.rows.length) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
+    let fileSize = parseInt(meta.rows[0].file_size, 10) || 0;
+    if (!fileSize) {
+      const sized = await sumChunkBytes(pool, id);
+      fileSize = sized.total;
+    }
+    if (!fileSize) return apiError(res, 404, 'NOT_FOUND', 'Video data not found.');
 
     // Pull extension from id (uploads embed `.mp4` / `.mov` / etc), default mp4.
     const extMatch = id.match(/\.([a-z0-9]{1,8})$/i);
@@ -2446,10 +2452,10 @@ app.get('/api/video/:id/download', async (req, res) => {
     const filename = safeFilename(title, 'video') + '.' + ext;
 
     res.setHeader('Content-Type', content_type || 'application/octet-stream');
-    res.setHeader('Content-Length', data.rows[0].data.length);
+    res.setHeader('Content-Length', fileSize);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'private, no-store');
-    res.end(data.rows[0].data);
+    await streamAllChunks(pool, id, res);
   } catch (err) {
     console.error('video download error:', err);
     if (!res.headersSent) apiError(res, 500, 'INTERNAL', 'Could not download video.');
@@ -2509,11 +2515,12 @@ app.get('/api/folders/:slug/download', async (req, res) => {
 
     const usedNames = new Set();
     for (const row of v.rows) {
-      const dataResult = await pool.query(
-        'SELECT data FROM vs_upload_chunks WHERE video_id = $1 AND chunk_index = 0',
+      const chunkRows = await pool.query(
+        `SELECT data FROM vs_upload_chunks WHERE video_id = $1 ORDER BY chunk_index ASC`,
         [row.id]
       );
-      if (!dataResult.rows.length) continue;
+      if (!chunkRows.rows.length) continue;
+      const buf = Buffer.concat(chunkRows.rows.map(r => r.data));
       const extMatch = row.id.match(/\.([a-z0-9]{1,8})$/i);
       const ext = extMatch ? extMatch[1] : 'mp4';
       const base = safeFilename(row.title, 'video');
@@ -2521,7 +2528,7 @@ app.get('/api/folders/:slug/download', async (req, res) => {
       let n = 2;
       while (usedNames.has(name)) { name = `${base}_${n}.${ext}`; n++; }
       usedNames.add(name);
-      archive.append(dataResult.rows[0].data, { name });
+      archive.append(buf, { name });
     }
 
     await archive.finalize();
