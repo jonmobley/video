@@ -29,8 +29,8 @@
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { buildPageConfigWrite } = require('../../lib/page-config-defaults');
-const { query } = require('../../lib/page-store');
+const { buildPageConfigWrite } = require('../lib/page-config-defaults');
+const { query } = require('../lib/page-store');
 
 const PRESENTATION_FIELDS = new Set([
   'template_key',
@@ -282,9 +282,13 @@ exports.handler = async (event, context) => {
       'twitter_title', 'twitter_description', 'canonical_url', 'presentation'];
     const values = fields.map(field => field === 'presentation'
       ? JSON.stringify(upsertData[field] || {}) : (upsertData[field] ?? null));
+    const clearComingSoonBytes = coming_soon_image_url === null;
+    const extraUpdate = clearComingSoonBytes
+      ? ', coming_soon_image_data = NULL, coming_soon_image_content_type = NULL'
+      : '';
     const result = await query(
       `INSERT INTO page_config (${fields.join(', ')}) VALUES (${fields.map((_, i) => `$${i + 1}`).join(', ')})
-       ON CONFLICT (page) DO UPDATE SET ${fields.slice(1).map(field => `${field} = EXCLUDED.${field}`).join(', ')}, updated_at = NOW()
+       ON CONFLICT (page) DO UPDATE SET ${fields.slice(1).map(field => `${field} = EXCLUDED.${field}`).join(', ')}${extraUpdate}, updated_at = NOW()
        RETURNING page, accent_color, page_title, meta_description, meta_keywords, canonical_url, og_title, og_description, og_image_url, coming_soon_image_url, twitter_title, twitter_description, presentation`,
       values
     );

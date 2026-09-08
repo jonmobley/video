@@ -253,6 +253,10 @@ ALTER TABLE page_config ENABLE ROW LEVEL SECURITY;
 
 -- Optional artwork used by empty-state page templates.
 ALTER TABLE page_config ADD COLUMN IF NOT EXISTS coming_soon_image_url TEXT;
+ALTER TABLE page_config ADD COLUMN IF NOT EXISTS og_image_data BYTEA;
+ALTER TABLE page_config ADD COLUMN IF NOT EXISTS og_image_content_type TEXT;
+ALTER TABLE page_config ADD COLUMN IF NOT EXISTS coming_soon_image_data BYTEA;
+ALTER TABLE page_config ADD COLUMN IF NOT EXISTS coming_soon_image_content_type TEXT;
 
 -- Create policies (adjust based on your auth setup)
 -- Example: Allow public read access

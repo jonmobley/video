@@ -22,14 +22,14 @@ All admin endpoints require authentication via the `ADMIN_TOKEN` environment var
    openssl rand -hex 32
    ```
 
-2. Add to the host environment (Docker `.env`, Cloudflare Worker secrets, or Netlify):
+2. Add to the host environment (Docker `.env` or Cloudflare Worker secrets):
    ```
    ADMIN_TOKEN=your_generated_token_here
    ```
 
 3. Include token in API requests:
    ```javascript
-   fetch('/.netlify/functions/save-videos', {
+   fetch('/api/save-videos', {
      method: 'POST',
      headers: {
        'Content-Type': 'application/json',
@@ -41,23 +41,23 @@ All admin endpoints require authentication via the `ADMIN_TOKEN` environment var
 
 ### CORS Configuration
 
-Admin endpoints use restricted CORS headers via per-function logic (`getSecuredCorsHeaders()`), not a blanket `netlify.toml` rule. Read-only functions use `getCorsHeaders()` which returns `Access-Control-Allow-Origin: *`. Admin/write functions respect the `ALLOWED_ORIGIN` environment variable.
+Admin endpoints use restricted CORS headers via `getSecuredCorsHeaders()`. Read-only handlers use `getCorsHeaders()` which returns `Access-Control-Allow-Origin: *`. Admin/write handlers respect the `ALLOWED_ORIGIN` environment variable.
 
 - Default: `Access-Control-Allow-Origin: *` (for development)
 - Production: Set `ALLOWED_ORIGIN` environment variable to your domain
 
 **Example:**
 ```
-ALLOWED_ORIGIN=https://your-site.netlify.app
+ALLOWED_ORIGIN=https://your-domain.com
 ```
 
 ### Constant-Time Token Comparison
 
-Both `server.js` and Netlify function auth (`netlify/functions/utils/auth.js`) use `crypto.timingSafeEqual` for admin token verification. This prevents timing-based attacks that could be used to discover the token character by character.
+Both `server.js` and CMS handler auth (`handlers/utils/auth.js`) use `crypto.timingSafeEqual` for admin token verification. This prevents timing-based attacks that could be used to discover the token character by character.
 
 ## Security Headers
 
-The following headers are set on all responses (via middleware in `server.js`, and `netlify.toml` if you still deploy there):
+The following headers are set on all responses (via middleware in `server.js`):
 
 ### Content-Security-Policy (CSP)
 
@@ -216,7 +216,7 @@ Before deploying:
 - [ ] HTTPS is enforced (Cloudflare or your reverse proxy)
 - [ ] CSP, HSTS, and Permissions-Policy headers are present on all responses
 - [ ] Token comparison uses constant-time (`crypto.timingSafeEqual`) in both server.js and Netlify functions
-- [ ] Source files (`server.js`, `lib/`, `netlify/`, `*.sql`, `package.json`) are not publicly downloadable
+- [ ] Source files (`server.js`, `lib/`, `handlers/`, `*.sql`, `package.json`) are not publicly downloadable
 - [ ] Page editor logins go through `verify-page-editor` (no client-side hardcoded passwords)
 - [ ] `lock-page-config-secrets.sql` has been applied so anon cannot SELECT editor token hashes
 

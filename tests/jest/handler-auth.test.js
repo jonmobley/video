@@ -4,7 +4,7 @@
  * Tests for the authentication utility that protects admin endpoints
  */
 
-const { requireAuth } = require('../utils/auth');
+const { requireAuth } = require('../../handlers/utils/auth');
 
 describe('Authentication Utility', () => {
   const originalEnv = process.env;

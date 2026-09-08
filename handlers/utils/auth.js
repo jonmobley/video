@@ -17,8 +17,8 @@
  */
 
 const crypto = require('crypto');
-const { verifyPageEditorCredential } = require('../../../lib/page-editor-auth');
-const pageStore = require('../../../lib/page-store');
+const { verifyPageEditorCredential } = require('../../lib/page-editor-auth');
+const pageStore = require('../../lib/page-store');
 
 /**
  * Check if request is authorized

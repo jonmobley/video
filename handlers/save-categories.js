@@ -21,7 +21,7 @@
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
-const { getPool } = require('../../lib/page-store');
+const { getPool } = require('../lib/page-store');
 
 exports.handler = async (event, context) => {
   // Get secured CORS headers

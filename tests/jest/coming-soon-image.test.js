@@ -1,4 +1,4 @@
-const { handler, decodeImage, isMatchingImageSignature } = require('../../netlify/functions/upload-coming-soon-image');
+const { handler, decodeImage, isMatchingImageSignature } = require('../../handlers/upload-coming-soon-image');
 
 const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 

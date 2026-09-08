@@ -156,50 +156,12 @@ describe('Dropbox CSP coverage', () => {
   });
 });
 
-describe('server.js and netlify.toml CSP parity', () => {
-  let serverCSP;
-  let netlifyCSP;
-
-  beforeAll(async () => {
+describe('Express CSP headers', () => {
+  test('HTML responses include the video-platform CSP directives', async () => {
     const res = await request(app).get('/').set('Accept', 'text/html');
-    serverCSP = res.headers['content-security-policy'];
-
-    const fs = require('fs');
-    const toml = fs.readFileSync('netlify.toml', 'utf8');
-    const match = toml.match(/Content-Security-Policy\s*=\s*"([^"]+)"/);
-    netlifyCSP = match ? match[1] : '';
-  });
-
-  test('both configurations define the same CSP directives', () => {
-    const serverDir = parseCSP(serverCSP);
-    const netlifyDir = parseCSP(netlifyCSP);
-
-    const serverKeys = Object.keys(serverDir).sort();
-    const netlifyKeys = Object.keys(netlifyDir).sort();
-    expect(serverKeys).toEqual(netlifyKeys);
-  });
-
-  test('script-src sources match between server.js and netlify.toml', () => {
-    const serverDir = parseCSP(serverCSP);
-    const netlifyDir = parseCSP(netlifyCSP);
-    expect(serverDir['script-src'].sort()).toEqual(netlifyDir['script-src'].sort());
-  });
-
-  test('connect-src sources match between server.js and netlify.toml', () => {
-    const serverDir = parseCSP(serverCSP);
-    const netlifyDir = parseCSP(netlifyCSP);
-    expect(serverDir['connect-src'].sort()).toEqual(netlifyDir['connect-src'].sort());
-  });
-
-  test('frame-src sources match between server.js and netlify.toml', () => {
-    const serverDir = parseCSP(serverCSP);
-    const netlifyDir = parseCSP(netlifyCSP);
-    expect(serverDir['frame-src'].sort()).toEqual(netlifyDir['frame-src'].sort());
-  });
-
-  test('media-src sources match between server.js and netlify.toml', () => {
-    const serverDir = parseCSP(serverCSP);
-    const netlifyDir = parseCSP(netlifyCSP);
-    expect(serverDir['media-src'].sort()).toEqual(netlifyDir['media-src'].sort());
+    const header = parseCSP(res.headers['content-security-policy']);
+    expect(header['script-src']).toEqual(expect.arrayContaining(["'self'", 'https://fast.wistia.com']));
+    expect(header['frame-src']).toEqual(expect.arrayContaining(['https://player.vimeo.com', 'https://www.youtube.com']));
+    expect(header['media-src']).toEqual(expect.arrayContaining(["'self'", 'blob:']));
   });
 });

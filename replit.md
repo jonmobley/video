@@ -15,7 +15,7 @@ This app is hosted as a Node server, not on Replit. See [HOSTING.md](HOSTING.md)
 ## Stack
 
 - Frontend: static HTML, CSS, JavaScript
-- Backend: Express (`server.js`). Show-page CMS handlers in `netlify/functions` are mounted at `/.netlify/functions/*`
+- Backend: Express (`server.js`). Show-page CMS handlers in `handlers/` are mounted at `/api/*`
 - Database: PostgreSQL via `pg`
 
 ## Product

@@ -3,14 +3,14 @@ const { getDefaultPageConfig, buildPageConfigWrite } = require('../../lib/page-c
 describe('page configuration defaults', () => {
   test('provides a complete Seussical config when creating its first setting', () => {
     const result = buildPageConfigWrite('seussical', {
-      coming_soon_image_url: '/.netlify/blobs/page-images/coming-soon-seussical.png'
+      coming_soon_image_url: '/api/coming-soon-image/seussical'
     }, null);
 
     expect(result).toMatchObject({
       page: 'seussical',
       accent_color: '#008f67',
       page_title: 'Seussical',
-      coming_soon_image_url: '/.netlify/blobs/page-images/coming-soon-seussical.png'
+      coming_soon_image_url: '/api/coming-soon-image/seussical'
     });
     expect(result.presentation).toMatchObject({
       template_key: 'gallery',

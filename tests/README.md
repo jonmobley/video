@@ -193,23 +193,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          NETLIFY_SITE_URL: ${{ secrets.NETLIFY_SITE_URL }}
+          PUBLIC_ORIGIN: ${{ secrets.PUBLIC_ORIGIN }}
 ```
 
-### Netlify Build Plugin
-
-Add to your `netlify.toml`:
-
-```toml
-[[plugins]]
-  package = "@netlify/plugin-functions-install-core"
-
-[build.environment]
-  NODE_VERSION = "18"
-
-[build]
-  command = "npm install && node tests/run-all-tests.js"
-```
+CI for this repo is GitHub Actions (`.github/workflows/ci.yml`), not a Netlify build plugin.
 
 ## Monitoring and Maintenance
 

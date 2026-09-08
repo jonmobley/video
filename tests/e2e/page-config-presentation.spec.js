@@ -35,7 +35,7 @@ async function mockPresentationApis(page, config, videos = []) {
   let currentConfig = config;
   let savedPresentation = null;
 
-  await page.route('**/.netlify/functions/**', async route => {
+  await page.route('**/api/**', async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
 
