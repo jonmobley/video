@@ -614,8 +614,12 @@ describe('POST /api/create-link-video – embed availability check', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.warning).toBeUndefined();
+    expect(res.body.videoId).toMatch(/^[a-z0-9]{6}$/);
+    expect(res.body.videoId).not.toMatch(/\./);
+    expect(res.body.watchUrl).toBe(`/watch?id=${res.body.videoId}`);
     expect(global.fetch).toHaveBeenCalled();
     const insertCall = pgMock.calls().find(c => c.sql.includes('INSERT'));
     expect(insertCall).toBeDefined();
+    expect(insertCall.params[0]).toBe(res.body.videoId);
   });
 });
