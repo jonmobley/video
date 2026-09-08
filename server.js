@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { ensurePageSchema } = require('./lib/page-store');
+const { applyAppSchema, migrateLegacyPasswords } = require('./lib/app-schema');
 const { postgresSslOption } = require('./lib/pg-ssl');
 const { cookieSecureEnabled } = require('./lib/cookie-secure');
 const { publicOrigin, absoluteUrl, absolutizeHtmlMeta } = require('./lib/absolute-url');
@@ -43,6 +44,8 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 let schemaReady = false;
+let lastSchemaError = '';
+let schemaTimersStarted = false;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 const pool = new Pool({
@@ -293,129 +296,9 @@ function safeFilename(title, fallback) {
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function ensureSchema() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS vs_uploads (
-      id TEXT PRIMARY KEY,
-      content_type TEXT NOT NULL,
-      uploaded_at TIMESTAMPTZ DEFAULT NOW(),
-      title TEXT DEFAULT '',
-      expires_at TIMESTAMPTZ,
-      password_hash TEXT,
-      view_count INTEGER DEFAULT 0,
-      file_size BIGINT DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS vs_upload_chunks (
-      video_id TEXT NOT NULL,
-      chunk_index INTEGER NOT NULL,
-      data BYTEA NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      PRIMARY KEY (video_id, chunk_index)
-    );
-    ALTER TABLE vs_upload_chunks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-    CREATE INDEX IF NOT EXISTS idx_vs_uploads_expires_at ON vs_uploads(expires_at) WHERE expires_at IS NOT NULL;
-    CREATE INDEX IF NOT EXISTS idx_vs_uploads_uploaded_at ON vs_uploads(uploaded_at);
-    CREATE INDEX IF NOT EXISTS idx_vs_upload_chunks_created_at ON vs_upload_chunks(created_at);
-
-    -- Embed-link videos (YouTube/Vimeo/Dailymotion/Loom/Wistia). platform = 'upload' for legacy/native
-    -- uploads, 'youtube'/'vimeo'/'dailymotion'/'loom'/'wistia' for pasted links.
-    -- embed_video_id holds the platform-specific ID (e.g. YouTube 11-char code,
-    -- Vimeo numeric ID, Dailymotion x-prefixed ID, Loom 32-hex-char ID, or
-    -- Wistia alphanumeric ID).
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'upload';
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS embed_video_id TEXT;
-
-    -- Captured-frame thumbnails for native uploads (and other non-platform
-    -- videos that lack a free, hosted thumbnail like YouTube/Vimeo). Stored
-    -- inline in BYTEA — they're small (~30-80 KB JPEG) and live next to the
-    -- video bytes which already live in this DB.
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA;
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS thumbnail_content_type TEXT;
-
-    -- Captured-frame thumbnails for *external link* videos (e.g. Dropbox URLs)
-    -- that don't have a row in vs_uploads. Keyed by the client-supplied video
-    -- object id (e.g. "wistia_<timestamp>") and served as a stable URL so it
-    -- can be persisted into the public Supabase videos table without
-    -- bloating it with data: URLs.
-    CREATE TABLE IF NOT EXISTS vs_link_thumbnails (
-      id TEXT PRIMARY KEY,
-      thumbnail_data BYTEA NOT NULL,
-      thumbnail_content_type TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_link_thumbnails_created_at
-      ON vs_link_thumbnails (created_at);
-
-    -- User accounts. Auth is magic-code via email (no passwords).
-    CREATE TABLE IF NOT EXISTS vs_users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    ALTER TABLE vs_users ADD COLUMN IF NOT EXISTS is_paid BOOLEAN NOT NULL DEFAULT FALSE;
-    CREATE TABLE IF NOT EXISTS vs_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-    -- Attribute uploads to a user (nullable — anonymous uploads still work).
-    -- ON DELETE SET NULL keeps the videos accessible if the account is removed.
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS user_id TEXT
-      REFERENCES vs_users(id) ON DELETE SET NULL;
-    CREATE INDEX IF NOT EXISTS idx_vs_uploads_user_id ON vs_uploads(user_id) WHERE user_id IS NOT NULL;
-
-    -- Magic-code login table. One active code per (email, code_hash). Old/expired
-    -- codes are pruned by cleanupExpired(). attempts caps brute force.
-    CREATE TABLE IF NOT EXISTS vs_auth_codes (
-      id BIGSERIAL PRIMARY KEY,
-      email TEXT NOT NULL,
-      code_hash TEXT NOT NULL,
-      expires_at TIMESTAMPTZ NOT NULL,
-      attempts INTEGER NOT NULL DEFAULT 0,
-      used_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_email ON vs_auth_codes(email);
-    CREATE INDEX IF NOT EXISTS idx_vs_auth_codes_expires ON vs_auth_codes(expires_at);
-
-    -- Folders (formerly "collections"): multi-video shareable pages. Each
-    -- folder has a short URL-safe slug and a display title. Videos opt-in via
-    -- the collection_id column on vs_uploads. The underlying table is still
-    -- named vs_collections to avoid a risky data migration; only user-facing
-    -- names changed. user_id is nullable so anonymous uploads can create
-    -- folders just like single-video anonymous uploads.
-    CREATE TABLE IF NOT EXISTS vs_collections (
-      slug TEXT PRIMARY KEY,
-      user_id TEXT REFERENCES vs_users(id) ON DELETE CASCADE,
-      title TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    ALTER TABLE vs_collections ALTER COLUMN user_id DROP NOT NULL;
-    CREATE INDEX IF NOT EXISTS idx_vs_collections_user_id ON vs_collections(user_id);
-
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS collection_id TEXT
-      REFERENCES vs_collections(slug) ON DELETE SET NULL;
-    ALTER TABLE vs_uploads ADD COLUMN IF NOT EXISTS collection_order INTEGER NOT NULL DEFAULT 0;
-    CREATE INDEX IF NOT EXISTS idx_vs_uploads_collection_id
-      ON vs_uploads(collection_id) WHERE collection_id IS NOT NULL;
-  `);
+  await applyAppSchema(pool);
   await ensurePageSchema(pool);
-
-  // One-time migration off password auth: drop legacy password_hash column and
-  // wipe any pre-existing accounts (per product decision — no migration path).
-  // Idempotent: after first run the column is gone and the DELETE is a no-op.
-  const colCheck = await pool.query(`
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'vs_users' AND column_name = 'password_hash'
-  `);
-  if (colCheck.rows.length) {
-    console.log('Migrating vs_users to magic-code auth: wiping accounts and dropping password_hash');
-    await pool.query('DELETE FROM vs_users');
-    await pool.query('ALTER TABLE vs_users DROP COLUMN password_hash');
-  }
-
-  // NOTE: We deliberately do NOT add an FK from vs_upload_chunks → vs_uploads.
-  // Upload protocol is "stream chunks, THEN finalize creates the parent row",
-  // so a FK would block legal inserts. Orphan chunks (from abandoned uploads)
-  // are pruned by cleanupOrphanChunks() below.
+  await migrateLegacyPasswords(pool);
 }
 
 // ── Cleanup expired videos ───────────────────────────────────────────────────
@@ -828,7 +711,11 @@ app.use((req, res, next) => {
 });
 
 // ── Health ───────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ ok: true, db: schemaReady }));
+app.get('/health', (req, res) => {
+  const body = { ok: true, db: schemaReady };
+  if (!schemaReady && lastSchemaError) body.schemaError = lastSchemaError;
+  res.json(body);
+});
 app.get('/ping', (req, res) => res.json({ ok: true }));
 app.get('/api/upload-config', (req, res) => {
   res.json({ requireAuth: process.env.ALLOW_ANONYMOUS_UPLOADS !== 'true' });
@@ -1669,6 +1556,18 @@ app.delete('/api/admin/video/:id', requireAdmin, async (req, res) => {
 
 app.post('/api/auth/request-code', async (req, res) => {
   try {
+    if (!schemaReady) {
+      try {
+        await prepareDatabase();
+        if (!schemaTimersStarted) startBackgroundTimers();
+      } catch (schemaErr) {
+        lastSchemaError = schemaErr && schemaErr.message
+          ? String(schemaErr.message).slice(0, 300)
+          : 'schema failed';
+        console.error('request-code schema:', schemaErr);
+        return apiError(res, 503, 'DB_NOT_READY', 'Sign-in is warming up. Please try again in a moment.');
+      }
+    }
     const rawEmail = (req.body && req.body.email);
     if (typeof rawEmail !== 'string') return apiError(res, 400, 'BAD_EMAIL', 'Please enter a valid email.');
     const email = rawEmail.trim().toLowerCase();
@@ -2541,12 +2440,15 @@ async function prepareDatabase() {
   await loadOrCreateSessionSecret();
   await cleanupExpired();
   schemaReady = true;
+  lastSchemaError = '';
   if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
     console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
   }
 }
 
 function startBackgroundTimers() {
+  if (schemaTimersStarted) return;
+  schemaTimersStarted = true;
   setInterval(cleanupExpired, 60 * 60 * 1000);
   setInterval(evictExpiredRateLimits, 10 * 60 * 1000);
 }
@@ -2577,16 +2479,28 @@ function startHttpServer() {
   server.requestTimeout = 0;
   server.headersTimeout = 0;
   attachShutdown(server);
-  prepareDatabase()
-    .then(startBackgroundTimers)
+  const runSchema = () => prepareDatabase()
+    .then(() => {
+      startBackgroundTimers();
+      if (schemaRetry) {
+        clearInterval(schemaRetry);
+        schemaRetry = null;
+      }
+    })
     .catch(err => {
-      console.error('Startup schema error (HTTP is up; retrying in 5s):', err);
-      setTimeout(() => {
-        prepareDatabase()
-          .then(startBackgroundTimers)
-          .catch(retryErr => console.error('Schema retry failed:', retryErr));
-      }, 5000);
+      lastSchemaError = err && err.message ? String(err.message).slice(0, 300) : 'schema failed';
+      console.error('Startup schema error (HTTP is up; retrying):', err);
     });
+  let schemaRetry = null;
+  runSchema();
+  schemaRetry = setInterval(() => {
+    if (schemaReady) {
+      clearInterval(schemaRetry);
+      schemaRetry = null;
+      return;
+    }
+    runSchema();
+  }, 15000);
 }
 
 // When run directly (`node server.js`) start the HTTP listener and the
