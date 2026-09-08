@@ -39,6 +39,11 @@ export class VidShare extends Container {
 
 export default {
   async fetch(request, workerEnv) {
+    const url = new URL(request.url);
+    if (url.hostname === "www.vidshare.link") {
+      url.hostname = "vidshare.link";
+      return Response.redirect(url.toString(), 301);
+    }
     return getContainer(workerEnv.VIDSHARE).fetch(request);
   }
 };

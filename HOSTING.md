@@ -46,8 +46,8 @@ Then open `http://localhost:5000`. Session cookies stay non-Secure on HTTP; behi
 Set:
 
 ```
-PUBLIC_ORIGIN=https://your.domain
-ALLOWED_ORIGIN=https://your.domain
+PUBLIC_ORIGIN=https://vidshare.link
+ALLOWED_ORIGIN=https://vidshare.link
 COOKIE_SECURE=true
 NODE_ENV=production
 ```
@@ -78,7 +78,7 @@ npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 
 Or copy `env.example` into GitHub Actions secrets (names below). CI writes them into the Worker with `wrangler deploy --secrets-file` so the container boots with `DATABASE_URL` already set.
 
-Then attach a custom domain on the Worker. Keep `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` on that HTTPS origin.
+The first deploy attaches Custom Domains `vidshare.link` and `www.vidshare.link` (www redirects to the apex). Keep GitHub secrets `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` at `https://vidshare.link`.
 
 Do **not** import this repository as a Cloudflare Pages project with publish directory `.`. That would upload source files (`server.js`, `lib/`, SQL). Pages also cannot run the upload/watch API.
 
@@ -114,8 +114,8 @@ Until Cloudflare credentials are present, push CI stays green and prints a notic
 
 This repo no longer includes a Netlify site. After the Cloudflare Worker hostname is live (`GET /health` returns `{"ok":true}`):
 
-1. Point your custom domain at the Worker.
-2. Set `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` to that `https://` origin and re-run CI.
+1. Confirm `GET https://vidshare.link/health` is `{"ok":true}`.
+2. Keep `PUBLIC_ORIGIN` and `ALLOWED_ORIGIN` at `https://vidshare.link` and re-run CI if you had to change them.
 3. Re-upload Coming Soon / share images in the page editor (old Netlify Blob URLs will 404).
 4. Delete the `vidsharepro` site in Netlify so it cannot keep serving a stale copy.
 

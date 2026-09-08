@@ -3,6 +3,11 @@
   "name": "vidshare",
   "main": "workers/origin.js",
   "compatibility_date": "2026-09-05",
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "vidshare.link", "custom_domain": true },
+    { "pattern": "www.vidshare.link", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true
   },
