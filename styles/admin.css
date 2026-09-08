@@ -138,8 +138,8 @@ body {
 .empty-icon { font-size: 3rem; margin-bottom: 14px; }
 
 .tab-bar {
-  display: flex; gap: 0; margin-bottom: 28px;
-  border-bottom: 1px solid #2c2c2e;
+  display: flex; gap: 0; margin-bottom: 28px; flex-wrap: wrap;
+  border-bottom: 1px solid #2c2c2e; align-items: center;
 }
 .tab-btn {
   background: none; border: none; color: #959595; font-size: 0.9rem;
@@ -202,6 +202,36 @@ body {
 }
 .refresh-btn:hover:not(:disabled) { background: #3A3A3C; }
 .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.modal {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal.hidden { display: none; }
+.modal-card {
+  background: #1c1c1e; border-radius: 18px; padding: 28px 24px 24px;
+  width: 100%; max-width: 440px; position: relative;
+}
+.modal-card h2 { font-size: 1.2rem; margin: 0 0 8px; }
+.modal-card p { font-size: 0.88rem; color: #959595; margin: 0 0 18px; line-height: 1.45; }
+.modal-card label {
+  display: block; font-size: 0.78rem; font-weight: 600; color: #959595;
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
+}
+.modal-card input, .modal-card select {
+  display: block; width: 100%; margin-top: 6px; padding: 12px;
+  background: #2c2c2e; border: 1px solid #38383A; border-radius: 10px;
+  color: #fff; font-size: 0.95rem; font-family: inherit;
+}
+.modal-card input:focus, .modal-card select:focus { border-color: #007AFF; outline: none; }
+.modal-close {
+  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+  border: none; background: none; color: #959595; font-size: 1.4rem;
+  cursor: pointer; line-height: 1;
+}
+.modal-close:hover { color: #fff; }
 
 .filter-bar {
   display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;

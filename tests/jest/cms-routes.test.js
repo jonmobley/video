@@ -10,6 +10,14 @@ describe('CMS routes', () => {
     pgMock.reset();
   });
 
+  test('page editor setup is a CMS API route', async () => {
+    const res = await request(app)
+      .post('/api/issue-page-editor-setup')
+      .send({ page: 'seussical' });
+    expect([401, 500]).toContain(res.status);
+    expect(res.body.error.code).toMatch(/AUTH_REQUIRED|ADMIN_NOT_CONFIGURED/);
+  });
+
   test('old Netlify function URLs redirect to /api/*', async () => {
     const res = await request(app)
       .get('/.netlify/functions/get-page-config')

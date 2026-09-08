@@ -422,6 +422,7 @@ function cmsHandlerAdapter(functionName) {
   'upload-coming-soon-image',
   'upload-page-image',
   'create-show-page',
+  'issue-page-editor-setup',
   'redeem-page-editor-setup'
 ].forEach((functionName) => {
   const run = cmsHandlerAdapter(functionName);

@@ -35,6 +35,12 @@
     const createShowError = document.getElementById('createShowError');
     const createShowResult = document.getElementById('createShowResult');
     const createShowLink = document.getElementById('createShowLink');
+    const editorSetupBtn = document.getElementById('editorSetupBtn');
+    const editorSetupModal = document.getElementById('editorSetupModal');
+    const editorSetupForm = document.getElementById('editorSetupForm');
+    const editorSetupError = document.getElementById('editorSetupError');
+    const editorSetupResult = document.getElementById('editorSetupResult');
+    const editorSetupLink = document.getElementById('editorSetupLink');
 
     let usersLoaded = false;
     const PAGE_SIZE = 50;
@@ -730,6 +736,39 @@
     document.getElementById('copyShowLink').addEventListener('click', async () => {
       await navigator.clipboard.writeText(createShowLink.value);
       document.getElementById('copyShowLink').textContent = 'Copied';
+    });
+    editorSetupBtn.addEventListener('click', () => {
+      editorSetupModal.classList.remove('hidden');
+      editorSetupResult.classList.add('hidden');
+      editorSetupError.classList.remove('visible');
+      document.getElementById('editorSetupPage').focus();
+    });
+    document.getElementById('closeEditorSetup').addEventListener('click', () => editorSetupModal.classList.add('hidden'));
+    editorSetupForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const submit = document.getElementById('editorSetupSubmit');
+      submit.disabled = true;
+      editorSetupError.classList.remove('visible');
+      try {
+        const response = await fetch('/api/issue-page-editor-setup', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page: document.getElementById('editorSetupPage').value })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || 'Could not create setup link.');
+        editorSetupLink.value = result.setup_url;
+        editorSetupResult.classList.remove('hidden');
+      } catch (error) {
+        editorSetupError.textContent = error.message;
+        editorSetupError.classList.add('visible');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+    document.getElementById('copyEditorSetupLink').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(editorSetupLink.value);
+      document.getElementById('copyEditorSetupLink').textContent = 'Copied';
     });
     refreshBtn.addEventListener('click', () => {
       if (refreshBtn.disabled) return;
