@@ -70,6 +70,7 @@ npx wrangler secret put PUBLIC_ORIGIN
 # recommended:
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put RESEND_FROM_EMAIL
+npx wrangler secret put SEUSSICAL_EDITOR_TOKEN
 # optional:
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_ANON_KEY
@@ -105,6 +106,7 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 | `SUPABASE_SERVICE_ROLE_KEY` | Optional |
 | `ALLOW_ANONYMOUS_UPLOADS` | Optional |
 | `WISTIA_API_PASSWORD` | Optional |
+| `SEUSSICAL_EDITOR_TOKEN` | Seussical footer Login password |
 
 After the secrets exist, either push to `main` or run **Actions → CI → Run workflow**. Empty optional secrets are skipped; missing required Worker secrets fail that step.
 
@@ -127,6 +129,7 @@ This repo no longer includes a Netlify site. After the Cloudflare Worker hostnam
 | `RESEND_API_KEY` | Magic-code emails |
 | `RESEND_FROM_EMAIL` | From address (must be a verified Resend domain) |
 | `ADMIN_TOKEN` | `/admin` API |
+| `SEUSSICAL_EDITOR_TOKEN` | Seussical footer Login |
 | `ALLOWED_ORIGIN` | CORS for editor writes |
 | `PUBLIC_ORIGIN` | Page-editor setup links |
 | `COOKIE_SECURE` | Override Secure cookie flag (`true`/`false`) |

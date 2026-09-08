@@ -11,7 +11,8 @@ describe('collectWorkerSecrets', () => {
       ADMIN_TOKEN: '',
       PUBLIC_ORIGIN: 'https://example.com',
       RESEND_API_KEY: 're_test',
-      WISTIA_API_PASSWORD: ''
+      WISTIA_API_PASSWORD: '',
+      SEUSSICAL_EDITOR_TOKEN: ''
     });
     expect(missing).toEqual(['ADMIN_TOKEN', 'ALLOWED_ORIGIN']);
     expect(secrets).toEqual({
