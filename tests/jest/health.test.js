@@ -7,7 +7,10 @@ describe('health endpoints', () => {
   test('GET /health', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, db: false });
+    expect(res.body.ok).toBe(true);
+    expect(res.body.db).toBe(false);
+    expect(res.body).toHaveProperty('email');
+    expect(res.body).toHaveProperty('fromDomain');
   });
 
   test('GET /ping', async () => {

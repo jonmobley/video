@@ -1,5 +1,5 @@
 const { Resend } = require('resend');
-const { getResendClient } = require('../../lib/resend-client');
+const { getResendClient, resendFromDomain, describeMailError } = require('../../lib/resend-client');
 
 jest.mock('resend', () => ({
   Resend: jest.fn().mockImplementation(function ResendMock(apiKey) {
@@ -33,6 +33,15 @@ describe('getResendClient', () => {
     const result = await getResendClient();
 
     expect(result.fromEmail).toBe('onboarding@resend.dev');
+  });
+
+  test('reads the domain from a display-name from address', () => {
+    process.env.RESEND_FROM_EMAIL = 'VidShare <login@vidshare.link>';
+    expect(resendFromDomain()).toBe('vidshare.link');
+  });
+
+  test('strips API keys from mail errors', () => {
+    expect(describeMailError(new Error('bad key re_abc123XYZ'))).toBe('bad key re_***');
   });
 
   test('throws when RESEND_API_KEY is missing', async () => {

@@ -145,7 +145,7 @@ function requireAdmin(req, res, next) {
 
 // ── Magic-code email auth ────────────────────────────────────────────────────
 // Codes are 6 digits, sha256-hashed at rest, expire in 10 min, max 5 attempts.
-const { getResendClient } = require('./lib/resend-client');
+const { getResendClient, resendFromDomain, describeMailError } = require('./lib/resend-client');
 const CODE_TTL_MS = 10 * 60 * 1000;
 const CODE_MAX_ATTEMPTS = 5;
 // Throttle code requests: max 4 per email per 15min, 10 per IP per 15min.
@@ -712,7 +712,12 @@ app.use((req, res, next) => {
 
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  const body = { ok: true, db: schemaReady };
+  const body = {
+    ok: true,
+    db: schemaReady,
+    email: Boolean(process.env.RESEND_API_KEY && String(process.env.RESEND_API_KEY).trim()),
+    fromDomain: resendFromDomain()
+  };
   if (!schemaReady && lastSchemaError) body.schemaError = lastSchemaError;
   res.json(body);
 });
@@ -1619,7 +1624,12 @@ app.post('/api/auth/request-code', async (req, res) => {
           WHERE email = $1 AND code_hash = $2 AND used_at IS NULL`,
         [email, codeHash]
       );
-      return apiError(res, 502, 'EMAIL_SEND_FAILED', 'Could not send the code email. Please try again in a moment.');
+      return apiError(
+        res,
+        502,
+        'EMAIL_SEND_FAILED',
+        `Could not send the code email. ${describeMailError(mailErr)}`
+      );
     }
 
     res.json({ ok: true });
