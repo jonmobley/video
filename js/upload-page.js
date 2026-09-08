@@ -34,7 +34,7 @@ async function initPage() {
   showEl(document.getElementById('pageNav'));
   showEl(document.getElementById('pageMain'));
 
-  uploadWidget = initUploadWidget(document.getElementById('uploadRoot'));
+  uploadWidget = window.initUploadWidget(document.getElementById('uploadRoot'));
 }
 
 window.addEventListener('beforeunload', e => {
