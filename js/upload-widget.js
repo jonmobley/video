@@ -157,7 +157,8 @@
 
       <p class="account-nudge" data-el="accountNudge">
         Want to manage this video later?
-        <a href="/login">Create a free account →</a>
+        <a href="/login">Sign in with email →</a>
+        <span class="account-nudge-hint">Videos from this browser can be claimed for 24 hours after upload.</span>
       </p>
     </div>
   `;
