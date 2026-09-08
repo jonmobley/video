@@ -317,6 +317,9 @@
     let isFolderMode = false;     // true when 2+ files selected
     let mode = 'file';            // 'file' | 'link'
     let parsedLink = null;        // { platform, videoId } | null
+    let autoFilledTitle = null;   // last title we suggested from a pasted link
+    let linkTitleFetchSeq = 0;    // ignore stale /api/link-title responses
+    let linkTitleTimer = null;
     let uploading = false;
     // Per-file upload state for folder mode. Keyed by file index.
     // Each entry: { name, status, videoId, error }
@@ -425,11 +428,45 @@
     tabFile.addEventListener('click', () => setMode('file'));
     tabLink.addEventListener('click', () => setMode('link'));
 
+    function shouldAutoFillTitle() {
+      const current = titleInput.value.trim();
+      return !current || current === autoFilledTitle;
+    }
+
+    function applySuggestedTitle(title) {
+      if (!title || !shouldAutoFillTitle()) return;
+      titleInput.value = title;
+      autoFilledTitle = title;
+      updateUploadBtnState();
+    }
+
+    function scheduleLinkTitleFetch(url) {
+      if (linkTitleTimer) clearTimeout(linkTitleTimer);
+      const seq = ++linkTitleFetchSeq;
+      linkTitleTimer = setTimeout(() => {
+        linkTitleTimer = null;
+        if (!shouldAutoFillTitle()) return;
+        fetch('/api/link-title?url=' + encodeURIComponent(url), { credentials: 'same-origin' })
+          .then(async (r) => {
+            if (!r.ok) return null;
+            try { return await r.json(); } catch { return null; }
+          })
+          .then((data) => {
+            if (seq !== linkTitleFetchSeq) return;
+            const title = data && typeof data.title === 'string' ? data.title.trim() : '';
+            if (title) applySuggestedTitle(title);
+          })
+          .catch(() => {});
+      }, 280);
+    }
+
     linkInput.addEventListener('input', () => {
       const val = linkInput.value.trim();
       parsedLink = null;
       linkDetected.textContent = '';
       linkDetected.classList.remove('error');
+      if (linkTitleTimer) { clearTimeout(linkTitleTimer); linkTitleTimer = null; }
+      linkTitleFetchSeq++;
 
       if (!val) {
         updateUploadBtnState();
@@ -441,6 +478,10 @@
         parsedLink = res;
         const platformNames = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
         linkDetected.textContent = `Detected: ${platformNames[res.platform] || res.platform} video`;
+        // Mirror file-upload filename → title: suggest the real video title
+        // from the platform when the field is empty (or still holds our last
+        // suggestion). Never overwrite a title the user typed themselves.
+        if (shouldAutoFillTitle()) scheduleLinkTitleFetch(val);
       } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
         linkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a supported video link.';
         linkDetected.classList.add('error');
@@ -1318,6 +1359,9 @@
       updatePasswordNote();
       linkInput.value = '';
       parsedLink = null;
+      autoFilledTitle = null;
+      if (linkTitleTimer) { clearTimeout(linkTitleTimer); linkTitleTimer = null; }
+      linkTitleFetchSeq++;
       linkDetected.textContent = '';
       setMode('file');
       clearFile();

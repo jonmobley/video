@@ -75,6 +75,12 @@ const cspReportCounts = new Map();
 const MAX_CSP_REPORTS_PER_WINDOW = 50;
 const CSP_REPORT_WINDOW_MS = 15 * 60 * 1000;
 
+// Link-title lookup throttle: each call fans out to a third-party oEmbed
+// endpoint, so cap per-IP chatter even though responses are cached.
+const linkTitleCounts = new Map();
+const MAX_LINK_TITLE_PER_WINDOW = 60;
+const LINK_TITLE_WINDOW_MS = 60 * 1000;
+
 function checkAndIncrement(map, key, max, windowMs) {
   const now = Date.now();
   let entry = map.get(key);
@@ -103,6 +109,7 @@ function evictExpiredRateLimits() {
   for (const [k, v] of codeRequestByIp)    if (now > v.resetAt) codeRequestByIp.delete(k);
   for (const [k, v] of cspReportCounts)    if (now > v.resetAt) cspReportCounts.delete(k);
   for (const [k, v] of folderCreateCounts) if (now > v.resetAt) folderCreateCounts.delete(k);
+  for (const [k, v] of linkTitleCounts) if (now > v.resetAt) linkTitleCounts.delete(k);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1183,6 +1190,107 @@ async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = f
   }
 }
 
+// Resolve a public video title from platform oEmbed / meta APIs. Used to
+// pre-fill the upload widget's title field when a user pastes a link — mirror
+// of deriveTitleFromFilename for file uploads. Only hits known platform hosts
+// (SSRF-safe): we rebuild the lookup URL from a parsed platform + video id.
+const linkTitleCache = new Map();
+const LINK_TITLE_CACHE_TTL_MS = 10 * 60 * 1000;
+const linkParser = require('./js/link-parser.js');
+
+function truncateTitle(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().replace(/\s+/g, ' ');
+  if (!trimmed) return null;
+  return trimmed.length > 120 ? trimmed.slice(0, 120).trim() : trimmed;
+}
+
+async function fetchLinkTitle(platform, embedVideoId) {
+  if (!embedVideoId) return null;
+  const key = `${platform}:${embedVideoId}`;
+  const cached = linkTitleCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.title;
+
+  let titleUrl = null;
+  if (platform === 'youtube') {
+    titleUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + embedVideoId)}&format=json`;
+  } else if (platform === 'vimeo') {
+    const parts = String(embedVideoId).split('/');
+    const id = parts[0];
+    const hash = parts[1];
+    const vimeoUrl = hash
+      ? `https://vimeo.com/${encodeURIComponent(id)}/${encodeURIComponent(hash)}`
+      : `https://vimeo.com/${encodeURIComponent(id)}`;
+    titleUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(vimeoUrl)}`;
+  } else if (platform === 'dailymotion') {
+    titleUrl = `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent('https://www.dailymotion.com/video/' + embedVideoId)}&format=json`;
+  } else if (platform === 'loom') {
+    titleUrl = `https://www.loom.com/v1/oembed?url=${encodeURIComponent('https://www.loom.com/share/' + embedVideoId)}`;
+  } else if (platform === 'wistia') {
+    titleUrl = `https://fast.wistia.com/oembed?url=${encodeURIComponent('https://fast.wistia.com/medias/' + embedVideoId)}&format=json`;
+  } else {
+    return null;
+  }
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(titleUrl, { method: 'GET', signal: ctrl.signal, redirect: 'follow' });
+    if (!r.ok) {
+      linkTitleCache.set(key, { title: null, expires: Date.now() + LINK_TITLE_CACHE_TTL_MS });
+      return null;
+    }
+    const data = await r.json();
+    const title = truncateTitle(data && data.title);
+    linkTitleCache.set(key, { title, expires: Date.now() + LINK_TITLE_CACHE_TTL_MS });
+    return title;
+  } catch {
+    // Transient failure — don't cache null so a retry can succeed.
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Suggest a title for a pasted video URL. Public + cheap (cached) so the
+// upload widget can call it as the user types without waiting on auth.
+app.get('/api/link-title', async (req, res) => {
+  try {
+    const url = typeof req.query.url === 'string' ? req.query.url : '';
+    if (!url.trim()) {
+      return apiError(res, 400, 'URL_REQUIRED', 'Please paste a video link (YouTube, Vimeo, Dailymotion, Loom, or Wistia).');
+    }
+    if (url.length > 2048) {
+      return apiError(res, 400, 'URL_TOO_LONG', 'That URL is too long.');
+    }
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('dropbox.com') || lowerUrl.includes('drive.google.com') ||
+        lowerUrl.includes('onedrive.live.com') || lowerUrl.includes('icloud.com')) {
+      return apiError(res, 400, 'UNSUPPORTED_HOST',
+        'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a YouTube, Vimeo, Dailymotion, Loom, or Wistia link.');
+    }
+    const parsed = linkParser.parse(url);
+    if (!parsed) {
+      return apiError(res, 400, 'BAD_LINK', "That doesn't look like a supported video link we can embed.");
+    }
+
+    const ip = getIp(req);
+    if (checkAndIncrement(linkTitleCounts, ip, MAX_LINK_TITLE_PER_WINDOW, LINK_TITLE_WINDOW_MS)) {
+      return apiError(res, 429, 'RATE_LIMITED', 'Too many title lookups. Please try again in a minute.');
+    }
+
+    const title = await fetchLinkTitle(parsed.platform, parsed.videoId);
+    res.json({
+      title: title || '',
+      platform: parsed.platform,
+      videoId: parsed.videoId
+    });
+  } catch (err) {
+    console.error('link-title error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not look up that video title.');
+  }
+});
+
 app.get('/api/video-meta/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1230,8 +1338,6 @@ app.get('/api/video-meta/:id', async (req, res) => {
 // Stores a watch-page record that points at a platform embed instead of an
 // uploaded blob. Reuses title / expiry / password fields so gating works with
 // no behavioural divergence on the watch page.
-const linkParser = require('./js/link-parser.js');
-
 app.post('/api/create-link-video', requireUploadAuth, async (req, res) => {
   try {
     const { url, title, expiryDays, password } = req.body || {};
@@ -2521,4 +2627,4 @@ if (require.main === module) {
   startHttpServer();
 }
 
-module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, isPublicStaticPath };
+module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, linkTitleCache, isPublicStaticPath };
