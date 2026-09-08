@@ -56,6 +56,47 @@ video {
   width: 100%; height: 100%; border: 0;
 }
 
+/* YouTube click-to-play facade — hides YouTube's paused-state overlays
+   (title bar, "Watch on YouTube") until the viewer starts playback. */
+.yt-facade {
+  position: absolute; inset: 0;
+  display: block; width: 100%; height: 100%;
+  padding: 0; border: 0; border-radius: inherit;
+  cursor: pointer; background: #000; overflow: hidden;
+}
+.yt-facade:focus-visible {
+  outline: 2px solid #4ecdc4; outline-offset: -2px;
+}
+.yt-facade-poster {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  background: #111;
+}
+.yt-facade-play {
+  position: absolute; left: 50%; top: 50%;
+  width: 68px; height: 48px;
+  transform: translate(-50%, -50%);
+  border-radius: 14px;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  pointer-events: none;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.yt-facade-play::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-40%, -50%);
+  border-style: solid;
+  border-width: 10px 0 10px 16px;
+  border-color: transparent transparent transparent #fff;
+}
+.yt-facade:hover .yt-facade-play,
+.yt-facade:focus-visible .yt-facade-play {
+  transform: translate(-50%, -50%) scale(1.06);
+  filter: brightness(1.08);
+}
+
 /* Hidden by default. watch.html does not load common.css, so the shared
    .embed-fallback-hidden rule is not available here — keep the overlay
    off until JS sets display:flex for a real embed failure. */

@@ -156,7 +156,7 @@
 
   function buildEmbedUrl(platform, videoId) {
     if (platform === 'youtube') {
-      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1`;
+      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1`;
     }
     if (platform === 'vimeo') {
       const parts = String(videoId).split('/');

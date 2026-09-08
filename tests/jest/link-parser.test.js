@@ -681,7 +681,7 @@ describe('buildEmbedUrl', () => {
   describe('YouTube', () => {
     test('builds privacy-enhanced embed URL', () => {
       expect(buildEmbedUrl('youtube', 'dQw4w9WgXcQ')).toBe(
-        'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1'
+        'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1'
       );
     });
 
