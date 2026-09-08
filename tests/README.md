@@ -13,7 +13,7 @@ This directory contains comprehensive tests to ensure your Supabase and Netlify 
    ```bash
    SUPABASE_URL=your_supabase_project_url
    SUPABASE_ANON_KEY=your_supabase_anon_public_key
-   NETLIFY_SITE_URL=https://yoursite.netlify.app
+   SITE_URL=https://vidshare.link
    ```
 
 3. **Run all tests**:
@@ -122,8 +122,8 @@ Create a `.env` file in your project root with:
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_public_key
 
-# Netlify Configuration (for production tests)
-NETLIFY_SITE_URL=https://yoursite.netlify.app
+# Production origin (for live CMS / page tests)
+SITE_URL=https://vidshare.link
 ```
 
 ### Local Development Testing

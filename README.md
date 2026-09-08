@@ -11,7 +11,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:5000`. See [HOSTING.md](HOSTING.md) to deploy on Docker or Cloudflare (this app is no longer tied to Replit). Cloudflare CI deploy needs `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABASE_URL`, `ADMIN_TOKEN`, `PUBLIC_ORIGIN`, and `ALLOWED_ORIGIN` as GitHub Actions secrets.
+Open `http://localhost:5000`. Production is [https://vidshare.link](https://vidshare.link). See [HOSTING.md](HOSTING.md) to deploy on Cloudflare Containers. Cloudflare CI deploy needs `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABASE_URL`, `ADMIN_TOKEN`, `PUBLIC_ORIGIN`, and `ALLOWED_ORIGIN` as GitHub Actions secrets (`PUBLIC_ORIGIN` / `ALLOWED_ORIGIN` must be `https://vidshare.link`).
 
 ## Features
 
