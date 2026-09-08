@@ -27,6 +27,8 @@ function containerEnvVars(workerEnv = env) {
 export class VidShare extends Container {
   defaultPort = 5000;
   sleepAfter = "30m";
+  enableInternet = true;
+  pingEndpoint = "localhost/health";
 
   constructor(ctx, workerEnv, options) {
     super(ctx, workerEnv, options);
@@ -34,6 +36,18 @@ export class VidShare extends Container {
     // getter is shadowed by that own property; assign after super() so start()
     // reads this Worker version's secrets.
     this.envVars = containerEnvVars(workerEnv);
+  }
+
+  onStart() {
+    console.log("VidShare container started");
+  }
+
+  onStop(event) {
+    console.log("VidShare container stopped", event);
+  }
+
+  onError(error) {
+    console.error("VidShare container error", error);
   }
 }
 

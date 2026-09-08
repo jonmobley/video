@@ -42,6 +42,7 @@ const app = express();
 // upstreams.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
+let schemaReady = false;
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
 const pool = new Pool({
@@ -827,7 +828,7 @@ app.use((req, res, next) => {
 });
 
 // ── Health ───────────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => res.json({ ok: true, db: schemaReady }));
 app.get('/ping', (req, res) => res.json({ ok: true }));
 app.get('/api/upload-config', (req, res) => {
   res.json({ requireAuth: process.env.ALLOW_ANONYMOUS_UPLOADS !== 'true' });
@@ -2532,46 +2533,67 @@ app.get('/show/:slug', (req, res, next) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
+// Bind HTTP before Postgres. Cloudflare Containers probe defaultPort as soon
+// as the process starts; waiting on ensureSchema() keeps 5000 closed, the
+// Worker reports "container is not running", and a DB blip exits the box.
+async function prepareDatabase() {
+  await ensureSchema();
+  await loadOrCreateSessionSecret();
+  await cleanupExpired();
+  schemaReady = true;
+  if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
+    console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
+  }
+}
+
+function startBackgroundTimers() {
+  setInterval(cleanupExpired, 60 * 60 * 1000);
+  setInterval(evictExpiredRateLimits, 10 * 60 * 1000);
+}
+
+function attachShutdown(server) {
+  let shuttingDown = false;
+  const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`${signal} received, draining HTTP connections`);
+    server.close(async () => {
+      try {
+        await pool.end();
+      } catch (err) {
+        console.error('Error closing database pool:', err.message);
+      }
+      process.exit(0);
+    });
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+function startHttpServer() {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`VidShare server running on port ${PORT}`);
+  });
+  server.requestTimeout = 0;
+  server.headersTimeout = 0;
+  attachShutdown(server);
+  prepareDatabase()
+    .then(startBackgroundTimers)
+    .catch(err => {
+      console.error('Startup schema error (HTTP is up; retrying in 5s):', err);
+      setTimeout(() => {
+        prepareDatabase()
+          .then(startBackgroundTimers)
+          .catch(retryErr => console.error('Schema retry failed:', retryErr));
+      }, 5000);
+    });
+}
+
 // When run directly (`node server.js`) start the HTTP listener and the
 // background timers. When required from tests we just want the configured
 // Express app and the pool, without any side effects.
 if (require.main === module) {
-  ensureSchema()
-    .then(async () => {
-      await loadOrCreateSessionSecret();
-      await cleanupExpired();
-      setInterval(cleanupExpired, 60 * 60 * 1000);
-      setInterval(evictExpiredRateLimits, 10 * 60 * 1000); // bound rate-limit Map memory
-      if (process.env.ALLOW_ANONYMOUS_UPLOADS === 'true') {
-        console.warn('⚠️  ALLOW_ANONYMOUS_UPLOADS=true — upload endpoints are NOT requiring authentication.');
-      }
-      const server = app.listen(PORT, '0.0.0.0', () => {
-        console.log(`VidShare server running on port ${PORT}`);
-      });
-      server.requestTimeout = 0;
-      server.headersTimeout = 0;
-
-      let shuttingDown = false;
-      const shutdown = (signal) => {
-        if (shuttingDown) return;
-        shuttingDown = true;
-        console.log(`${signal} received, draining HTTP connections`);
-        server.close(async () => {
-          try {
-            await pool.end();
-          } catch (err) {
-            console.error('Error closing database pool:', err.message);
-          }
-          process.exit(0);
-        });
-      };
-      process.on('SIGTERM', () => shutdown('SIGTERM'));
-      process.on('SIGINT', () => shutdown('SIGINT'));
-    })
-    .catch(err => {
-      console.error('Startup error:', err);
-      process.exit(1);
-    });
+  startHttpServer();
 }
 
 module.exports = { app, pool, uploadCounts, embedAvailabilityCache, folderCreateCounts, isPublicStaticPath };
