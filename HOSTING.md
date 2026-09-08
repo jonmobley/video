@@ -94,7 +94,7 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 | `CLOUDFLARE_ACCOUNT_ID` | Yes |
 | `DATABASE_URL` | Yes (deploy writes the Worker secret) |
 | `ADMIN_TOKEN` | Yes |
-| `ALLOWED_ORIGIN` | Yes (your HTTPS origin, no trailing slash) |
+| `ALLOWED_ORIGIN` | Yes (`https://vidshare.link`, no trailing slash) |
 | `PUBLIC_ORIGIN` | Yes (same origin) |
 | `RESEND_API_KEY` | For magic-code email |
 | `RESEND_FROM_EMAIL` | For magic-code email |
