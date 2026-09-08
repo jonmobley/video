@@ -57,6 +57,38 @@
   border-radius: 8px;
 }
 
+
+/* Link oEmbed preview */
+.upload-card .link-preview {
+  display: flex; gap: 12px; align-items: center;
+  margin-top: 12px; padding: 10px;
+  background: rgba(255,255,255,0.04); border-radius: 12px;
+  text-align: left;
+}
+.upload-card .link-preview[hidden] { display: none !important; }
+.upload-card .link-preview-thumb {
+  width: 120px; height: 68px; object-fit: cover;
+  border-radius: 8px; background: #111; flex-shrink: 0;
+}
+.upload-card .link-preview-body { min-width: 0; flex: 1; }
+.upload-card .link-preview-title {
+  font-size: 0.9rem; font-weight: 600; color: #f2f2f2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upload-card .link-preview-sub {
+  font-size: 0.78rem; color: #959595; margin-top: 2px;
+}
+.upload-card .gating-note {
+  border-left: 3px solid #4ecdc4;
+}
+.upload-card .warn-msg {
+  display: none; margin-top: 12px; padding: 10px 12px;
+  border-radius: 10px; font-size: 0.85rem; line-height: 1.45;
+  background: rgba(255, 193, 7, 0.1); color: #ffd666;
+  border: 1px solid rgba(255, 193, 7, 0.25);
+}
+.upload-card .warn-msg.visible { display: block; }
+
 /* Drop zone */
 .upload-card .drop-zone {
   border: 2px dashed #3A3A3C;

@@ -89,18 +89,11 @@
     var res = window.LinkParser ? window.LinkParser.parse(val) : null;
     if (res) {
       requireAuth(function () {
-        window.openUploadModal({ mode: 'link' });
-        setTimeout(function () {
-          var modalInput = document.querySelector('#uploadModal .link-input');
-          if (modalInput) {
-            modalInput.value = val;
-            modalInput.dispatchEvent(new Event('input'));
-          }
-        }, 50);
+        window.openUploadModal({ mode: 'link', url: val });
         resetToUploadMode();
       });
     } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
-      heroLinkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported here';
+      heroLinkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported here \u2014 upload the file instead';
       heroLinkDetected.classList.add('error');
     }
   });

@@ -3,10 +3,12 @@ var __vsUploadRequiresAuth = true;
 var __vsAuthReady = Promise.all([
   fetch('/api/auth/me').then(function (r) {
     __vsSignedIn = r.ok;
-    document.getElementById(r.ok ? 'navAccount' : 'navAuth').style.display = 'inline-block';
+    var el = document.getElementById(r.ok ? 'navAccount' : 'navAuth');
+    if (el) el.classList.remove('hidden');
     return r.ok;
   }).catch(function () {
-    document.getElementById('navAuth').style.display = 'inline-block';
+    var el = document.getElementById('navAuth');
+    if (el) el.classList.remove('hidden');
     return false;
   }),
   fetch('/api/upload-config').then(function (r) {

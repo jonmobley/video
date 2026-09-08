@@ -202,8 +202,8 @@
         content.innerHTML = `
           <div class="empty">
             <div class="empty-title">No videos yet</div>
-            <div class="empty-sub">Upload your first video to get a shareable link.</div>
-            <a href="/upload" class="upload-cta empty-upload-cta">+ Upload a video</a>
+            <div class="empty-sub">Upload a file or paste a YouTube, Vimeo, Dailymotion, Loom, or Wistia link to get a shareable watch page.</div>
+            <a href="/upload" class="upload-cta empty-upload-cta">+ Upload or paste a link</a>
           </div>`;
         return;
       }
@@ -239,16 +239,55 @@
       return version ? `${base}?v=${version}` : base;
     }
 
+    function externalThumbUrl(v) {
+      const eid = v.embed_video_id;
+      if (!eid) return null;
+      const p = (v.platform || '').toLowerCase();
+      if (p === 'youtube') {
+        return `https://i.ytimg.com/vi/${encodeURIComponent(eid)}/hqdefault.jpg`;
+      }
+      if (p === 'vimeo') {
+        const id = String(eid).split('/')[0];
+        return `https://vumbnail.com/${encodeURIComponent(id)}.jpg`;
+      }
+      if (p === 'dailymotion') {
+        return `https://www.dailymotion.com/thumbnail/video/${encodeURIComponent(eid)}`;
+      }
+      if (p === 'loom') {
+        return `https://cdn.loom.com/sessions/thumbnails/${encodeURIComponent(eid)}-with-play.gif`;
+      }
+      if (p === 'wistia') {
+        // Media hashed ID — deliveries URL is best-effort; error handler falls back.
+        return `https://fast.wistia.com/embed/medias/${encodeURIComponent(eid)}/swatch`;
+      }
+      return null;
+    }
+
+    function originalWatchUrl(v) {
+      const eid = v.embed_video_id;
+      const p = (v.platform || '').toLowerCase();
+      if (!eid || !EMBED_PLATFORMS.includes(p)) return null;
+      if (window.LinkParser && typeof window.LinkParser.buildOriginalUrl === 'function') {
+        return window.LinkParser.buildOriginalUrl(p, eid);
+      }
+      return platformSettingsUrl(v);
+    }
+
     function renderThumb(v) {
       const info = platformInfo(v);
       let inner;
       if (v.has_thumbnail) {
         inner = `<img src="${escapeHtml(thumbSrc(v))}" alt="" loading="lazy" data-thumb-error-fallback="true">`;
-      } else if (info.key === 'youtube' && v.embed_video_id) {
-        const src = `https://i.ytimg.com/vi/${encodeURIComponent(v.embed_video_id)}/hqdefault.jpg`;
-        inner = `<img src="${escapeHtml(src)}" alt="" loading="lazy" data-thumb-error-fallback="true">`;
       } else {
-        inner = PLACEHOLDER_SVG;
+        const ext = externalThumbUrl(v);
+        if (ext) {
+          inner = `<img src="${escapeHtml(ext)}" alt="" loading="lazy" data-thumb-error-fallback="true">`;
+        } else if (info.key === 'youtube' && v.embed_video_id) {
+          const src = `https://i.ytimg.com/vi/${encodeURIComponent(v.embed_video_id)}/hqdefault.jpg`;
+          inner = `<img src="${escapeHtml(src)}" alt="" loading="lazy" data-thumb-error-fallback="true">`;
+        } else {
+          inner = PLACEHOLDER_SVG;
+        }
       }
       return `<div class="vc-thumb">${inner}</div>`;
     }
@@ -268,6 +307,10 @@
       const thumbBtn = canChangeThumbnail(v)
         ? '<button class="vc-btn thumb-btn">Thumbnail</button>'
         : '';
+      const orig = originalWatchUrl(v);
+      const originalBtn = orig
+        ? `<a class="vc-btn original-btn" href="${escapeHtml(orig)}" target="_blank" rel="noopener">Open original</a>`
+        : '';
       return `
         <div class="video-card" data-id="${escapeHtml(v.id)}">
           ${renderThumb(v)}
@@ -283,6 +326,7 @@
           </div>
           <div class="vc-actions">
             <a class="vc-btn" href="${watchUrl}" target="_blank" rel="noopener">Open</a>
+            ${originalBtn}
             <button class="vc-btn copy-btn" data-url="${watchUrl}">Copy link</button>
             <button class="vc-btn edit-btn">Edit</button>
             ${thumbBtn}
@@ -367,6 +411,7 @@
     const editRemovePwRow   = document.getElementById('editRemovePwRow');
     const editRemovePw      = document.getElementById('editRemovePw');
     const editError         = document.getElementById('editError');
+    const editEmbedNote     = document.getElementById('editEmbedNote');
 
     let editState = null;
     let editLastFocused = null;
@@ -398,6 +443,11 @@
       } else {
         editPasswordHint.textContent = 'No password set. Enter one to add protection.';
         editRemovePwRow.style.display = 'none';
+      }
+      const isEmbed = EMBED_PLATFORMS.includes((v.platform || '').toLowerCase()) && !!v.embed_video_id;
+      if (editEmbedNote) {
+        editEmbedNote.hidden = !isEmbed;
+        editEmbedNote.classList.toggle('visible', isEmbed);
       }
       setEditError('');
       editSave.disabled = false;

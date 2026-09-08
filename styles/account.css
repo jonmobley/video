@@ -302,3 +302,25 @@ a.vc-unavailable:hover { background: rgba(255,107,107,0.2); border-color: rgba(2
   .vc-actions .vc-btn { flex: 1 1 45%; }
   .tp-file-hint { min-width: 100px; }
 }
+
+
+.vc-btn.original-btn {
+  border-color: rgba(78,205,196,0.35);
+  color: #4ecdc4;
+}
+.vc-btn.original-btn:hover {
+  background: rgba(78,205,196,0.12);
+}
+.edit-embed-note {
+  display: none;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #c8c8c8;
+  background: rgba(78,205,196,0.08);
+  border-left: 3px solid #4ecdc4;
+}
+.edit-embed-note.visible { display: block; }
+.edit-embed-note[hidden] { display: none !important; }

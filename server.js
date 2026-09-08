@@ -1135,14 +1135,15 @@ app.get('/api/video-thumbnail/:id', async (req, res) => {
 //   Wistia:       oEmbed (200 public, 404 private/removed)
 const embedAvailabilityCache = new Map();
 const EMBED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+// Loaded here so /api/link-preview (defined below) can use it; create-link
+// reuses the same instance.
+const linkParser = require('./js/link-parser.js');
 
-async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = false } = {}) {
-  if (!embedVideoId) return true;
-  const key = `${platform}:${embedVideoId}`;
-  const cached = embedAvailabilityCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.available;
+async function fetchEmbedMeta(platform, embedVideoId, { throwOnError = false } = {}) {
+  // Returns { available, title?, thumbnailUrl?, authorName? }. Used by both
+  // the create-link availability gate and the live link-preview autofill API.
+  if (!embedVideoId) return { available: true };
 
-  // Use the most reliable per-platform endpoint (see comment block above).
   let checkUrl;
   let checkMethod = 'GET';
   if (platform === 'youtube') {
@@ -1157,7 +1158,7 @@ async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = f
   } else if (platform === 'wistia') {
     checkUrl = `https://fast.wistia.com/oembed?url=${encodeURIComponent('https://fast.wistia.com/medias/' + embedVideoId)}&format=json`;
   } else {
-    return true;
+    return { available: true };
   }
 
   const ctrl = new AbortController();
@@ -1167,21 +1168,109 @@ async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = f
     if (!r.ok && r.status === 405 && checkMethod === 'HEAD') {
       r = await fetch(checkUrl, { method: 'GET', signal: ctrl.signal, redirect: 'follow' });
     }
-    const available = r.ok; // 200 = embeddable, 401/403/404 = not embeddable
-    embedAvailabilityCache.set(key, { available, expires: Date.now() + EMBED_CACHE_TTL_MS });
-    return available;
+    const available = r.ok;
+    const meta = { available };
+    if (available && checkMethod === 'GET') {
+      try {
+        const data = await r.json();
+        if (platform === 'vimeo') {
+          // player.vimeo.com/config shape
+          if (data && data.video) {
+            meta.title = data.video.title || '';
+            const thumbs = data.video.thumbs || {};
+            meta.thumbnailUrl = thumbs['640'] || thumbs['960'] || thumbs.base || '';
+            meta.authorName = (data.video.owner && data.video.owner.name) || '';
+          }
+        } else {
+          // oEmbed shape (YouTube / Dailymotion / Wistia)
+          meta.title = data.title || '';
+          meta.thumbnailUrl = data.thumbnail_url || '';
+          meta.authorName = data.author_name || '';
+        }
+      } catch (_) {
+        // Body wasn't JSON (or already consumed) — availability still stands.
+      }
+    }
+    return meta;
   } catch (e) {
-    // Network failure or timeout: assume available so we don't false-negative
-    // a working embed because of a transient outage. The client still has its
-    // own safety-net timeout for the truly unreachable case.
-    // When throwOnError is set, callers can distinguish "confirmed available"
-    // from "check failed" and surface a non-blocking note.
     if (throwOnError) throw e;
-    return true;
+    return { available: true };
   } finally {
     clearTimeout(t);
   }
 }
+
+async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = false } = {}) {
+  if (!embedVideoId) return true;
+  const key = `${platform}:${embedVideoId}`;
+  const cached = embedAvailabilityCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.available;
+
+  try {
+    const meta = await fetchEmbedMeta(platform, embedVideoId, { throwOnError });
+    embedAvailabilityCache.set(key, { available: meta.available, expires: Date.now() + EMBED_CACHE_TTL_MS });
+    return meta.available;
+  } catch (e) {
+    if (throwOnError) throw e;
+    return true;
+  }
+}
+
+// Live preview for the paste-a-link UI — returns title/thumbnail so the
+// client can autofill before the user hits Create.
+app.get('/api/link-preview', async (req, res) => {
+  try {
+    const url = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+    if (!url) return apiError(res, 400, 'URL_REQUIRED', 'A video URL is required.');
+    if (url.length > 2048) return apiError(res, 400, 'URL_TOO_LONG', 'That URL is too long.');
+    if (linkParser.isUnsupportedHost(url)) {
+      return apiError(res, 400, 'UNSUPPORTED_HOST',
+        'Dropbox/Drive links aren\u2019t supported. Upload the file directly instead.');
+    }
+    const parsed = linkParser.parse(url);
+    if (!parsed) {
+      return apiError(res, 400, 'BAD_LINK', 'That doesn\u2019t look like a supported video link.');
+    }
+    let meta;
+    try {
+      meta = await fetchEmbedMeta(parsed.platform, parsed.videoId, { throwOnError: true });
+    } catch {
+      return res.json({
+        platform: parsed.platform,
+        videoId: parsed.videoId,
+        available: true,
+        uncertain: true,
+        title: '',
+        thumbnailUrl: '',
+        authorName: ''
+      });
+    }
+    // Prefer platform CDN thumbnails when oEmbed didn't include one.
+    let thumbnailUrl = meta.thumbnailUrl || '';
+    if (!thumbnailUrl && parsed.platform === 'youtube') {
+      thumbnailUrl = `https://i.ytimg.com/vi/${encodeURIComponent(parsed.videoId)}/hqdefault.jpg`;
+    } else if (!thumbnailUrl && parsed.platform === 'dailymotion') {
+      thumbnailUrl = `https://www.dailymotion.com/thumbnail/video/${encodeURIComponent(parsed.videoId)}`;
+    } else if (!thumbnailUrl && parsed.platform === 'vimeo') {
+      const id = String(parsed.videoId).split('/')[0];
+      thumbnailUrl = `https://vumbnail.com/${encodeURIComponent(id)}.jpg`;
+    } else if (!thumbnailUrl && parsed.platform === 'loom') {
+      thumbnailUrl = `https://cdn.loom.com/sessions/thumbnails/${encodeURIComponent(parsed.videoId)}-with-play.gif`;
+    }
+    res.json({
+      platform: parsed.platform,
+      videoId: parsed.videoId,
+      available: meta.available !== false,
+      uncertain: false,
+      title: meta.title || '',
+      thumbnailUrl,
+      authorName: meta.authorName || ''
+    });
+  } catch (err) {
+    console.error('link-preview error:', err);
+    apiError(res, 500, 'INTERNAL', 'Could not preview that link.');
+  }
+});
 
 app.get('/api/video-meta/:id', async (req, res) => {
   try {
@@ -1230,8 +1319,6 @@ app.get('/api/video-meta/:id', async (req, res) => {
 // Stores a watch-page record that points at a platform embed instead of an
 // uploaded blob. Reuses title / expiry / password fields so gating works with
 // no behavioural divergence on the watch page.
-const linkParser = require('./js/link-parser.js');
-
 app.post('/api/create-link-video', requireUploadAuth, async (req, res) => {
   try {
     const { url, title, expiryDays, password } = req.body || {};

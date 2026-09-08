@@ -88,12 +88,26 @@
     document.body.classList.add('modal-open');
 
     var isFile = fileOrOpts instanceof File;
-    var mode = (!isFile && fileOrOpts && fileOrOpts.mode) ? fileOrOpts.mode : null;
+    var opts = (!isFile && fileOrOpts && typeof fileOrOpts === 'object') ? fileOrOpts : null;
+    var mode = opts && opts.mode ? opts.mode : null;
+    var url = opts && opts.url ? opts.url : null;
 
     if (isFile && widget && typeof widget.setFile === 'function') {
       widget.setFile(fileOrOpts);
     } else if (mode && widget && typeof widget.setMode === 'function') {
       widget.setMode(mode);
+      if (url && typeof widget.setLink === 'function') {
+        widget.setLink(url);
+      } else if (url) {
+        // Fallback for older widget builds: fill the input directly.
+        setTimeout(function () {
+          var modalInput = modal.querySelector('.link-input');
+          if (modalInput) {
+            modalInput.value = url;
+            modalInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }, 0);
+      }
     }
 
     setTimeout(() => {

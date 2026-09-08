@@ -187,7 +187,9 @@ function showEmbed(meta) {
     fallbackShown = true;
     fallback.style.display = 'flex';
   };
-  var loadTimer = setTimeout(showFallback, 10000);
+  // Give slow embeds (and the YouTube click-to-play facade) more time before
+  // surfacing the fallback — 10s was too aggressive on mobile networks.
+  var loadTimer = setTimeout(showFallback, 20000);
 
   var mgr = new window.VideoPlatformManager();
   mgr.loadVideo({
@@ -234,11 +236,14 @@ function showPasswordPrompt(videoId) {
           loadVideo(videoId, pw);
         }
       } else {
+        pwError.textContent = 'Incorrect password. Try again.';
         pwError.classList.add('visible');
         pwSubmit.disabled = false; pwSubmit.textContent = 'Watch Video';
         pwInput.value = ''; pwInput.focus();
       }
     } catch (_) {
+      pwError.textContent = 'Network error. Check your connection and try again.';
+      pwError.classList.add('visible');
       pwSubmit.disabled = false; pwSubmit.textContent = 'Watch Video';
     }
   }

@@ -81,15 +81,30 @@
         </div>
         <div class="field">
           <label>Password (optional)</label>
-          <input type="password" data-el="passwordInput" placeholder="Leave blank = public" maxlength="64">
+          <input type="password" data-el="passwordInput" placeholder="Leave blank = public" maxlength="200">
         </div>
       </div>
+    </div>
+
+    <div class="link-preview" data-el="linkPreview" hidden>
+      <img class="link-preview-thumb" data-el="linkPreviewThumb" alt="" width="120" height="68">
+      <div class="link-preview-body">
+        <div class="link-preview-title" data-el="linkPreviewTitle"></div>
+        <div class="link-preview-sub" data-el="linkPreviewSub"></div>
+      </div>
+    </div>
+
+    <div class="link-note gating-note" data-el="gatingNote" hidden>
+      Password and expiration only protect <strong>this</strong> watch page.
+      Anyone who already has the original video URL can still open it on the source site.
     </div>
 
     <div class="link-note password-note" data-el="passwordNote" hidden>
       Heads up: password and expiration only protect this watch page.
       Anyone with the original video URL can still view it on the source platform.
     </div>
+
+    <div class="warn-msg" data-el="warnMsg" role="status" aria-live="polite"></div>
 
     <button type="button" class="btn upload-btn" data-el="uploadBtn">Upload &amp; Get Link</button>
 
@@ -279,6 +294,15 @@
     const expirySelect = $('expirySelect');
     const passwordInput = $('passwordInput');
     const passwordNote = $('passwordNote');
+    const gatingNote = $('gatingNote');
+    const linkPreview = $('linkPreview');
+    const linkPreviewThumb = $('linkPreviewThumb');
+    const linkPreviewTitle = $('linkPreviewTitle');
+    const linkPreviewSub = $('linkPreviewSub');
+    const warnMsg = $('warnMsg');
+    let linkPreviewTimer = null;
+    let linkPreviewSeq = 0;
+    let titleAutofilled = false;
     const uploadBtn = $('uploadBtn');
     const progressArea = $('progressArea');
     const progressText = $('progressText');
@@ -379,6 +403,29 @@
     ]).then(([signedIn]) => signedIn);
 
     function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }
+    function showWarning(msg) {
+      if (!warnMsg) return;
+      warnMsg.textContent = msg;
+      warnMsg.classList.add('visible');
+    }
+    function hideWarning() {
+      if (!warnMsg) return;
+      warnMsg.textContent = '';
+      warnMsg.classList.remove('visible');
+    }
+    function clearLinkPreview() {
+      if (linkPreview) linkPreview.hidden = true;
+      if (linkPreviewThumb) { linkPreviewThumb.removeAttribute('src'); linkPreviewThumb.alt = ''; }
+      if (linkPreviewTitle) linkPreviewTitle.textContent = '';
+      if (linkPreviewSub) linkPreviewSub.textContent = '';
+      titleAutofilled = false;
+    }
+    function updateGatingNote() {
+      if (!gatingNote) return;
+      // Always show for link mode; also show for file mode once a password is typed.
+      const show = mode === 'link' || (passwordInput && passwordInput.value.length > 0);
+      gatingNote.hidden = !show;
+    }
     // Scroll an element into view on mobile so the user actually sees the new
     // state after a tap (file picked, error shown, etc.). Wrapped in try/catch
     // because some embedded webviews don't implement scrollIntoView.
@@ -386,7 +433,7 @@
       if (!el) return;
       try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
     }
-    function hideError() { errorMsg.classList.remove('visible'); }
+    function hideError() { errorMsg.classList.remove('visible'); hideWarning(); }
     function setProgress(pct, label) {
       progressFill.style.width = pct + '%';
       progressFill.setAttribute('aria-valuenow', String(pct));
@@ -420,6 +467,8 @@
 
       hideError();
       updateUploadBtnState();
+      updateGatingNote();
+      if (mode !== 'link') clearLinkPreview();
     }
 
     tabFile.addEventListener('click', () => setMode('file'));
@@ -430,9 +479,13 @@
       parsedLink = null;
       linkDetected.textContent = '';
       linkDetected.classList.remove('error');
+      clearLinkPreview();
+      hideWarning();
+      if (linkPreviewTimer) clearTimeout(linkPreviewTimer);
 
       if (!val) {
         updateUploadBtnState();
+        updateGatingNote();
         return;
       }
 
@@ -441,15 +494,68 @@
         parsedLink = res;
         const platformNames = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
         linkDetected.textContent = `Detected: ${platformNames[res.platform] || res.platform} video`;
+        // Debounced oEmbed preview — autofills title + shows a poster.
+        const seq = ++linkPreviewSeq;
+        linkPreviewTimer = setTimeout(() => fetchLinkPreview(val, seq), 280);
       } else if (window.LinkParser && window.LinkParser.isUnsupportedHost(val)) {
         linkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a supported video link.';
         linkDetected.classList.add('error');
       } else {
-        linkDetected.textContent = 'Not a recognized video URL';
+        linkDetected.textContent = 'Not a recognized video URL. Try a YouTube, Vimeo, Dailymotion, Loom, or Wistia link.';
         linkDetected.classList.add('error');
       }
       updateUploadBtnState();
+      updateGatingNote();
     });
+
+    async function fetchLinkPreview(url, seq) {
+      try {
+        const r = await fetch('/api/link-preview?url=' + encodeURIComponent(url));
+        if (seq !== linkPreviewSeq) return; // stale
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          const msg = (err && err.error && err.error.message) || '';
+          if (msg) showWarning(msg);
+          return;
+        }
+        const data = await r.json();
+        if (seq !== linkPreviewSeq) return;
+        if (data.available === false) {
+          showWarning('This video looks private or has embedding disabled. You can still try creating a link, but it may not play.');
+        } else if (data.uncertain) {
+          showWarning('We couldn\u2019t verify this embed yet. Double-check the video\u2019s sharing settings.');
+        }
+        if (data.title && titleInput && !titleInput.value.trim()) {
+          titleInput.value = String(data.title).slice(0, 120);
+          titleAutofilled = true;
+          updateUploadBtnState();
+        }
+        if (linkPreview && (data.thumbnailUrl || data.title)) {
+          linkPreview.hidden = false;
+          if (linkPreviewThumb && data.thumbnailUrl) {
+            linkPreviewThumb.src = data.thumbnailUrl;
+            linkPreviewThumb.alt = data.title ? String(data.title) : 'Video thumbnail';
+          }
+          if (linkPreviewTitle) linkPreviewTitle.textContent = data.title || 'Video ready to share';
+          const platformNames = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
+          if (linkPreviewSub) {
+            const bits = [];
+            if (data.platform) bits.push(platformNames[data.platform] || data.platform);
+            if (data.authorName) bits.push(data.authorName);
+            linkPreviewSub.textContent = bits.join(' · ');
+          }
+        }
+      } catch (_) {
+        // Preview is best-effort; create-link still works without it.
+      }
+    }
+
+    function setLink(url) {
+      if (!linkInput) return;
+      setMode('link');
+      linkInput.value = url || '';
+      linkInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 
     function updateUploadBtnState() {
       if (mode === 'file') {
@@ -600,10 +706,17 @@
       const idx = parseInt(btn.dataset.idx, 10);
       if (!isNaN(idx)) removeFileAt(idx);
     });
-    titleInput.addEventListener('input', updateUploadBtnState);
+    titleInput.addEventListener('input', () => {
+      titleAutofilled = false;
+      updateUploadBtnState();
+    });
 
     function updatePasswordNote() {
-      passwordNote.hidden = passwordInput.value.length === 0;
+      if (passwordNote) {
+        // File mode: show when a password is typed. Link mode uses gatingNote.
+        passwordNote.hidden = mode === 'link' || passwordInput.value.length === 0;
+      }
+      updateGatingNote();
     }
     passwordInput.addEventListener('input', updatePasswordNote);
 
@@ -618,7 +731,7 @@
     });
 
     function finishSuccess(videoId, opts) {
-      const { title, expiryDays, password, isLink, platform } = opts || {};
+      const { title, expiryDays, password, isLink, platform, warning } = opts || {};
 
       try {
         const KEY = 'vs_pending_claims';
@@ -677,6 +790,9 @@
           successSub.textContent = password
             ? 'Share the link — recipients will need the password to watch.'
             : 'Copy the link and send it to anyone.';
+        }
+        if (warning) {
+          successSub.textContent += ' ' + warning;
         }
 
         authReady.then(signedIn => {
@@ -859,10 +975,14 @@
         const data = await res.json();
         setProgress(100, 'Done!');
         uploading = false;
-        finishSuccess(data.videoId, { title, expiryDays, password, isLink: true, platform: data.platform });
-        if (data.warning) {
-          showError(data.warning);
-        }
+        finishSuccess(data.videoId, {
+          title,
+          expiryDays,
+          password,
+          isLink: true,
+          platform: data.platform,
+          warning: data.warning || ''
+        });
       } catch (err) {
         uploading = false;
         progressArea.classList.remove('visible');
@@ -1397,7 +1517,7 @@
       a.remove();
     });
 
-    return { reset, root, isUploading: () => uploading, setFile, setMode };
+    return { reset, root, isUploading: () => uploading, setFile, setMode, setLink };
   }
 
   if (typeof window !== 'undefined') {
