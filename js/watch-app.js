@@ -51,96 +51,7 @@ function showVideo(videoUrl, downloadHref) {
       '<video id="videoEl" src="' + videoUrl + '" controls autoplay playsinline preload="auto"></video>' +
       titleHtml +
       downloadHtml +
-      renderQrSection() +
     '</div>';
-  attachQrHandlers();
-}
-
-function renderQrSection() {
-  return '<div class="qr-section" id="qrSection">' +
-    '<button type="button" class="qr-toggle" id="qrToggle" aria-expanded="false">' +
-      '<svg class="qr-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-        '<rect x="3" y="3" width="7" height="7"/>' +
-        '<rect x="14" y="3" width="7" height="7"/>' +
-        '<rect x="3" y="14" width="7" height="7"/>' +
-        '<path d="M14 14h3v3h-3zM20 14h1v1M14 20h3v1M20 17h1v4"/>' +
-      '</svg>' +
-      '<span id="qrToggleLabel">Show QR code</span>' +
-      '<svg class="qr-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-        '<polyline points="6 9 12 15 18 9"/>' +
-      '</svg>' +
-    '</button>' +
-    '<div class="qr-panel" id="qrPanel" hidden>' +
-      '<img id="qrImg" src="" alt="QR code for this video" width="160" height="160">' +
-      '<button type="button" class="qr-download-btn" id="qrDownloadBtn">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-          '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>' +
-          '<polyline points="7 10 12 15 17 10"/>' +
-          '<line x1="12" y1="15" x2="12" y2="3"/>' +
-        '</svg>' +
-        '<span>Download QR code</span>' +
-      '</button>' +
-    '</div>' +
-  '</div>';
-}
-
-function slugifyForFilename(s) {
-  return (s || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-}
-
-function attachQrHandlers() {
-  var section = document.getElementById('qrSection');
-  var toggle = document.getElementById('qrToggle');
-  var label = document.getElementById('qrToggleLabel');
-  var panel = document.getElementById('qrPanel');
-  var img = document.getElementById('qrImg');
-  var dlBtn = document.getElementById('qrDownloadBtn');
-  if (!section || !toggle || !panel || !img || !dlBtn) return;
-
-  var watchUrl = window.location.href;
-  var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&color=ffffff&bgcolor=1c1c1e&data=' + encodeURIComponent(watchUrl);
-
-  toggle.addEventListener('click', function() {
-    var isOpen = !panel.hidden;
-    if (isOpen) {
-      panel.hidden = true;
-      toggle.setAttribute('aria-expanded', 'false');
-      label.textContent = 'Show QR code';
-      section.classList.remove('open');
-    } else {
-      if (!img.src) img.src = qrSrc;
-      panel.hidden = false;
-      toggle.setAttribute('aria-expanded', 'true');
-      label.textContent = 'Hide QR code';
-      section.classList.add('open');
-    }
-  });
-
-  dlBtn.addEventListener('click', async function() {
-    var params = new URLSearchParams(window.location.search);
-    var videoId = params.get('id') || '';
-    var baseName = slugifyForFilename(videoTitle) || (videoId ? videoId.split('.')[0] : 'video');
-    var filename = 'vidshare-qr-' + baseName + '.png';
-    var src = img.src || qrSrc;
-    try {
-      var res = await fetch(src, { mode: 'cors' });
-      if (!res.ok) throw new Error('Fetch failed');
-      var blob = await res.blob();
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-    } catch (_) {
-      var a = document.createElement('a');
-      a.href = src; a.download = filename; a.target = '_blank';
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-  });
 }
 
 function showEmbed(meta) {
@@ -169,9 +80,7 @@ function showEmbed(meta) {
       '</div>' +
       titleHtml +
       '<div class="gating-note">' + noteText + '</div>' +
-      renderQrSection() +
     '</div>';
-  attachQrHandlers();
 
   var host = document.getElementById('embedHost');
   var fallback = document.getElementById('embedFallback');

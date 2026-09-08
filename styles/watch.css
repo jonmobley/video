@@ -78,13 +78,12 @@ video {
   video { max-height: calc(100dvh - 220px); }
   .embed-frame { max-height: calc(100dvh - 240px); }
   .gating-note { font-size: 0.72rem; margin-top: 8px; }
-  .qr-panel img { width: 140px; height: 140px; }
 }
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
   .stage { padding: 6px; }
   video { max-height: calc(100dvh - 80px); }
   .embed-frame { max-height: calc(100dvh - 80px); }
-  .video-title, .gating-note, .qr-section { display: none; }
+  .video-title, .gating-note { display: none; }
   .footer { padding: 6px 10px; font-size: 0.72rem; }
 }
 
@@ -159,37 +158,6 @@ video {
 .pw-btn:hover { filter: brightness(1.08); }
 .pw-error { font-size: 0.85rem; color: #ff6b6b; margin-top: 10px; display: none; }
 .pw-error.visible { display: block; }
-
-.qr-section { margin-top: 14px; }
-.qr-toggle {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: transparent; border: 1px solid #2c2c2e;
-  color: #ddd; padding: 8px 14px; border-radius: 999px;
-  font-size: 0.82rem; font-weight: 600; cursor: pointer;
-  font-family: inherit; transition: all 0.2s;
-}
-.qr-toggle:hover { background: #1c1c1e; border-color: #4ecdc4; color: #fff; }
-.qr-toggle-icon { width: 14px; height: 14px; flex-shrink: 0; }
-.qr-toggle-chevron { width: 12px; height: 12px; transition: transform 0.2s ease; }
-.qr-section.open .qr-toggle-chevron { transform: rotate(180deg); }
-.qr-panel {
-  margin-top: 12px; display: flex; flex-direction: column;
-  align-items: flex-start; gap: 10px;
-}
-.qr-panel[hidden] { display: none; }
-.qr-panel img {
-  background: #1c1c1e; border-radius: 12px; border: 3px solid #2c2c2e;
-  width: 160px; height: 160px;
-}
-.qr-download-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: #2c2c2e; color: #ddd; border: none;
-  padding: 8px 14px; border-radius: 999px;
-  font-size: 0.82rem; font-weight: 600; cursor: pointer;
-  font-family: inherit; transition: all 0.2s;
-}
-.qr-download-btn:hover { background: #3a3a3c; color: #fff; }
-.qr-download-btn svg { width: 14px; height: 14px; }
 
 .toast {
   position: fixed; bottom: 60px; left: 50%;

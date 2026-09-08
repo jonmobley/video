@@ -123,35 +123,6 @@
       <div class="share-link-box" data-el="shareLink"></div>
       <button type="button" class="btn copy-btn" data-el="copyBtn">Copy Link</button>
 
-      <div class="qr-disclosure" data-el="qrDisclosure">
-        <button type="button" class="qr-toggle" data-el="qrToggle" aria-expanded="false">
-          <svg class="qr-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1"/>
-            <rect x="14" y="3" width="7" height="7" rx="1"/>
-            <rect x="3" y="14" width="7" height="7" rx="1"/>
-            <path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20v.01"/>
-          </svg>
-          <span class="qr-toggle-label" data-el="qrToggleLabel">Show QR code</span>
-          <svg class="qr-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-        <div class="qr-panel" data-el="qrPanel" hidden>
-          <div class="qr-wrap" data-el="qrWrap">
-            <img data-el="qrImg" src="" alt="QR Code" width="160" height="160">
-            <div class="qr-label">Scan to watch</div>
-            <button type="button" class="qr-download-btn" data-el="qrDownloadBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              <span>Download QR code</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <button type="button" class="btn watch-link-btn" data-el="watchLinkBtn">Watch it now ↗</button>
       <button type="button" class="btn another-btn" data-el="anotherBtn">Upload another video</button>
 
@@ -290,7 +261,6 @@
     const copyBtn = $('copyBtn');
     const watchLinkBtn = $('watchLinkBtn');
     const anotherBtn = $('anotherBtn');
-    const qrImg = $('qrImg');
     const metaRow = $('metaRow');
     const successSub = $('successSub');
     const accountNudge = $('accountNudge');
@@ -298,14 +268,7 @@
     const modeTabs = $('modeTabs');
     const tabFile = $('tabFile');
     const tabLink = $('tabLink');
-    const qrDisclosure = $('qrDisclosure');
-    const qrToggle = $('qrToggle');
-    const qrToggleLabel = $('qrToggleLabel');
-    const qrPanel = $('qrPanel');
-    const qrDownloadBtn = $('qrDownloadBtn');
 
-    let currentVideoId = null;
-    let currentTitle = null;
     let currentWatchUrl = null;
     const panelFile = $('panelFile');
     const panelLink = $('panelLink');
@@ -631,8 +594,6 @@
 
       const watchUrl = window.location.origin + '/watch?id=' + encodeURIComponent(videoId);
 
-      currentVideoId = videoId;
-      currentTitle = title || null;
       currentWatchUrl = watchUrl;
 
       setTimeout(() => {
@@ -641,10 +602,6 @@
         if (modeTabs) modeTabs.style.display = 'none';
         shareLink.textContent = watchUrl;
         watchLinkBtn.dataset.url = watchUrl;
-        qrPanel.hidden = true;
-        qrToggle.setAttribute('aria-expanded', 'false');
-        qrToggleLabel.textContent = 'Show QR code';
-        qrDisclosure.classList.remove('open');
 
         metaRow.innerHTML = '';
         if (title) {
@@ -682,8 +639,6 @@
         authReady.then(signedIn => {
           accountNudge.classList.toggle('visible', !signedIn);
         });
-
-        qrImg.src = renderQrDataUrl(watchUrl);
 
         navigator.clipboard.writeText(watchUrl).then(() => {
           copyBtn.textContent = 'Copied!';
@@ -1235,8 +1190,6 @@
       const { title, count, expiryDays, password } = opts || {};
       const folderUrl = window.location.origin + '/f/' + encodeURIComponent(slug);
 
-      currentVideoId = null;
-      currentTitle = title || null;
       currentWatchUrl = folderUrl;
       currentFolderSlug = null;
 
@@ -1249,10 +1202,6 @@
         shareLink.textContent = folderUrl;
         watchLinkBtn.dataset.url = folderUrl;
         watchLinkBtn.textContent = 'Open folder ↗';
-        qrPanel.hidden = true;
-        qrToggle.setAttribute('aria-expanded', 'false');
-        qrToggleLabel.textContent = 'Show QR code';
-        qrDisclosure.classList.remove('open');
 
         metaRow.innerHTML = '';
         const tBadge = document.createElement('span');
@@ -1275,7 +1224,6 @@
         authReady.then(signedIn => {
           accountNudge.classList.toggle('visible', !signedIn);
         });
-        qrImg.src = renderQrDataUrl(folderUrl);
 
         navigator.clipboard.writeText(folderUrl).then(() => {
           copyBtn.textContent = 'Copied!';
@@ -1305,13 +1253,7 @@
       successArea.classList.remove('visible');
       accountNudge.classList.remove('visible');
       if (modeTabs) modeTabs.style.display = '';
-      qrPanel.hidden = true;
-      qrToggle.setAttribute('aria-expanded', 'false');
-      qrToggleLabel.textContent = 'Show QR code';
-      qrDisclosure.classList.remove('open');
       watchLinkBtn.textContent = 'Watch it now ↗';
-      currentVideoId = null;
-      currentTitle = null;
       currentWatchUrl = null;
       titleInput.value = '';
       passwordInput.value = '';
@@ -1330,71 +1272,6 @@
     watchLinkBtn.addEventListener('click', () => {
       const url = watchLinkBtn.dataset.url || currentWatchUrl;
       if (url) window.open(url, '_blank', 'noopener');
-    });
-
-    qrToggle.addEventListener('click', () => {
-      const isOpen = !qrPanel.hidden;
-      qrPanel.hidden = isOpen;
-      qrToggle.setAttribute('aria-expanded', String(!isOpen));
-      qrToggleLabel.textContent = isOpen ? 'Show QR code' : 'Hide QR code';
-      qrDisclosure.classList.toggle('open', !isOpen);
-    });
-
-    function slugifyForFilename(s) {
-      return (s || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 60);
-    }
-
-    function renderQrDataUrl(text, opts) {
-      const o = opts || {};
-      const size = o.size || 160;
-      const fg = o.fg || '#ffffff';
-      const bg = o.bg || '#1c1c1e';
-      const margin = o.margin != null ? o.margin : 2;
-      if (typeof window.qrcode !== 'function') {
-        console.warn('qrcode-generator library not loaded');
-        return '';
-      }
-      const qr = window.qrcode(0, 'M');
-      qr.addData(text);
-      qr.make();
-      const count = qr.getModuleCount();
-      const ratio = (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 1) ? window.devicePixelRatio : 1;
-      const pxSize = Math.floor(size * ratio);
-      const cell = pxSize / (count + margin * 2);
-      const canvas = document.createElement('canvas');
-      canvas.width = pxSize;
-      canvas.height = pxSize;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, pxSize, pxSize);
-      ctx.fillStyle = fg;
-      for (let r = 0; r < count; r++) {
-        for (let c = 0; c < count; c++) {
-          if (qr.isDark(r, c)) {
-            const x = Math.floor((c + margin) * cell);
-            const y = Math.floor((r + margin) * cell);
-            const w = Math.ceil(cell);
-            ctx.fillRect(x, y, w, w);
-          }
-        }
-      }
-      return canvas.toDataURL('image/png');
-    }
-
-    qrDownloadBtn.addEventListener('click', () => {
-      if (!qrImg.src) return;
-      const baseName = slugifyForFilename(currentTitle) || (currentVideoId ? currentVideoId.split('.')[0] : 'video');
-      const filename = `vidshare-qr-${baseName}.png`;
-      const a = document.createElement('a');
-      a.href = qrImg.src;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
     });
 
     return { reset, root, isUploading: () => uploading, setFile, setMode };
