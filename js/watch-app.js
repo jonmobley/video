@@ -103,7 +103,8 @@ function showEmbed(meta) {
     platform: platform,
     embedVideoId: embedId,
     wistiaId: embedId,
-    title: meta.title || ''
+    title: meta.title || '',
+    durationSeconds: meta.durationSeconds
   }, host,
     function() { clearTimeout(loadTimer); },
     function() { clearTimeout(loadTimer); showFallback(); }

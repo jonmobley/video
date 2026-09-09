@@ -1134,6 +1134,95 @@ app.get('/api/video-thumbnail/:id', async (req, res) => {
 const embedAvailabilityCache = new Map();
 const EMBED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+// Cached platform duration (seconds). YouTube oEmbed omits duration, so we
+// resolve it via the public innertube player endpoint; Vimeo/Wistia oEmbed
+// already include it. Failures stay uncached so a later request can retry.
+const durationCache = new Map();
+const DURATION_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function cacheDuration(key, seconds) {
+  durationCache.set(key, { seconds, expires: Date.now() + DURATION_CACHE_TTL_MS });
+  return seconds;
+}
+
+async function fetchYoutubeDurationSeconds(embedVideoId) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    // ANDROID_TESTSUITE returns lengthSeconds without requiring cookies.
+    const r = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: 'ANDROID_TESTSUITE', clientVersion: '1.9', hl: 'en', gl: 'US' }
+        },
+        videoId: embedVideoId,
+        contentCheckOk: true,
+        racyCheckOk: true
+      }),
+      signal: ctrl.signal
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const seconds = Number(data && data.videoDetails && data.videoDetails.lengthSeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  } catch (_) {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchOEmbedDurationSeconds(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(url, { method: 'GET', signal: ctrl.signal, redirect: 'follow' });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const seconds = Number(data && data.duration);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  } catch (_) {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchEmbedDurationSeconds(platform, embedVideoId) {
+  if (!embedVideoId) return null;
+  const key = `${platform}:${embedVideoId}`;
+  const cached = durationCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.seconds;
+
+  let seconds = null;
+  if (platform === 'youtube') {
+    seconds = await fetchYoutubeDurationSeconds(embedVideoId);
+  } else if (platform === 'vimeo') {
+    const parts = String(embedVideoId).split('/');
+    const id = parts[0];
+    const hash = parts[1];
+    const vimeoUrl = hash
+      ? `https://vimeo.com/${encodeURIComponent(id)}/${encodeURIComponent(hash)}`
+      : `https://vimeo.com/${encodeURIComponent(id)}`;
+    seconds = await fetchOEmbedDurationSeconds(
+      `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(vimeoUrl)}`
+    );
+  } else if (platform === 'wistia') {
+    seconds = await fetchOEmbedDurationSeconds(
+      `https://fast.wistia.com/oembed?url=${encodeURIComponent('https://fast.wistia.com/medias/' + embedVideoId)}&format=json`
+    );
+  } else if (platform === 'dailymotion') {
+    seconds = await fetchOEmbedDurationSeconds(
+      `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent('https://www.dailymotion.com/video/' + embedVideoId)}&format=json`
+    );
+  }
+
+  if (seconds != null) cacheDuration(key, seconds);
+  return seconds;
+}
+
 async function checkEmbedAvailability(platform, embedVideoId, { throwOnError = false } = {}) {
   if (!embedVideoId) return true;
   const key = `${platform}:${embedVideoId}`;
@@ -1301,9 +1390,15 @@ app.get('/api/video-meta/:id', async (req, res) => {
 
     const platform = v.platform || 'upload';
     let embedAvailable = true;
+    let durationSeconds = null;
     if (v.embed_video_id && (platform === 'youtube' || platform === 'vimeo' ||
         platform === 'dailymotion' || platform === 'loom' || platform === 'wistia')) {
-      embedAvailable = await checkEmbedAvailability(platform, v.embed_video_id);
+      const [availability, duration] = await Promise.all([
+        checkEmbedAvailability(platform, v.embed_video_id),
+        fetchEmbedDurationSeconds(platform, v.embed_video_id)
+      ]);
+      embedAvailable = availability;
+      durationSeconds = duration;
     }
 
     res.json({
@@ -1317,7 +1412,8 @@ app.get('/api/video-meta/:id', async (req, res) => {
       contentType: v.content_type,
       platform,
       embedVideoId: v.embed_video_id || null,
-      embedAvailable
+      embedAvailable,
+      durationSeconds
     });
   } catch (err) {
     console.error('video-meta error:', err);
