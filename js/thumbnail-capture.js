@@ -11,6 +11,22 @@
  * to a placeholder without ever throwing into the upload happy-path.
  */
 (function () {
+  /**
+   * True only for absolute http(s) URLs that point at a different origin.
+   * Relative paths, blob:, and data: URLs are same-origin and must not opt
+   * into CORS mode (our /api/video endpoint does not send ACAO headers).
+   */
+  function needsCrossOrigin(url) {
+    if (typeof url !== 'string' || !url) return false;
+    if (!/^https?:\/\//i.test(url)) return false;
+    try {
+      if (typeof location === 'undefined' || !location.origin) return true;
+      return new URL(url, location.href).origin !== location.origin;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function captureVideoThumbnail(source, opts) {
     const o = Object.assign({
       maxWidth: 640,
@@ -29,11 +45,11 @@
       video.muted = true;
       video.playsInline = true;
       video.preload = 'auto';
-      // Required so that drawing a remote frame to a canvas doesn't taint
-      // it. Harmless on local Blob URLs. If the remote server doesn't
-      // serve permissive CORS headers, video.error fires and we resolve
-      // null — exactly the graceful-failure behaviour we want.
-      video.crossOrigin = 'anonymous';
+      // Only force CORS mode for true cross-origin http(s) URLs (e.g.
+      // Dropbox). Same-origin paths like /api/video/:id and blob: URLs
+      // must NOT set crossOrigin — our video endpoint doesn't emit ACAO,
+      // and anonymous CORS mode would make the element error out (or
+      // taint the canvas), which broke the account thumbnail picker.
       video.style.cssText =
         'position:fixed;left:-99999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
 
@@ -135,6 +151,7 @@
           objectUrl = URL.createObjectURL(source);
           video.src = objectUrl;
         } else if (typeof source === 'string' && source) {
+          if (needsCrossOrigin(source)) video.crossOrigin = 'anonymous';
           video.src = source;
         } else {
           return finish(null);
