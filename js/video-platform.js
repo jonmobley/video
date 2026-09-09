@@ -125,7 +125,10 @@ class VideoPlatformManager {
     }
 
     /**
-     * Load a YouTube video as an iframe embed.
+     * Load a YouTube video behind a click-to-play facade.
+     * YouTube's paused embed chrome (title bar, "Watch on YouTube") cannot be
+     * removed via iframe params, so we show a clean thumbnail until the viewer
+     * presses play, then mount the real player with autoplay.
      * @param {Object} video - Video object. Expects video.embedVideoId (the
      *                        YouTube 11-char ID) or falls back to video.wistiaId.
      * @param {HTMLElement} container
@@ -136,50 +139,82 @@ class VideoPlatformManager {
         container.innerHTML = '';
         container.setAttribute('data-platform', 'youtube');
 
-        // enablejsapi=1 lets us attach a YT.Player to this iframe for
-        // onError detection (private/removed/embedding-disabled). The unique
-        // iframe id gives YT.Player a stable target.
-        const iframe = document.createElement('iframe');
-        const frameId = `yt_${Math.random().toString(36).slice(2)}`;
-        iframe.id = frameId;
-        const origin = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
-        const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
-        iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&enablejsapi=1${originParam}`;
-        iframe.title = video.title || 'YouTube video';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-        iframe.allowFullscreen = true;
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = '0';
+        const facade = document.createElement('button');
+        facade.type = 'button';
+        facade.className = 'yt-facade';
+        facade.setAttribute('aria-label', video.title ? `Play ${video.title}` : 'Play video');
 
-        iframe.addEventListener('load', () => { if (onReady) onReady(iframe); });
-        container.appendChild(iframe);
+        const poster = document.createElement('img');
+        poster.className = 'yt-facade-poster';
+        poster.alt = '';
+        poster.decoding = 'async';
+        poster.referrerPolicy = 'no-referrer';
+        const hq = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/hqdefault.jpg`;
+        poster.src = `https://i.ytimg.com/vi/${encodeURIComponent(id)}/maxresdefault.jpg`;
+        poster.addEventListener('error', function onPosterError() {
+            poster.removeEventListener('error', onPosterError);
+            poster.src = hq;
+        });
 
-        // Attach the IFrame API for onError detection. YT error codes:
-        //   2   — invalid video id
-        //   5   — HTML5 player error
-        //   100 — video not found / removed / private
-        //   101 / 150 — embedding disabled by owner
-        // Any of these means our friendly fallback should take over.
-        this._ensureYouTubeAPI().then(() => {
-            try {
-                new window.YT.Player(frameId, {
-                    events: {
-                        onError: (e) => {
-                            if (typeof onError === 'function') {
-                                onError({ code: e && e.data, source: 'youtube' });
+        const playBtn = document.createElement('span');
+        playBtn.className = 'yt-facade-play';
+        playBtn.setAttribute('aria-hidden', 'true');
+
+        facade.appendChild(poster);
+        facade.appendChild(playBtn);
+        container.appendChild(facade);
+
+        // Facade is enough to clear the watch-page load timeout — the server
+        // already verified the video via oEmbed. Real player errors still
+        // surface via YT.Player onError after click.
+        if (onReady) onReady(facade);
+
+        const mountPlayer = () => {
+            facade.disabled = true;
+            facade.remove();
+
+            const iframe = document.createElement('iframe');
+            const frameId = `yt_${Math.random().toString(36).slice(2)}`;
+            iframe.id = frameId;
+            const origin = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
+            const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : '';
+            // autoplay starts playback immediately so YouTube's idle chrome
+            // (title + Watch on YouTube) never sits on screen. iv_load_policy=3
+            // hides annotations; modestbranding/rel reduce remaining chrome.
+            iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0&modestbranding=1&enablejsapi=1&autoplay=1&playsinline=1&iv_load_policy=3${originParam}`;
+            iframe.title = video.title || 'YouTube video';
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+            iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+            iframe.allowFullscreen = true;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = '0';
+            container.appendChild(iframe);
+
+            // Attach the IFrame API for onError detection. YT error codes:
+            //   2   — invalid video id
+            //   5   — HTML5 player error
+            //   100 — video not found / removed / private
+            //   101 / 150 — embedding disabled by owner
+            this._ensureYouTubeAPI().then(() => {
+                try {
+                    new window.YT.Player(frameId, {
+                        events: {
+                            onError: (e) => {
+                                if (typeof onError === 'function') {
+                                    onError({ code: e && e.data, source: 'youtube' });
+                                }
                             }
                         }
-                    }
-                });
-            } catch (err) {
-                // Player attach failed; leave the iframe in place. The watch
-                // page's safety-net timeout will still cover this case.
-            }
-        }).catch(() => { /* API failed to load — safety-net timeout covers us */ });
+                    });
+                } catch (err) {
+                    // Player attach failed; leave the iframe in place.
+                }
+            }).catch(() => { /* API failed to load — iframe still plays */ });
+        };
 
-        return iframe;
+        facade.addEventListener('click', mountPlayer, { once: true });
+        return facade;
     }
 
     /**
