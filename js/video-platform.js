@@ -156,12 +156,17 @@ class VideoPlatformManager {
             poster.src = hq;
         });
 
-        const playBtn = document.createElement('span');
-        playBtn.className = 'yt-facade-play';
-        playBtn.setAttribute('aria-hidden', 'true');
-
         facade.appendChild(poster);
-        facade.appendChild(playBtn);
+
+        // Duration badge in the bottom-right (YouTube-style), when known.
+        const durationLabel = formatDurationLabel(video.durationSeconds);
+        if (durationLabel) {
+            const badge = document.createElement('span');
+            badge.className = 'yt-facade-duration';
+            badge.textContent = durationLabel;
+            facade.appendChild(badge);
+        }
+
         container.appendChild(facade);
 
         // Facade is enough to clear the watch-page load timeout — the server
@@ -454,5 +459,20 @@ class VideoPlatformManager {
     }
 }
 
+/** Format seconds as m:ss or h:mm:ss for thumbnail overlays. */
+function formatDurationLabel(seconds) {
+    if (seconds == null || seconds === '') return null;
+    const total = Math.floor(Number(seconds));
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (h > 0) {
+        return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+    return m + ':' + String(s).padStart(2, '0');
+}
+
 // Export for use in other scripts
 window.VideoPlatformManager = VideoPlatformManager;
+window.formatDurationLabel = formatDurationLabel;
