@@ -104,7 +104,14 @@ h1 { font-size: 1.6rem; font-weight: 700; }
   font-size: 1rem; font-weight: 600; margin-bottom: 4px;
   white-space: nowrap; display: flex; align-items: center; min-width: 0;
 }
-.vc-title-text { overflow: hidden; text-overflow: ellipsis; }
+.vc-title-text {
+  overflow: hidden; text-overflow: ellipsis;
+  color: inherit; text-decoration: none; min-width: 0;
+}
+a.vc-title-text:hover { color: #4ecdc4; text-decoration: underline; }
+a.vc-title-text:focus-visible {
+  outline: 2px solid #4ecdc4; outline-offset: 2px; border-radius: 3px;
+}
 .vc-meta { font-size: 0.8rem; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
 .vc-meta .lock { color: #4ecdc4; }
 .vc-meta .exp { color: #ffb86b; }

@@ -344,7 +344,7 @@
           ${renderThumb(v)}
           <div class="vc-main">
             <div class="vc-badge-row">${badge}</div>
-            <div class="vc-title"><span class="vc-title-text">${escapeHtml(v.title || 'Untitled')}</span></div>
+            <div class="vc-title"><a class="vc-title-text" href="${watchUrl}" target="_blank" rel="noopener">${escapeHtml(v.title || 'Untitled')}</a></div>
             <div class="vc-meta">
               <span>${formatDate(v.uploaded_at)}</span>
               <span>${formatBytes(v.file_size)}</span>
