@@ -321,12 +321,21 @@
       } else {
         inner = PLACEHOLDER_SVG;
       }
-      return `<div class="vc-thumb">${inner}</div>`;
+      // Native uploads can replace their stored frame — put a compact edit
+      // control on the thumb instead of a full-size action-row button.
+      const editOverlay = canChangeThumbnail(v)
+        ? '<button type="button" class="vc-thumb-edit thumb-btn" aria-label="Change thumbnail" title="Change thumbnail">' +
+            '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+              '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3 2.1 2.1 0 0 1 0 3L7 19l-4 1 1-4 12.5-12.5z"/>' +
+            '</svg>' +
+          '</button>'
+        : '';
+      return `<div class="vc-thumb">${inner}${editOverlay}</div>`;
     }
 
     // Native uploads are the only ones whose thumbnail lives in our DB
     // and can be replaced via /api/my-videos/:id/thumbnail. External
-    // platforms (YouTube/Vimeo) serve their own art so we hide the button.
+    // platforms (YouTube/Vimeo) serve their own art so we hide the control.
     function canChangeThumbnail(v) {
       return platformInfo(v).key === 'upload';
     }
@@ -336,9 +345,6 @@
       const exp = formatExpiry(v.expires_at);
       const info = platformInfo(v);
       const badge = `<span class="source-badge ${info.key}">${info.label}</span>`;
-      const thumbBtn = canChangeThumbnail(v)
-        ? '<button class="vc-btn thumb-btn">Thumbnail</button>'
-        : '';
       return `
         <div class="video-card" data-id="${escapeHtml(v.id)}">
           ${renderThumb(v)}
@@ -357,7 +363,6 @@
             <a class="vc-btn" href="${watchUrl}" target="_blank" rel="noopener">Open</a>
             <button class="vc-btn copy-btn" data-url="${watchUrl}">Copy link</button>
             <button class="vc-btn edit-btn">Edit</button>
-            ${thumbBtn}
             <button class="vc-btn danger delete-btn">Delete</button>
           </div>
         </div>`;
