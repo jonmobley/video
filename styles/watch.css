@@ -33,9 +33,17 @@ video {
 }
 
 .embed-frame {
-  position: relative; width: 100%;
+  /* Keep a true 16:9 box even when height is capped on short/wide
+     viewports. Without the width clamp, max-height alone makes the
+     iframe wider than 16:9 and YouTube letterboxes the video while its
+     chrome sits on the outer edges. */
+  --embed-max-h: calc(100vh - 200px);
+  --embed-max-h: calc(100dvh - 200px);
+  position: relative;
+  width: min(100%, calc(var(--embed-max-h) * 16 / 9));
+  max-height: var(--embed-max-h);
   aspect-ratio: 16 / 9;
-  max-height: calc(100vh - 200px);
+  margin-inline: auto;
   background: #000; border-radius: 12px; overflow: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
@@ -117,12 +125,18 @@ video {
   .video-wrap { gap: 0; }
   video, .embed-frame { border-radius: 8px; }
   video { max-height: calc(100dvh - 220px); }
-  .embed-frame { max-height: calc(100dvh - 240px); }
+  .embed-frame {
+    --embed-max-h: calc(100vh - 240px);
+    --embed-max-h: calc(100dvh - 240px);
+  }
 }
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
   .stage { padding: 6px; }
   video { max-height: calc(100dvh - 80px); }
-  .embed-frame { max-height: calc(100dvh - 80px); }
+  .embed-frame {
+    --embed-max-h: calc(100vh - 80px);
+    --embed-max-h: calc(100dvh - 80px);
+  }
   .video-title { display: none; }
   .footer { padding: 6px 10px; font-size: 0.72rem; }
 }
