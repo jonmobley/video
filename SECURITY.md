@@ -67,7 +67,7 @@ Restricts what resources browsers are allowed to load, providing the primary def
 - `script-src 'self' 'unsafe-inline' https://fast.wistia.com https://fast.wistia.net` — allows inline scripts (needed for current codebase) and Wistia player scripts
 - `style-src 'self' 'unsafe-inline'` — allows inline styles
 - `img-src 'self' data: https: blob:` — allows images from any HTTPS source (thumbnails from Wistia, YouTube, Vimeo, etc.)
-- `connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com https://api.qrserver.com` — controls fetch/XHR destinations
+- `connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com` — controls fetch/XHR destinations
 - `frame-src` — allows embedding video players from YouTube, Vimeo, Dailymotion, Loom, and Wistia
 - `media-src 'self' blob:` — allows video playback from same origin and blob URLs
 - `frame-ancestors 'none'` — prevents this site from being embedded in iframes elsewhere
