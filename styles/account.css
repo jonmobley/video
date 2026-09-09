@@ -95,7 +95,15 @@ h1 { font-size: 1.6rem; font-weight: 700; }
 }
 .vc-thumb-placeholder svg { width: 30px; height: 30px; }
 .vc-main { flex: 1; min-width: 0; }
-.vc-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; display: flex; align-items: center; min-width: 0; }
+.vc-badge-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px; min-width: 0;
+}
+.vc-badge-row .source-badge { margin-left: 0; }
+.vc-title {
+  font-size: 1rem; font-weight: 600; margin-bottom: 4px;
+  white-space: nowrap; display: flex; align-items: center; min-width: 0;
+}
 .vc-title-text { overflow: hidden; text-overflow: ellipsis; }
 .vc-meta { font-size: 0.8rem; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
 .vc-meta .lock { color: #4ecdc4; }
