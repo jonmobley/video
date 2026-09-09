@@ -697,7 +697,10 @@
         video.muted = true;
         video.playsInline = true;
         video.preload = 'auto';
-        video.crossOrigin = 'anonymous';
+        // Same-origin /api/video/:id does not send CORS headers. Setting
+        // crossOrigin=anonymous here makes the <video> fail to load (or
+        // taints the canvas), which is why the picker showed
+        // "Could not load frames". Leave crossOrigin unset for same-origin.
         video.style.cssText = 'position:fixed;left:-99999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
 
         const TIMEOUT_MS = 30000;
