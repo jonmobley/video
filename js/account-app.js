@@ -619,13 +619,41 @@
     // Server-side cap is 500 KB; mirror it here so users get an immediate
     // error instead of a cryptic 413 after the round-trip.
     const TP_MAX_BYTES = 500 * 1024;
-    const TP_FRAME_RATIOS = [0.05, 0.20, 0.40, 0.55, 0.75, 0.92];
+    // Evenly spaced interior samples — avoids the black first/last frames and
+    // keeps picks visually distinct when the clip has any motion.
+    const TP_FRAME_COUNT = 6;
 
-    let tpState = null; // { videoId, selection, frames: [{base64,contentType}], custom }
+    let tpState = null; // { videoId, selection, frames: [{base64,contentType,timeSec}], custom }
     const tpFrameCache = new Map();
     const TP_FRAME_CACHE_MAX = 20;
 
     function setTpError(msg) { tpError.textContent = msg || ''; }
+
+    function formatTimecode(seconds) {
+      const total = Math.max(0, Math.floor(Number(seconds) || 0));
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    /** Build seek targets spread across a known duration. */
+    function frameSeekTimes(duration, count) {
+      const n = Math.max(1, count | 0);
+      const dur = Number(duration);
+      if (!isFinite(dur) || dur <= 0) return [];
+      // Very short clips: still return unique-ish times within the range.
+      if (dur < 0.6) {
+        const mid = Math.max(0, dur / 2);
+        return Array.from({ length: n }, () => mid);
+      }
+      const times = [];
+      for (let i = 0; i < n; i++) {
+        // (i+1)/(n+1) keeps samples away from 0 and EOF.
+        const t = dur * ((i + 1) / (n + 1));
+        times.push(Math.min(Math.max(0.05, t), Math.max(0.05, dur - 0.05)));
+      }
+      return times;
+    }
 
     function renderFrameTile(tile, f, idx) {
       if (!f) {
@@ -638,11 +666,20 @@
       tile.tabIndex = 0;
       tile.setAttribute('role', 'option');
       tile.setAttribute('aria-selected', 'false');
-      tile.setAttribute('aria-label', 'Frame ' + (idx + 1));
+      const label = f.timeSec != null
+        ? ('Frame at ' + formatTimecode(f.timeSec))
+        : ('Frame ' + (idx + 1));
+      tile.setAttribute('aria-label', label);
       const img = document.createElement('img');
       img.src = f.dataUrl;
-      img.alt = 'Frame ' + (idx + 1);
+      img.alt = label;
       tile.appendChild(img);
+      if (f.timeSec != null) {
+        const badge = document.createElement('span');
+        badge.className = 'tp-frame-time';
+        badge.textContent = formatTimecode(f.timeSec);
+        tile.appendChild(badge);
+      }
       tile.addEventListener('click', () => selectFrame(idx));
       tile.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -693,11 +730,13 @@
       setTpError('');
     }
 
-    function extractCandidateFrames(videoUrl, ratios, onFrame) {
+    function extractCandidateFrames(videoUrl, count, onFrame) {
       return new Promise((resolve) => {
-        const out = ratios.map(() => null);
+        const n = Math.max(1, count | 0);
+        const out = Array.from({ length: n }, () => null);
         let i = 0;
         let settled = false;
+        let seekTimes = [];
         const video = document.createElement('video');
         video.muted = true;
         video.playsInline = true;
@@ -741,27 +780,64 @@
             const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
             const comma = dataUrl.indexOf(',');
             if (comma < 0) return null;
-            return { dataUrl, base64: dataUrl.slice(comma + 1), contentType: 'image/jpeg' };
+            return {
+              dataUrl,
+              base64: dataUrl.slice(comma + 1),
+              contentType: 'image/jpeg',
+              // Record the time we actually landed on (keyframe snap may
+              // differ from the requested seek).
+              timeSec: isFinite(video.currentTime) ? video.currentTime : null
+            };
           } catch (_) {
             return null;
           }
         }
 
+        function afterPaint(cb) {
+          // Wait until a decoded frame is available at the seeked time —
+          // capturing immediately on 'seeked' often reuses the prior frame.
+          if (typeof video.requestVideoFrameCallback === 'function') {
+            try {
+              video.requestVideoFrameCallback(() => cb());
+              return;
+            } catch (_) { /* fall through */ }
+          }
+          requestAnimationFrame(() => requestAnimationFrame(cb));
+        }
+
         function seekNext() {
-          if (i >= ratios.length) return finish();
-          const dur = isFinite(video.duration) ? video.duration : 0;
-          const t = Math.max(0, Math.min(dur - 0.05, dur * ratios[i]));
+          if (i >= seekTimes.length) return finish();
+          const t = seekTimes[i];
           try { video.currentTime = t; }
           catch (_) { i++; seekNext(); }
         }
 
-        video.addEventListener('loadedmetadata', () => seekNext());
+        let seekingStarted = false;
+        function startSeeking() {
+          if (seekingStarted || settled) return;
+          const dur = video.duration;
+          if (!isFinite(dur) || dur <= 0) return;
+          seekingStarted = true;
+          seekTimes = frameSeekTimes(dur, n);
+          if (!seekTimes.length) return finish();
+          i = 0;
+          seekNext();
+        }
+
+        // Duration is often Infinity/0 on first loadedmetadata for ranged
+        // MP4s. Wait until we have a real length before spreading seeks —
+        // otherwise every sample collapses to t=0 and all tiles look alike.
+        video.addEventListener('loadedmetadata', startSeeking);
+        video.addEventListener('durationchange', startSeeking);
         video.addEventListener('seeked', () => {
           const idx = i;
-          out[idx] = captureCurrent();
-          if (typeof onFrame === 'function') onFrame(idx, out[idx]);
-          i++;
-          seekNext();
+          afterPaint(() => {
+            if (settled) return;
+            out[idx] = captureCurrent();
+            if (typeof onFrame === 'function') onFrame(idx, out[idx]);
+            i++;
+            seekNext();
+          });
         });
         video.addEventListener('error', () => finish());
 
@@ -788,7 +864,7 @@
 
       tpGrid.innerHTML = '';
       const slots = [];
-      for (let n = 0; n < TP_FRAME_RATIOS.length; n++) {
+      for (let n = 0; n < TP_FRAME_COUNT; n++) {
         const tile = document.createElement('div');
         tile.className = 'tp-frame loading';
         tile.setAttribute('aria-label', 'Loading frame');
@@ -831,7 +907,7 @@
       }
 
       const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
-      const frames = await extractCandidateFrames(videoUrl, TP_FRAME_RATIOS, (idx, f) => {
+      const frames = await extractCandidateFrames(videoUrl, TP_FRAME_COUNT, (idx, f) => {
         if (!tpState || tpState.videoId !== videoId) return;
         tpState.frames[idx] = f;
         renderFrameTile(slots[idx], f, idx);
