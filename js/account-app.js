@@ -343,7 +343,8 @@
         <div class="video-card" data-id="${escapeHtml(v.id)}">
           ${renderThumb(v)}
           <div class="vc-main">
-            <div class="vc-title"><span class="vc-title-text">${escapeHtml(v.title || 'Untitled')}</span>${badge}</div>
+            <div class="vc-badge-row">${badge}</div>
+            <div class="vc-title"><a class="vc-title-text" href="${watchUrl}" target="_blank" rel="noopener">${escapeHtml(v.title || 'Untitled')}</a></div>
             <div class="vc-meta">
               <span>${formatDate(v.uploaded_at)}</span>
               <span>${formatBytes(v.file_size)}</span>
@@ -576,8 +577,8 @@
 
       const card = document.querySelector(`.video-card[data-id="${cssEscape(videoId)}"]`);
       if (card) {
-        const titleEl = card.querySelector('.vc-title');
-        if (titleEl) titleEl.textContent = v.title || 'Untitled';
+        const titleText = card.querySelector('.vc-title-text') || card.querySelector('.vc-title');
+        if (titleText) titleText.textContent = v.title || 'Untitled';
 
         const metaEl = card.querySelector('.vc-meta');
         if (metaEl) {
