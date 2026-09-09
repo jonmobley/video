@@ -43,11 +43,6 @@ video {
   position: absolute; inset: 0;
   width: 100%; height: 100%; border: 0;
 }
-.gating-note {
-  margin-top: 12px; font-size: 0.78rem; color: rgba(255,255,255,0.6);
-  text-align: center; max-width: 640px; line-height: 1.5;
-}
-
 .embed-host {
   position: absolute; inset: 0;
 }
@@ -125,13 +120,12 @@ video {
   video, .embed-frame { border-radius: 8px; }
   video { max-height: calc(100dvh - 220px); }
   .embed-frame { max-height: calc(100dvh - 240px); }
-  .gating-note { font-size: 0.72rem; margin-top: 8px; }
 }
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
   .stage { padding: 6px; }
   video { max-height: calc(100dvh - 80px); }
   .embed-frame { max-height: calc(100dvh - 80px); }
-  .video-title, .gating-note { display: none; }
+  .video-title { display: none; }
   .footer { padding: 6px 10px; font-size: 0.72rem; }
 }
 
@@ -147,21 +141,6 @@ video {
   text-decoration: none; font-weight: 700;
 }
 .footer a:hover { filter: brightness(1.1); }
-.footer-upload-btn {
-  background: none; border: 1px solid #2c2c2e; color: #ddd;
-  padding: 6px 14px; border-radius: 999px; font-size: 0.82rem;
-  font-weight: 600; cursor: pointer; font-family: inherit;
-  margin-left: 6px; transition: all 0.2s;
-  min-height: 44px;
-}
-.footer-upload-btn:hover { background: #1c1c1e; border-color: #3a3a3c; color: #fff; }
-@media (max-width: 360px) {
-  .footer-upload-btn {
-    display: block;
-    margin: 8px auto 0;
-    margin-left: auto;
-  }
-}
 
 .state-overlay {
   display: flex; flex-direction: column; align-items: center;

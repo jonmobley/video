@@ -62,7 +62,6 @@ function showEmbed(meta) {
     : '';
   var platformLabels = { youtube: 'YouTube', vimeo: 'Vimeo', dailymotion: 'Dailymotion', loom: 'Loom', wistia: 'Wistia' };
   var platformLabel = platformLabels[platform] || platform;
-  var noteText = 'Note: this watch page\u2019s password and expiration only protect this page. Anyone who already has the original ' + platformLabel + ' URL can still view it there.';
 
   var titleHtml = videoTitle
     ? '<div class="video-title">' + escapeHtml(videoTitle) + '</div>'
@@ -79,7 +78,6 @@ function showEmbed(meta) {
         '</div>' +
       '</div>' +
       titleHtml +
-      '<div class="gating-note">' + noteText + '</div>' +
     '</div>';
 
   var host = document.getElementById('embedHost');
@@ -227,18 +225,3 @@ async function init() {
 }
 
 init();
-
-document.getElementById('footerUploadBtn').addEventListener('click', function() {
-  Promise.all([
-    fetch('/api/auth/me').then(function(r) { return r.ok; }).catch(function() { return false; }),
-    fetch('/api/upload-config').then(function(r) { return r.ok ? r.json() : { requireAuth: true }; }).catch(function() { return { requireAuth: true }; })
-  ]).then(function(results) {
-    var signedIn = results[0];
-    var cfg = results[1];
-    if (signedIn || cfg.requireAuth === false) {
-      window.openUploadModal();
-    } else {
-      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-    }
-  });
-});

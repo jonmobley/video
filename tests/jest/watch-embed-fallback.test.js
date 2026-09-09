@@ -25,10 +25,13 @@ describe('watch page embed fallback CSS', () => {
     expect(visibleDefault).toBeUndefined();
   });
 
-  test('watch.html has no orphan unclosed script before upload helpers', () => {
+  test('watch.html has no orphan inline app script and no upload chrome', () => {
     expect(watchHtml).not.toMatch(/<script>\s*const root\s*=/);
     expect(watchHtml).toMatch(/src="\/js\/watch-app\.js"/);
-    expect(watchHtml).toMatch(/src="\/js\/upload-modal\.js"/);
+    expect(watchHtml).not.toMatch(/upload-modal\.js/);
+    expect(watchHtml).not.toMatch(/footerUploadBtn|footer-upload-btn/);
+    expect(watchApp).not.toMatch(/gating-note|password and expiration only protect/);
+    expect(watchApp).not.toMatch(/footerUploadBtn/);
   });
 
   test('watch.css styles the YouTube click-to-play facade', () => {
