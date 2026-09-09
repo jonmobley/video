@@ -12,7 +12,11 @@ body {
   min-height: 0;
 }
 .video-wrap {
-  width: 100%; max-width: 1100px;
+  /* Size the whole column (player + title) to the 16:9 height budget so
+     the title's left edge stays flush with the video, not the wider stage. */
+  --embed-max-h: calc(100vh - 200px);
+  --embed-max-h: calc(100dvh - 200px);
+  width: min(100%, 1100px, calc(var(--embed-max-h) * 16 / 9));
   display: flex; flex-direction: column; align-items: stretch;
 }
 .video-title {
@@ -26,7 +30,7 @@ body {
 video {
   display: block;
   width: 100%; height: auto;
-  max-height: calc(100vh - 160px);
+  max-height: var(--embed-max-h);
   background: #000; border-radius: 12px;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
   object-fit: contain;
@@ -34,16 +38,11 @@ video {
 
 .embed-frame {
   /* Keep a true 16:9 box even when height is capped on short/wide
-     viewports. Without the width clamp, max-height alone makes the
-     iframe wider than 16:9 and YouTube letterboxes the video while its
-     chrome sits on the outer edges. */
-  --embed-max-h: calc(100vh - 200px);
-  --embed-max-h: calc(100dvh - 200px);
+     viewports. Width is owned by .video-wrap so the title stays aligned. */
   position: relative;
-  width: min(100%, calc(var(--embed-max-h) * 16 / 9));
+  width: 100%;
   max-height: var(--embed-max-h);
   aspect-ratio: 16 / 9;
-  margin-inline: auto;
   background: #000; border-radius: 12px; overflow: hidden;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
@@ -122,18 +121,16 @@ video {
 
 @media (max-width: 600px) {
   .stage { padding: 10px; }
-  .video-wrap { gap: 0; }
-  video, .embed-frame { border-radius: 8px; }
-  video { max-height: calc(100dvh - 220px); }
-  .embed-frame {
+  .video-wrap {
+    gap: 0;
     --embed-max-h: calc(100vh - 240px);
     --embed-max-h: calc(100dvh - 240px);
   }
+  video, .embed-frame { border-radius: 8px; }
 }
 @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
   .stage { padding: 6px; }
-  video { max-height: calc(100dvh - 80px); }
-  .embed-frame {
+  .video-wrap {
     --embed-max-h: calc(100vh - 80px);
     --embed-max-h: calc(100dvh - 80px);
   }

@@ -41,12 +41,14 @@ describe('watch page embed fallback CSS', () => {
     expect(watchCss).not.toMatch(/\.yt-facade-play\s*\{/);
   });
 
-  test('embed-frame keeps 16:9 when height-capped on wide screens', () => {
-    // Regression: max-height alone let width stay 100%, so YouTube chrome
-    // sat on the pillarbox edges instead of over the video.
-    expect(watchCss).toMatch(/\.embed-frame\s*\{[^}]*--embed-max-h:/);
-    expect(watchCss).toMatch(/width:\s*min\(\s*100%\s*,\s*calc\(\s*var\(--embed-max-h\)\s*\*\s*16\s*\/\s*9\s*\)\s*\)/);
-    expect(watchCss).toMatch(/aspect-ratio:\s*16\s*\/\s*9/);
+  test('video-wrap keeps 16:9 width so the title aligns with the player', () => {
+    // Regression: clamping only .embed-frame left the title full-width of
+    // the stage, so it sat past the video's left edge on wide screens.
+    expect(watchCss).toMatch(/\.video-wrap\s*\{[^}]*--embed-max-h:/);
+    expect(watchCss).toMatch(
+      /\.video-wrap\s*\{[^}]*width:\s*min\(\s*100%\s*,\s*1100px\s*,\s*calc\(\s*var\(--embed-max-h\)\s*\*\s*16\s*\/\s*9\s*\)\s*\)/
+    );
+    expect(watchCss).toMatch(/\.embed-frame\s*\{[^}]*aspect-ratio:\s*16\s*\/\s*9/);
   });
 });
 
