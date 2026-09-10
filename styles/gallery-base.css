@@ -1343,6 +1343,93 @@ body:has(.video-container.active) .page-header {
     backdrop-filter: blur(4px);
 }
 
+/* ===== BUNNY STREAM PLAYBACK & UPLOADS ===== */
+
+.bunny-embed-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: #000;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.bunny-embed-frame.is-ready {
+    opacity: 1;
+}
+
+/* Bunny renders the poster after encoding; show a quiet placeholder meanwhile. */
+.thumb-processing,
+.thumbnail.thumb-processing-bg {
+    background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+}
+
+.thumb-processing::after {
+    content: 'Processing…';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+}
+
+.form-group input[type="file"] {
+    padding: 10px 12px;
+    cursor: pointer;
+}
+
+.form-group input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent-color, #008f67);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.video-file-hint:empty {
+    display: none;
+}
+
+.upload-progress {
+    margin: 0 0 8px;
+}
+
+.upload-progress.hidden {
+    display: none;
+}
+
+.upload-progress-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: #aaa;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.upload-progress-track {
+    height: 8px;
+    border-radius: 999px;
+    background: #2a2a2a;
+    overflow: hidden;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: var(--accent-color, #008f67);
+    transition: width 0.2s ease;
+}
+
 @media screen and (min-width: 768px) {
     .video-item:not(.active):hover .thumbnail-play-button {
         display: flex;

@@ -213,22 +213,26 @@ exports.handler = async (event, context) => {
     
     console.log(`Fetching videos for page: ${page}`);
     try {
-        const result = await query('SELECT id, wistia_id, title, category, tags, url_string, "order", video_url, platform, thumbnail_url FROM videos WHERE page = $1 ORDER BY "order" ASC', [page]);
+        const result = await query('SELECT id, wistia_id, title, category, tags, url_string, "order", video_url, platform, thumbnail_url, duration_seconds FROM videos WHERE page = $1 ORDER BY "order" ASC', [page]);
         const data = result.rows;
         // Transform Supabase data to match expected format
         // Converts snake_case database fields to camelCase for frontend
         const videos = data.map(video => ({
           id: video.id,
-          wistiaId: video.wistia_id,        // wistia_id -> wistiaId
+          // Historical column name: holds the Wistia hashed id for legacy rows
+          // and the Bunny Stream video GUID for uploaded rows.
+          wistiaId: video.wistia_id,
           title: video.title,
           category: video.category,
           tags: video.tags || [],           // Ensure array even if null
           urlString: video.url_string,      // url_string -> urlString
           order: video.order,
           video_url: video.video_url,       // Keep snake_case for compatibility
+          videoUrl: video.video_url || null, // Bunny embed URL for platform 'bunny'
           platform: video.platform || 'wistia', // Default to wistia for backwards compatibility
-          // Stored frame thumbnail (Dropbox capture, etc.). Optional.
-          thumbnailUrl: video.thumbnail_url || null
+          // Stored frame thumbnail (Bunny CDN, Dropbox capture, etc.). Optional.
+          thumbnailUrl: video.thumbnail_url || null,
+          duration: video.duration_seconds || null
         }));
 
         console.log(`Successfully fetched ${videos.length} videos for page: ${page}`);

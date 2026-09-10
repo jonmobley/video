@@ -196,14 +196,15 @@ Main page structure with:
             <h3>Add New Video</h3>
             <form id="addVideoForm">
                 <div class="form-group">
-                    <label for="wistiaLink">Wistia Video Link</label>
-                    <input type="url" id="wistiaLink" placeholder="Paste Wistia video link here..." required>
-                    <small>Paste any Wistia video URL to auto-populate details</small>
+                    <label for="videoFile">Video File</label>
+                    <input type="file" id="videoFile" accept="video/*,.mp4,.mov,.m4v,.webm" required>
+                    <small>Uploads straight to your Bunny Stream library. Keep this tab open until the upload finishes.</small>
+                    <small id="videoFileHint" class="video-file-hint"></small>
                 </div>
                 
                 <div class="form-group">
                     <label for="newVideoTitle">Video Title</label>
-                    <input type="text" id="newVideoTitle" placeholder="Video title will be loaded..." required>
+                    <input type="text" id="newVideoTitle" placeholder="Video title (filled from the file name)" required>
                 </div>
                 
                 <div class="form-group">
@@ -221,8 +222,16 @@ Main page structure with:
                     </div>
                 </div>
                 
+                <div class="upload-progress hidden" id="addVideoProgress">
+                    <div class="upload-progress-label">
+                        <span id="addVideoProgressText">Uploading…</span>
+                        <span id="addVideoProgressPct">0%</span>
+                    </div>
+                    <div class="upload-progress-track"><div class="upload-progress-fill" id="addVideoProgressFill"></div></div>
+                </div>
+                
                 <div class="add-video-buttons">
-                    <button type="submit" class="btn-add-video">Add Video</button>
+                    <button type="submit" class="btn-add-video">Upload Video</button>
                     <button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button>
                 </div>
             </form>
@@ -257,7 +266,7 @@ Main page structure with:
                 </div>
                 
                 <div class="form-group">
-                    <label>Wistia Video ID</label>
+                    <label>Video ID</label>
                     <input type="text" id="editVideoId" readonly class="readonly-input">
                     <small>Video ID cannot be changed</small>
                 </div>
@@ -324,10 +333,9 @@ Main page structure with:
         </div>
     </div>
 
-    <!-- Wistia JavaScript API -->
-    <!-- ===== EXTERNAL SCRIPTS ===== -->
-    <!-- Wistia video player API -->
-    <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+    <!-- ===== SCRIPTS ===== -->
+    <!-- Videos play from Bunny Stream; the Wistia SDK is injected on demand
+         only for rows created before the migration. -->
     
     <!-- Shared utilities -->
     <script src="/js/shared-errors.js"></script>
@@ -344,7 +352,8 @@ Main page structure with:
                               MAIN JAVASCRIPT APPLICATION
     ========================================================================
     This script handles all page functionality including:
-    - Video player management and Wistia integration
+    - Video player management (Bunny Stream embeds, legacy Wistia rows)
+    - Direct browser uploads to Bunny Stream for page editors
     - Category and tag filtering system
     - Admin interface for content management
     - Data synchronization with Supabase backend
@@ -352,6 +361,7 @@ Main page structure with:
     - SEO and social media optimization
     ======================================================================== 
     -->
+    <script src="/js/bunny-upload.js"></script>
     <script src="/js/oz-app.js"></script>
     
     <!-- End of Oz Dance Videos Page -->
