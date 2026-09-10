@@ -133,6 +133,10 @@
   box-shadow: 0 12px 30px rgba(78,205,196,0.32);
 }
 .upload-card button.btn.upload-btn:active { transform: translateY(0); filter: brightness(0.96); }
+.upload-card button.btn.upload-btn.is-disabled,
+.upload-card button.btn.upload-btn.is-disabled:hover {
+  opacity: 0.6; transform: none; filter: none; box-shadow: none; cursor: pointer;
+}
 
 /* Copy button */
 .upload-card button.btn.copy-btn,

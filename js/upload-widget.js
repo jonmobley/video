@@ -35,8 +35,10 @@
     if (err.userFacing && err.message) return err.message;
     if (status && err.message) return err.message;
     if (status && Feedback) return Feedback.messageForStatus(status, def);
-    if (err.message && !/^Chunk \d+ failed$/.test(err.message)) return err.message;
-    return def;
+    if (/^Chunk \d+ failed$/.test(err.message || '')) return def;
+    // Raw JS errors (TypeError from a missing API, etc.) mean nothing to users.
+    if (/^(TypeError|SyntaxError|RangeError|ReferenceError|AbortError|DOMException)$/.test(err.name || '')) return def;
+    return err.message || def;
   }
 
   const TEMPLATE = `
@@ -527,16 +529,17 @@
       updateUploadBtnState();
     });
 
+    // The button stays clickable when something is missing (only dimmed via
+    // aria-disabled) so a click can point at the field that needs attention
+    // instead of silently doing nothing.
     function updateUploadBtnState() {
-      if (mode === 'file') {
-        const hasFiles = isFolderMode ? selectedFiles.length > 0 : !!selectedFile;
-        const hasTitle = titleInput.value.trim().length > 0;
-        uploadBtn.disabled = !(hasFiles && hasTitle);
-      } else {
-        const hasLink = !!parsedLink;
-        const hasTitle = titleInput.value.trim().length > 0;
-        uploadBtn.disabled = !(hasLink && hasTitle);
-      }
+      const hasTitle = titleInput.value.trim().length > 0;
+      const hasSource = mode === 'file'
+        ? (isFolderMode ? selectedFiles.length > 0 : !!selectedFile)
+        : !!parsedLink;
+      const ready = hasSource && hasTitle;
+      uploadBtn.classList.toggle('is-disabled', !ready);
+      uploadBtn.setAttribute('aria-disabled', String(!ready));
     }
 
     function applyFolderMode(on) {
