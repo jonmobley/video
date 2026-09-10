@@ -57,7 +57,9 @@
         message = body.message;
       }
     } catch (_) { /* non-JSON body */ }
-    if (!message) message = messageForStatus(status, fallback);
+    // 5xx bodies are generic ("Could not load folder.") and say nothing the
+    // user can act on; our copy at least tells them to try again shortly.
+    if (!message || status >= 500) message = messageForStatus(status, fallback);
     return { status, code, message };
   }
 
@@ -92,7 +94,7 @@
   }
 
   function escapeHtml(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, c =>
+    return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, c =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
   }
 
@@ -153,7 +155,7 @@
    */
   function flashButton(btn, label, className, ms) {
     if (!btn) return;
-    if (btn.dataset.flashOriginal == null) btn.dataset.flashOriginal = btn.textContent;
+    if (btn.dataset.flashOriginal === undefined) btn.dataset.flashOriginal = btn.textContent;
     if (btn._flashTimer) clearTimeout(btn._flashTimer);
     btn.textContent = label;
     if (className) btn.classList.add(className);

@@ -62,6 +62,12 @@ describe('readApiError / errorFromResponse', () => {
     expect(notFound.message).toMatch(/could not be found/i);
   });
 
+  test('prefers actionable copy over generic 5xx server text', async () => {
+    const info = await Feedback.readApiError(jsonResponse(500, { error: { code: 'INTERNAL', message: 'Could not load folder.' } }));
+    expect(info.message).toMatch(/on our end.*try again/i);
+    expect(info.code).toBe('INTERNAL');
+  });
+
   test('errorFromResponse yields a userFacing Error with status', async () => {
     const err = await Feedback.errorFromResponse(jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'Not yours.' } }));
     expect(err).toBeInstanceOf(Error);
