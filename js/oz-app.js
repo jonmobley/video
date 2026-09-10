@@ -11,10 +11,91 @@
             ? window.PageTemplate.getDefaultPresentation()
             : { empty_state_enabled: false, force_empty_state: false, choreography_by_song: {} };
         let currentWistiaVideo = null;
+        let currentBunnyFrame = null;
         const videoContainer = document.getElementById('wistia-player');
 
         // Track currently playing video for proper cleanup
         let currentlyPlayingVideoId = null;
+
+        // ===== VIDEO PLATFORM HELPERS =====
+        // New videos are uploaded straight to Bunny Stream (platform 'bunny').
+        // Rows created before the migration still carry Wistia ids and keep
+        // playing through the Wistia embed until they are replaced.
+
+        /**
+         * Metadata for a video by hosted id, from the rendered grid item first
+         * (covers freshly uploaded, unsaved videos) and the server list second.
+         * @param {string} videoId
+         * @returns {{platform: string, videoUrl: string|null, thumbnailUrl: string|null, duration: number|null}}
+         */
+        function getVideoMeta(videoId) {
+            const item = document.querySelector(`.video-item[data-wistia="${CSS.escape(String(videoId))}"]`);
+            if (item && item.dataset.platform) {
+                return {
+                    platform: item.dataset.platform,
+                    videoUrl: item.dataset.videoUrl || null,
+                    thumbnailUrl: item.dataset.thumbnailUrl || null,
+                    duration: item.dataset.duration ? Number(item.dataset.duration) : null
+                };
+            }
+            const record = videos.find(v => v.wistiaId === videoId);
+            return {
+                platform: (record && record.platform) || 'wistia',
+                videoUrl: (record && (record.videoUrl || record.video_url)) || null,
+                thumbnailUrl: (record && record.thumbnailUrl) || null,
+                duration: (record && record.duration) || null
+            };
+        }
+
+        function isBunnyVideo(video) {
+            return (video && video.platform) === 'bunny';
+        }
+
+        /** Poster image for a grid card. Bunny thumbnails come from the CDN. */
+        function videoThumbnailSrc(video) {
+            if (video.thumbnailUrl) return video.thumbnailUrl;
+            if (isBunnyVideo(video)) return '';
+            return `https://embed-ssl.wistia.com/deliveries/${encodeURIComponent(video.wistiaId)}.jpg`;
+        }
+
+        function formatDuration(seconds) {
+            const total = Math.max(0, Math.round(Number(seconds) || 0));
+            const minutes = Math.floor(total / 60);
+            const secs = total % 60;
+            return `${minutes}:${String(secs).padStart(2, '0')}`;
+        }
+
+        /** data-* attributes carried by each grid item so saves round-trip platform info. */
+        function videoDatasetAttributes(video) {
+            const platform = video.platform || 'wistia';
+            const parts = [`data-platform="${escapeAttribute(platform)}"`];
+            const videoUrl = video.videoUrl || video.video_url;
+            if (videoUrl) parts.push(`data-video-url="${escapeAttribute(videoUrl)}"`);
+            if (video.thumbnailUrl) parts.push(`data-thumbnail-url="${escapeAttribute(video.thumbnailUrl)}"`);
+            if (video.duration) parts.push(`data-duration="${escapeAttribute(video.duration)}"`);
+            return parts.join(' ');
+        }
+
+        /** Thumbnail image + duration badge markup for a grid card. */
+        function videoThumbnailMarkup(video) {
+            const safeId = escapeAttribute(video.wistiaId);
+            const safeTitle = escapeHtml(video.title);
+            const src = videoThumbnailSrc(video);
+            const fallbackAttr = isBunnyVideo(video) ? `data-thumb-hide-on-error="${safeId}"` : `data-thumb-fallback="${safeId}"`;
+            const durationText = video.duration ? formatDuration(video.duration) : '--:--';
+            const durationClass = video.duration ? '' : ' placeholder';
+            const img = src
+                ? `<img src="${escapeAttribute(src)}" alt="${safeTitle}" class="thumb-img-cover" ${fallbackAttr}>`
+                : '<div class="thumb-img-cover thumb-processing" aria-hidden="true"></div>';
+            return `${img}
+                            <div class="thumbnail-duration${durationClass}" id="thumb-duration-${safeId}">${durationText}</div>`;
+        }
+
+        /** Fetch Wistia oEmbed metadata only for legacy Wistia rows. */
+        function loadHostedMetadata(video) {
+            if (isBunnyVideo(video)) return;
+            loadVideoDuration(video.wistiaId, defaultCacheOptions);
+        }
 
         
         // Available category icons for admin interface
@@ -231,7 +312,7 @@
             console.log('🛑 Stopping video and closing player');
             
             // Stop the current Wistia video if it exists
-            if (window.Wistia && currentlyPlayingVideoId) {
+            if (window.Wistia && currentlyPlayingVideoId && currentWistiaVideo) {
                 const video = window.Wistia.api(`wistia_${currentlyPlayingVideoId}`);
                 if (video) {
                     console.log('⏹️ Pausing and resetting video:', currentlyPlayingVideoId);
@@ -241,9 +322,11 @@
                     console.log('⚠️ Video API not found for:', currentlyPlayingVideoId);
                 }
             }
+            pauseBunnyPlayer();
             
             // Clear current video reference
             currentWistiaVideo = null;
+            currentBunnyFrame = null;
             
             // Hide the video container with smooth animation
             const videoContainerElement = document.querySelector('.video-container');
@@ -294,45 +377,125 @@
             });
         }
 
-        // Load Wistia video
-        function loadWistiaVideo(wistiaId, title) {
-            console.log('🎬 Loading Wistia video:', wistiaId, title);
-            
-            // Show video container
+        /**
+         * Load a video into the header player, picking the embed by platform.
+         * @param {string} videoId - Hosted id (Bunny GUID or legacy Wistia id)
+         * @param {string} title
+         */
+        function loadVideo(videoId, title) {
+            const meta = getVideoMeta(videoId);
+            if (meta.platform === 'bunny') {
+                loadBunnyVideo(videoId, title, meta);
+            } else {
+                loadWistiaVideo(videoId, title);
+            }
+        }
+
+        function showPlayerLoadingState(videoId, title) {
             const videoContainerElement = document.querySelector('.video-container');
             videoContainerElement.classList.add('active');
-            
-            // Show loading state with better UX
+
             videoContainer.innerHTML = `
                 <div class="video-loading-state video-placeholder-state">
                     <div class="video-placeholder-inner">
-                        <div class="video-loading-title">Loading "${title}"</div>
+                        <div class="video-loading-title">Loading "${escapeHtml(title)}"</div>
                         <div class="video-loading-spinner"></div>
                     </div>
                 </div>
             `;
-            
-            // Update video title immediately for better perceived performance
+
             const titleElement = document.getElementById('current-video-title');
-            if (titleElement) {
-                titleElement.textContent = title;
-            }
-            
-            // Update mobile title
+            if (titleElement) titleElement.textContent = title;
             const mobileTitleElement = document.getElementById('mobile-video-title');
-            if (mobileTitleElement) {
-                mobileTitleElement.textContent = title;
+            if (mobileTitleElement) mobileTitleElement.textContent = title;
+
+            setActiveVideo(videoId);
+        }
+
+        function pauseBunnyPlayer() {
+            if (!currentBunnyFrame || !currentBunnyFrame.contentWindow) return;
+            try {
+                // Bunny's embed speaks the player.js postMessage protocol.
+                currentBunnyFrame.contentWindow.postMessage(
+                    JSON.stringify({ context: 'player.js', version: '0.0.11', method: 'pause' }),
+                    'https://player.mediadelivery.net'
+                );
+                currentBunnyFrame.contentWindow.postMessage(
+                    JSON.stringify({ context: 'player.js', version: '0.0.11', method: 'pause' }),
+                    'https://iframe.mediadelivery.net'
+                );
+            } catch (error) {
+                console.warn('Could not pause Bunny player:', error);
             }
-            
-            // Set active video state
-            setActiveVideo(wistiaId);
+        }
+
+        // Load a Bunny Stream upload in the header player
+        function loadBunnyVideo(videoId, title, meta) {
+            console.log('🐰 Loading Bunny video:', videoId, title);
+            pauseBunnyPlayer();
+            currentWistiaVideo = null;
+            showPlayerLoadingState(videoId, title);
+
+            const embedUrl = meta && meta.videoUrl;
+            if (!embedUrl || !/^https:\/\/(player|iframe)\.mediadelivery\.net\//.test(embedUrl)) {
+                videoContainer.innerHTML = `
+                    <div class="video-error-state">
+                        <div class="video-placeholder-inner">
+                            <div class="video-error-title">⚠️ Video Unavailable</div>
+                            <div class="video-error-sub-margin">This upload has no playback URL yet.</div>
+                            <button data-action="close-player" class="video-close-btn">Close</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const src = new URL(embedUrl);
+            src.searchParams.set('autoplay', 'true');
+            src.searchParams.set('preload', 'true');
+            src.searchParams.set('responsive', 'true');
+
+            const frame = document.createElement('iframe');
+            frame.className = 'bunny-embed-frame';
+            frame.src = src.toString();
+            frame.title = title;
+            frame.setAttribute('allow', 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen');
+            frame.setAttribute('allowfullscreen', 'true');
+            frame.setAttribute('loading', 'eager');
+            frame.addEventListener('load', () => {
+                const loadingElement = videoContainer.querySelector('.video-loading-state');
+                if (loadingElement) loadingElement.remove();
+                frame.classList.add('is-ready');
+            });
+
+            videoContainer.appendChild(frame);
+            currentBunnyFrame = frame;
+        }
+
+        // Inject the Wistia SDK only when a legacy Wistia row is played.
+        function ensureWistiaSdk() {
+            if (typeof window.Wistia !== 'undefined' || document.querySelector('script[data-wistia-sdk]')) return;
+            const script = document.createElement('script');
+            script.src = 'https://fast.wistia.com/assets/external/E-v1.js';
+            script.async = true;
+            script.dataset.wistiaSdk = 'true';
+            document.head.appendChild(script);
+        }
+
+        // Load a legacy Wistia video
+        function loadWistiaVideo(wistiaId, title) {
+            console.log('🎬 Loading Wistia video:', wistiaId, title);
+            pauseBunnyPlayer();
+            currentBunnyFrame = null;
+            showPlayerLoadingState(wistiaId, title);
+            ensureWistiaSdk();
             
             // Ensure Wistia script is loaded with better error handling
             if (typeof window.Wistia === 'undefined') {
                 console.log('⏳ Wistia not loaded yet, waiting...');
                 // Add timeout counter to prevent infinite retries
                 const retryCount = loadWistiaVideo.retryCount || 0;
-                if (retryCount < 10) { // Max 5 seconds of retries
+                if (retryCount < 20) { // Max 10 seconds of retries
                     loadWistiaVideo.retryCount = retryCount + 1;
                     setTimeout(() => loadWistiaVideo(wistiaId, title), 500);
                     return;
@@ -534,7 +697,7 @@
                 featuredContent.type = 'video';
                 
                 // Load the featured video in the player
-                loadWistiaVideo(featuredVideo.wistiaId, featuredVideo.title);
+                loadVideo(featuredVideo.wistiaId, featuredVideo.title);
                 
                 // Show the video player
                 const videoPlayer = document.getElementById('videoPlayer');
@@ -622,11 +785,10 @@
                 `;
                 
                 const html = `
-                    <div class="video-item" data-category="${safeCategory}" data-tags="${tagsString}" data-title="${safeTitle}" data-wistia="${safeWistiaId}">
+                    <div class="video-item" data-category="${safeCategory}" data-tags="${tagsString}" data-title="${safeTitle}" data-wistia="${safeWistiaId}" ${videoDatasetAttributes(video)}>
                         <button class="video-delete-btn" data-action="delete-video" data-wistia-id="${safeWistiaId}" title="Delete Video"></button>
                         <div class="thumbnail" id="thumb-${safeWistiaId}">
-                            <img src="https://embed-ssl.wistia.com/deliveries/${safeWistiaId}.jpg" alt="${safeTitle}" class="thumb-img-cover" data-thumb-fallback="${safeWistiaId}">
-                            <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
+                            ${videoThumbnailMarkup(video)}
                             <div class="thumbnail-play-button"></div>
                             <div class="featured-controls">
                                 <button class="featured-btn${featuredContent.videoId === video.wistiaId ? ' active' : ''}" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
@@ -721,15 +883,19 @@
 
         // Initialize lazy loading with Intersection Observer
         function initializeLazyLoading(videos) {
+            // Bunny uploads carry their duration/thumbnail in the record itself;
+            // only legacy Wistia rows need the oEmbed lookup.
+            const wistiaVideos = videos.filter(video => !isBunnyVideo(video));
+
             // Load immediately visible videos (above the fold)
-            const immediateVideos = videos.slice(0, 6); // First 6 videos load immediately
+            const immediateVideos = wistiaVideos.slice(0, 6); // First 6 videos load immediately
             immediateVideos.forEach(video => {
-                loadVideoDuration(video.wistiaId, defaultCacheOptions);
+                loadHostedMetadata(video);
             });
 
             // Set up lazy loading for remaining videos
-            if (videos.length > 6) {
-                const lazyVideos = videos.slice(6);
+            if (wistiaVideos.length > 6) {
+                const lazyVideos = wistiaVideos.slice(6);
                 setupIntersectionObserver(lazyVideos);
             }
         }
@@ -747,7 +913,9 @@
                     if (entry.isIntersecting) {
                         const wistiaId = entry.target.dataset.wistia;
                         if (wistiaId) {
-                            loadVideoDuration(wistiaId, defaultCacheOptions);
+                            if (entry.target.dataset.platform !== 'bunny') {
+                                loadVideoDuration(wistiaId, defaultCacheOptions);
+                            }
                             observer.unobserve(entry.target); // Stop observing once loaded
                         }
                     }
@@ -810,7 +978,7 @@
                         return;
                     } else {
                         // Load the new video
-                        loadWistiaVideo(wistiaId, title);
+                        loadVideo(wistiaId, title);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 });
@@ -1236,6 +1404,9 @@
         document.addEventListener('visibilitychange', () => {
             if (currentWistiaVideo && document.hidden) {
                 currentWistiaVideo.pause();
+            }
+            if (currentBunnyFrame && document.hidden) {
+                pauseBunnyPlayer();
             }
         });
 
@@ -2502,9 +2673,13 @@
                 return;
             }
             
-            // Find the video in the videos array
-            const video = videos.find(v => v.wistiaId === wistiaId);
+            // Find the video in the videos array; uploads added this session are
+            // only in the grid until the editor saves.
+            const gridItem = document.querySelector(`[data-wistia="${wistiaId}"]`);
+            const video = videos.find(v => v.wistiaId === wistiaId) ||
+                (gridItem ? { wistiaId, title: gridItem.dataset.title || 'this video', platform: gridItem.dataset.platform } : null);
             if (!video) return;
+            const platform = video.platform || getVideoMeta(wistiaId).platform;
             
             openDeleteVideoDialog(video.title, async function() {
                 const index = videos.findIndex(v => v.wistiaId === wistiaId);
@@ -2520,6 +2695,12 @@
                 const videoElement = document.querySelector(`[data-wistia="${wistiaId}"]`);
                 if (videoElement) {
                     videoElement.remove();
+                }
+
+                // Unsaved uploads are removed from Bunny right away; saved ones are
+                // cleaned up server-side when the page is saved.
+                if (platform === 'bunny') {
+                    discardBunnyUpload(wistiaId);
                 }
                 
                 markUnsavedChanges();
@@ -2732,9 +2913,19 @@
                     
                     // Use existing server data if available, otherwise create new video object
                     const serverVideo = serverVideosMap[wistiaId];
+                    const platform = item.dataset.platform || serverVideo?.platform || 'wistia';
+                    const videoUrl = item.dataset.videoUrl || serverVideo?.videoUrl || serverVideo?.video_url || null;
+                    const thumbnailUrl = item.dataset.thumbnailUrl || serverVideo?.thumbnailUrl || null;
+                    const duration = item.dataset.duration
+                        ? Number(item.dataset.duration)
+                        : (serverVideo?.duration || null);
                     const video = {
                         id: serverVideo?.id || wistiaId, // Use wistiaId as id for new videos
                         wistiaId: wistiaId,
+                        platform: platform,
+                        video_url: videoUrl,
+                        thumbnailUrl: thumbnailUrl,
+                        duration: duration,
                         title: title,
                         category: category,
                         tags: tags,
@@ -2876,7 +3067,7 @@
                 featuredContent.title = videoItem.dataset.title;
                 
                 // Load as default video
-                loadWistiaVideo(wistiaId, featuredContent.title);
+                loadVideo(wistiaId, featuredContent.title);
                 
                 markUnsavedChanges();
                 console.log('Featured video set:', wistiaId);
@@ -2959,7 +3150,7 @@
             const videos = Array.from(document.querySelectorAll('.video-item'));
             if (videos.length > 0) {
                 const firstVideo = videos[0];
-                loadWistiaVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
+                loadVideo(firstVideo.dataset.wistia, firstVideo.dataset.title);
             }
             
             markUnsavedChanges();
@@ -2973,7 +3164,7 @@
                 const featuredVideo = document.querySelector(`[data-wistia="${featuredContent.videoId}"]`);
                 if (featuredVideo) {
                     featuredVideo.classList.add('featured');
-                    loadWistiaVideo(featuredContent.videoId, featuredContent.title);
+                    loadVideo(featuredContent.videoId, featuredContent.title);
                     return;
                 }
             } else if (featuredContent.type === 'image' && featuredContent.imageUrl) {
@@ -3255,7 +3446,9 @@
                 // Remove the video element from the DOM
                 const videoItem = document.querySelector(`[data-wistia="${currentEditingVideoId}"]`);
                 if (videoItem) {
+                    const wasBunnyUpload = videoItem.dataset.platform === 'bunny';
                     videoItem.remove();
+                    if (wasBunnyUpload) discardBunnyUpload(currentEditingVideoId);
                     console.log('Video deleted from edit popup:', currentEditingVideoId);
                     
                     // Mark as having unsaved changes
@@ -3284,6 +3477,7 @@
             console.log('🎬 DEBUG: Resetting add video form');
             document.getElementById('addVideoForm').reset();
             document.getElementById('addVideoError').style.display = 'none';
+            resetUploadProgress();
             
             // Populate category dropdown
             console.log('🎬 DEBUG: Populating category dropdown');
@@ -3292,7 +3486,8 @@
             // Show popup
             console.log('🎬 DEBUG: Showing add video overlay');
             document.getElementById('addVideoOverlay').style.display = 'flex';
-            document.getElementById('wistiaLink').focus();
+            const fileInput = document.getElementById('videoFile');
+            if (fileInput) fileInput.focus();
             
             console.log('🎬 DEBUG: Add video popup opened successfully');
         }
@@ -3417,119 +3612,150 @@
             });
         }
 
-        // Wistia Link Parsing and Title Fetching
-        function extractWistiaId(url) {
-            // Handle various Wistia URL formats:
-            // https://videosharepro.wistia.com/medias/abc123
-            // https://fast.wistia.net/embed/iframe/abc123
-            // https://videosharepro.wistia.com/embed/iframe/abc123
-            // abc123 (direct ID)
-            
-            if (!url) return null;
-            
-            // If it's already just an ID (alphanumeric string)
-            if (/^[a-zA-Z0-9]+$/.test(url.trim())) {
-                return url.trim();
-            }
-            
-            // Extract from various URL patterns
-            const patterns = [
-                /wistia\.com\/medias\/([a-zA-Z0-9]+)/,
-                /wistia\.net\/embed\/iframe\/([a-zA-Z0-9]+)/,
-                /wistia\.com\/embed\/iframe\/([a-zA-Z0-9]+)/,
-                /fast\.wistia\.com\/embed\/iframe\/([a-zA-Z0-9]+)/
-            ];
-            
-            for (const pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) {
-                    return match[1];
+        // ===== DIRECT UPLOAD TO BUNNY STREAM =====
+        const MAX_UPLOAD_BYTES = 8 * 1024 * 1024 * 1024; // 8 GB; Bunny accepts far larger via TUS
+        let activeUploadController = null;
+        let pendingUploadVideoId = null;
+
+        function uploadProgressElements() {
+            return {
+                wrap: document.getElementById('addVideoProgress'),
+                fill: document.getElementById('addVideoProgressFill'),
+                text: document.getElementById('addVideoProgressText'),
+                pct: document.getElementById('addVideoProgressPct')
+            };
+        }
+
+        function resetUploadProgress() {
+            const { wrap, fill, text, pct } = uploadProgressElements();
+            if (wrap) wrap.classList.add('hidden');
+            if (fill) fill.style.width = '0%';
+            if (text) text.textContent = 'Uploading…';
+            if (pct) pct.textContent = '0%';
+        }
+
+        function showUploadProgress(sent, total, label) {
+            const { wrap, fill, text, pct } = uploadProgressElements();
+            const ratio = total > 0 ? Math.min(1, sent / total) : 0;
+            if (wrap) wrap.classList.remove('hidden');
+            if (fill) fill.style.width = `${Math.round(ratio * 100)}%`;
+            if (text) text.textContent = label || 'Uploading…';
+            if (pct) pct.textContent = `${Math.round(ratio * 100)}%`;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+            if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+            return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+        }
+
+        /** Ask the server to create the Bunny video object and sign the upload. */
+        async function requestBunnyUpload(title) {
+            const response = await fetch('/api/bunny-create-upload', {
+                method: 'POST',
+                headers: pageEditorHeaders(),
+                body: JSON.stringify({ page: pageKey, title })
+            });
+            let payload = null;
+            try { payload = await response.json(); } catch { payload = null; }
+            if (!response.ok) {
+                const message = payload && payload.error && payload.error.message;
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(message || 'Your editor session has expired. Log in again to upload.');
                 }
+                throw new Error(message || `Could not start the upload (${response.status}).`);
             }
-            
-            return null;
+            return payload;
         }
 
-        async function fetchWistiaVideoData(wistiaId) {
-            try {
-                const response = await fetch(`https://fast.wistia.com/oembed?url=https://videosharepro.wistia.com/medias/${wistiaId}&format=json`);
-                const data = await response.json();
-                
-                return {
-                    title: data.title || 'Untitled Video',
-                    duration: data.duration || 0,
-                    thumbnail: data.thumbnail_url || null
-                };
-            } catch (error) {
-                console.error('Failed to fetch Wistia data:', error);
-                return {
-                    title: 'Untitled Video',
-                    duration: 0,
-                    thumbnail: null
-                };
-            }
+        /** Best-effort cleanup of a Bunny video whose upload never completed. */
+        function discardBunnyUpload(videoId) {
+            if (!videoId) return;
+            fetch('/api/bunny-discard-upload', {
+                method: 'POST',
+                headers: pageEditorHeaders(),
+                body: JSON.stringify({ page: pageKey, videoId })
+            }).catch(error => console.warn('Could not discard Bunny upload:', error));
         }
 
-        // Wistia Link Input Handler
-        document.getElementById('wistiaLink').addEventListener('input', async function(e) {
-            const url = e.target.value.trim();
+        /**
+         * Poll Bunny until encoding finishes, then swap in the real thumbnail
+         * and fill any missing duration. Runs in the background after upload.
+         */
+        function watchBunnyProcessing(videoId, attempt = 0) {
+            const item = document.querySelector(`.video-item[data-wistia="${CSS.escape(videoId)}"]`);
+            if (!item || attempt > 120) return; // ~10 minutes at 5s
+            const url = `/api/bunny-video-status?page=${encodeURIComponent(pageKey)}&videoId=${encodeURIComponent(videoId)}`;
+            fetch(url, { headers: pageEditorHeaders() })
+                .then(response => (response.ok ? response.json() : null))
+                .then(status => {
+                    if (!status) return;
+                    if (status.length && !item.dataset.duration) {
+                        item.dataset.duration = String(status.length);
+                        const badge = document.getElementById(`thumb-duration-${videoId}`);
+                        if (badge) {
+                            badge.textContent = formatDuration(status.length);
+                            badge.classList.remove('placeholder');
+                        }
+                    }
+                    if (status.ready) {
+                        refreshBunnyThumbnail(item, videoId, status.thumbnailUrl);
+                        return;
+                    }
+                    setTimeout(() => watchBunnyProcessing(videoId, attempt + 1), 5000);
+                })
+                .catch(() => setTimeout(() => watchBunnyProcessing(videoId, attempt + 1), 10000));
+        }
+
+        function refreshBunnyThumbnail(item, videoId, thumbnailUrl) {
+            const source = thumbnailUrl || item.dataset.thumbnailUrl;
+            if (!source) return;
+            item.dataset.thumbnailUrl = source;
+            const thumb = document.getElementById(`thumb-${videoId}`);
+            if (!thumb) return;
+            thumb.classList.remove('thumb-processing-bg');
+            let img = thumb.querySelector('img.thumb-img-cover');
+            const placeholder = thumb.querySelector('.thumb-processing');
+            if (!img) {
+                img = document.createElement('img');
+                img.className = 'thumb-img-cover';
+                img.alt = item.dataset.title || '';
+                img.setAttribute('data-thumb-hide-on-error', videoId);
+                thumb.insertBefore(img, thumb.firstChild);
+            }
+            if (placeholder) placeholder.remove();
+            img.style.display = '';
+            const busted = new URL(source);
+            busted.searchParams.set('v', String(Date.now()));
+            img.src = busted.toString();
+        }
+
+        // File picker: suggest a title from the file name and show the size
+        document.getElementById('videoFile').addEventListener('change', function(e) {
+            const file = e.target.files && e.target.files[0];
             const titleInput = document.getElementById('newVideoTitle');
             const errorDiv = document.getElementById('addVideoError');
-            
-            // Clear any previous errors
+            const hint = document.getElementById('videoFileHint');
             errorDiv.style.display = 'none';
-            
-            if (!url) {
-                titleInput.value = '';
-                titleInput.placeholder = 'Video title will be loaded...';
-                titleInput.style.borderColor = '';
-                e.target.style.borderColor = '';
+            if (!file) {
+                if (hint) hint.textContent = '';
                 return;
             }
-            
-            const wistiaId = extractWistiaId(url);
-            
-            if (wistiaId) {
-                console.log('🎬 Valid Wistia ID detected:', wistiaId);
-                e.target.style.borderColor = '#4CAF50'; // Green border for valid URL
-                titleInput.placeholder = 'Loading title...';
-                titleInput.disabled = true;
-                titleInput.style.borderColor = '';
-                
-                try {
-                    const videoData = await fetchWistiaVideoData(wistiaId);
-                    
-                    if (videoData && videoData.title) {
-                        titleInput.value = videoData.title;
-                        titleInput.style.borderColor = '#4CAF50'; // Green border for loaded title
-                        console.log('✅ Loaded Wistia data:', { id: wistiaId, ...videoData });
-                    } else {
-                        titleInput.value = '';
-                        titleInput.placeholder = 'Could not load video title';
-                        titleInput.style.borderColor = '#ff9800'; // Orange border for warning
-                        console.warn('⚠️ Could not fetch video data for:', wistiaId);
-                    }
-                } catch (error) {
-                    titleInput.value = '';
-                    titleInput.placeholder = 'Error loading video data';
-                    titleInput.style.borderColor = '#f44336'; // Red border for error
-                    console.error('❌ Error fetching Wistia data:', error);
-                }
-                
-                titleInput.disabled = false;
-            } else {
-                titleInput.value = '';
-                titleInput.placeholder = 'Invalid Wistia URL format';
-                titleInput.style.borderColor = '';
-                e.target.style.borderColor = '#f44336'; // Red border for invalid URL
-                console.warn('⚠️ Invalid Wistia URL format:', url);
+            if (hint) hint.textContent = `${file.name} · ${formatBytes(file.size)}`;
+            if (!titleInput.value.trim() && window.BunnyUpload) {
+                titleInput.value = window.BunnyUpload.titleFromFileName(file.name);
             }
         });
 
         // Add Video Form Handlers
         document.getElementById('cancelAddVideo').addEventListener('click', function() {
+            if (activeUploadController) {
+                activeUploadController.abort();
+                activeUploadController = null;
+            }
             document.getElementById('addVideoOverlay').style.display = 'none';
             document.getElementById('addVideoError').style.display = 'none';
+            resetUploadProgress();
         });
 
         document.getElementById('addVideoForm').addEventListener('submit', async function(e) {
@@ -3537,31 +3763,33 @@
             
             const submitBtn = e.target.querySelector('.btn-add-video');
             const originalBtnText = submitBtn.textContent;
+            const fileInput = document.getElementById('videoFile');
             
             // Show loading state
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Adding Video...';
+            submitBtn.textContent = 'Uploading…';
             
             try {
-                const wistiaUrl = document.getElementById('wistiaLink').value.trim();
+                const file = fileInput.files && fileInput.files[0];
                 const title = document.getElementById('newVideoTitle').value.trim();
                 const category = document.getElementById('newVideoCategory').value;
                 
-                console.log('🎬 Submitting Add Video form:', { wistiaUrl, title, category });
+                console.log('🎬 Submitting Add Video form:', { file: file && file.name, title, category });
                 
-                // Enhanced validation
-                if (!wistiaUrl || !title || !category) {
+                if (!file) {
+                    throw new Error('Choose a video file to upload');
+                }
+                if (!title || !category) {
                     throw new Error('Please fill in all fields');
                 }
-                
-                const wistiaId = extractWistiaId(wistiaUrl);
-                if (!wistiaId) {
-                    throw new Error('Invalid Wistia URL or ID format');
+                if (!window.BunnyUpload) {
+                    throw new Error('The upload script did not load. Refresh the page and try again.');
                 }
-                
-                // Check if video already exists
-                if (document.querySelector(`[data-wistia="${wistiaId}"]`)) {
-                    throw new Error('This video already exists in your collection');
+                if (file.size > MAX_UPLOAD_BYTES) {
+                    throw new Error(`That file is ${formatBytes(file.size)}; the limit is ${formatBytes(MAX_UPLOAD_BYTES)}.`);
+                }
+                if (file.type && !file.type.startsWith('video/')) {
+                    throw new Error('Only video files can be uploaded');
                 }
                 
                 // Validate title length
@@ -3576,17 +3804,42 @@
                 // Collect selected tags
                 const selectedTags = Array.from(document.querySelectorAll('.tag-selector.selected'))
                     .map(tag => tag.dataset.tagId);
-                console.log('🎬 DEBUG: About to add video to grid:', { wistiaId, title, category, tags: selectedTags });
+
+                showUploadProgress(0, file.size, 'Preparing upload…');
+                const [credentials, duration] = await Promise.all([
+                    requestBunnyUpload(title),
+                    window.BunnyUpload.readVideoDuration(file)
+                ]);
+                pendingUploadVideoId = credentials.videoId;
+
+                activeUploadController = new AbortController();
+                await window.BunnyUpload.uploadFile(file, credentials, {
+                    signal: activeUploadController.signal,
+                    onProgress: (sent, total) => {
+                        showUploadProgress(sent, total, `Uploading ${formatBytes(sent)} of ${formatBytes(total)}`);
+                    }
+                });
+                activeUploadController = null;
+                pendingUploadVideoId = null;
+                showUploadProgress(file.size, file.size, 'Upload complete — Bunny is processing the video');
+
+                const videoId = credentials.videoId;
+                console.log('🎬 DEBUG: About to add video to grid:', { videoId, title, category, tags: selectedTags });
                 
                 // Add video to grid
                 await addVideoToGrid({
-                    wistiaId: wistiaId,
+                    wistiaId: videoId,
+                    platform: 'bunny',
+                    videoUrl: credentials.embedUrl,
+                    thumbnailUrl: credentials.thumbnailUrl || null,
+                    duration: duration || null,
                     title: title,
                     category: category,
                     tags: selectedTags
                 });
+                watchBunnyProcessing(videoId);
                 
-                console.log('🎬 SUCCESS: Video added successfully:', { id: wistiaId, title, category, tags: selectedTags });
+                console.log('🎬 SUCCESS: Video added successfully:', { id: videoId, title, category, tags: selectedTags });
                 
                 // Close popup - video was added successfully
                 console.log('🎬 DEBUG: Closing add video popup');
@@ -3595,10 +3848,23 @@
                 
                 // Reset form for next use
                 document.getElementById('addVideoForm').reset();
+                resetUploadProgress();
+                const hint = document.getElementById('videoFileHint');
+                if (hint) hint.textContent = '';
                 
             } catch (error) {
+                activeUploadController = null;
+                if (pendingUploadVideoId) {
+                    discardBunnyUpload(pendingUploadVideoId);
+                    pendingUploadVideoId = null;
+                }
+                if (error && error.name === 'AbortError') {
+                    console.log('🎬 Upload cancelled by editor');
+                    return;
+                }
                 console.error('🎬 ERROR: Failed to add video:', error);
                 console.error('🎬 ERROR: Error details:', error.message, error.stack);
+                resetUploadProgress();
                 document.getElementById('addVideoError').textContent = error.message;
                 document.getElementById('addVideoError').style.display = 'block';
                 return; // Don't close popup if there was an error
@@ -3624,6 +3890,10 @@
             videoElement.setAttribute('data-category', video.category);
             videoElement.setAttribute('data-title', video.title);
             videoElement.setAttribute('data-wistia', video.wistiaId);
+            videoElement.setAttribute('data-platform', video.platform || 'wistia');
+            if (video.videoUrl) videoElement.setAttribute('data-video-url', video.videoUrl);
+            if (video.thumbnailUrl) videoElement.setAttribute('data-thumbnail-url', video.thumbnailUrl);
+            if (video.duration) videoElement.setAttribute('data-duration', String(video.duration));
             
             // Use actual tags for display, not category
             const videoTags = video.tags || [];
@@ -3641,8 +3911,7 @@
             
             videoElement.innerHTML = `
                 <div class="thumbnail" id="thumb-${safeWistiaId}">
-                    <img src="https://embed-ssl.wistia.com/deliveries/${safeWistiaId}.jpg" alt="${safeTitle}" class="thumb-img-cover" data-thumb-fallback="${safeWistiaId}">
-                    <div class="thumbnail-duration" id="thumb-duration-${safeWistiaId}">--:--</div>
+                    ${videoThumbnailMarkup(video)}
                     <div class="thumbnail-play-button"></div>
                     <div class="featured-controls">
                         <button class="featured-btn" data-action="set-featured" data-wistia-id="${safeWistiaId}">Feature</button>
@@ -3676,8 +3945,10 @@
             
             // Load thumbnail and duration (don't await to avoid blocking popup closure)
             try {
-                loadWistiaThumbnail(video.wistiaId, defaultCacheOptions);
-                loadVideoDuration(video.wistiaId, defaultCacheOptions);
+                if (!isBunnyVideo(video)) {
+                    loadWistiaThumbnail(video.wistiaId, defaultCacheOptions);
+                    loadVideoDuration(video.wistiaId, defaultCacheOptions);
+                }
                 console.log('🎬 DEBUG: Thumbnail and duration loading initiated');
             } catch (error) {
                 console.warn('🎬 WARNING: Non-critical error loading video metadata:', error);
@@ -3740,7 +4011,7 @@
                 return;
                 } else {
                     // Load the new video
-                    loadWistiaVideo(wistiaId, title);
+                    loadVideo(wistiaId, title);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             });
@@ -4418,7 +4689,7 @@
             if (!btn) return;
             var action = btn.dataset.action;
             if (action === 'close-player') { stopVideoAndClosePlayer(); }
-            else if (action === 'retry-video') { loadWistiaVideo(btn.dataset.wistiaId, btn.dataset.videoTitle); }
+            else if (action === 'retry-video') { loadVideo(btn.dataset.wistiaId, btn.dataset.videoTitle); }
             else if (action === 'reload-page') { location.reload(); }
             else if (action === 'set-featured') { setFeaturedVideo(btn.dataset.wistiaId); }
             else if (action === 'edit-video') { openEditVideoPopup(btn.dataset.wistiaId, btn.dataset.videoTitle, btn.dataset.videoCategory); }
@@ -4437,6 +4708,13 @@
             if (e.target.hasAttribute('data-thumb-fallback')) {
                 var wId = e.target.dataset.thumbFallback;
                 if (typeof loadWistiaThumbnail === 'function') loadWistiaThumbnail(wId, defaultCacheOptions);
+            }
+            if (e.target.hasAttribute('data-thumb-hide-on-error')) {
+                // Bunny generates the thumbnail after encoding; until then show the
+                // neutral placeholder instead of a broken image.
+                e.target.style.display = 'none';
+                var thumb = document.getElementById('thumb-' + e.target.dataset.thumbHideOnError);
+                if (thumb) thumb.classList.add('thumb-processing-bg');
             }
         }, true);
 

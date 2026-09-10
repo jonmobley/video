@@ -104,11 +104,12 @@
 
     <div class="add-video-overlay hidden" id="addVideoOverlay">
         <div class="add-video-popup"><h3>Add New Video</h3><form id="addVideoForm">
-            <div class="form-group"><label for="wistiaLink">Wistia Video Link</label><input type="url" id="wistiaLink" placeholder="Paste Wistia video link here..." required><small>Paste any Wistia video URL to auto-populate details</small></div>
-            <div class="form-group"><label for="newVideoTitle">Video Title</label><input type="text" id="newVideoTitle" placeholder="Video title will be loaded..." required></div>
+            <div class="form-group"><label for="videoFile">Video File</label><input type="file" id="videoFile" accept="video/*,.mp4,.mov,.m4v,.webm" required><small>Uploads straight to your Bunny Stream library. Keep this tab open until the upload finishes.</small><small id="videoFileHint" class="video-file-hint"></small></div>
+            <div class="form-group"><label for="newVideoTitle">Video Title</label><input type="text" id="newVideoTitle" placeholder="Video title (filled from the file name)" required></div>
             <div class="form-group"><label for="newVideoCategory">Category</label><select id="newVideoCategory" required><option value="">Select Category</option></select></div>
             <div class="form-group"><label>Tags</label><div class="tag-selection-container" id="tagSelectionContainer"></div></div>
-            <div class="add-video-buttons"><button type="submit" class="btn-add-video">Add Video</button><button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button></div>
+            <div class="upload-progress hidden" id="addVideoProgress"><div class="upload-progress-label"><span id="addVideoProgressText">Uploading…</span><span id="addVideoProgressPct">0%</span></div><div class="upload-progress-track"><div class="upload-progress-fill" id="addVideoProgressFill"></div></div></div>
+            <div class="add-video-buttons"><button type="submit" class="btn-add-video">Upload Video</button><button type="button" class="btn-cancel-add" id="cancelAddVideo">Cancel</button></div>
         </form><div class="add-video-error hidden" id="addVideoError"></div></div>
     </div>
 
@@ -117,7 +118,7 @@
             <div class="form-group"><label for="editVideoTitle">Video Title</label><input type="text" id="editVideoTitle" placeholder="Enter video title..." required></div>
             <div class="form-group"><label for="editVideoCategory">Category</label><select id="editVideoCategory" required><option value="">Select Category</option></select></div>
             <div class="form-group"><label>Tags</label><div class="tag-selection-container" id="editTagSelectionContainer"></div></div>
-            <div class="form-group"><label>Wistia Video ID</label><input type="text" id="editVideoId" readonly class="readonly-input"><small>Video ID cannot be changed</small></div>
+            <div class="form-group"><label>Video ID</label><input type="text" id="editVideoId" readonly class="readonly-input"><small>Video ID cannot be changed</small></div>
             <div class="edit-video-buttons"><button type="submit" class="btn-save-video">Save Changes</button><button type="button" class="btn-delete-video" id="deleteVideoBtn">Delete Video</button><button type="button" class="btn-cancel-edit" id="cancelEditVideo">Cancel</button></div>
         </form><div class="edit-video-error hidden" id="editVideoError"></div></div>
     </div>
@@ -140,7 +141,6 @@
         </div>
     </div>
 
-    <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
     <script src="/js/shared-errors.js"></script>
     <script src="/js/shared-color-utils.js"></script>
     <script src="/js/shared-page-config.js"></script>
@@ -149,6 +149,7 @@
     <script src="/js/shared-thumbnail-utils.js"></script>
     <script src="/js/shared-admin-dialogs.js"></script>
     <script src="/js/shared-page-template.js"></script>
+    <script src="/js/bunny-upload.js"></script>
     <script src="/js/oz-app.js"></script>
 </body>
 </html>

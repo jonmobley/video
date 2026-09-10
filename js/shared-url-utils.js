@@ -33,7 +33,10 @@ function checkForDirectVideoLink() {
         if (video && video.wistiaId) {
             console.log('🔗 Direct link detected, loading video:', video.title);
             setTimeout(function() {
-                loadWistiaVideo(video.wistiaId, video.title);
+                // Pages with platform-aware playback (Bunny + legacy Wistia) expose
+                // loadVideo; older gallery apps only have the Wistia loader.
+                var load = typeof loadVideo === 'function' ? loadVideo : loadWistiaVideo;
+                load(video.wistiaId, video.title);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }, 100);
         }
