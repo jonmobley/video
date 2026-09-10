@@ -4,9 +4,53 @@
     const toast      = document.getElementById('toast');
     const logoutBtn  = document.getElementById('logoutBtn');
 
+    const Feedback = window.VsFeedback;
+
+    // Toasts are reserved for confirmations of things that already happened
+    // (deleted, updated). Errors are rendered next to the control that failed.
     function showToast(msg) {
       toast.textContent = msg; toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // Replace the main content area with a load failure + retry control.
+    function showLoadError(title, sub, onRetry) {
+      content.innerHTML =
+        '<div class="empty load-error" role="alert">' +
+          '<div class="empty-title load-error-title"></div>' +
+          '<div class="empty-sub load-error-sub"></div>' +
+          '<button type="button" class="load-error-btn">Try again</button>' +
+        '</div>';
+      content.querySelector('.load-error-title').textContent = title;
+      content.querySelector('.load-error-sub').textContent = sub;
+      content.querySelector('.load-error-btn').addEventListener('click', () => {
+        content.innerHTML = '<div class="spinner"></div>';
+        headerSub.textContent = 'Loading your uploads\u2026';
+        onRetry();
+      });
+      headerSub.textContent = '';
+    }
+
+    // Per-card error line (delete failed, etc.) so the message sits with
+    // the video it concerns instead of floating at the bottom of the page.
+    function showCardError(card, msg) {
+      const host = card.querySelector('.vc-main') || card;
+      Feedback.showInlineError(host, msg, { inside: true, className: 'inline-error inline-compact' });
+    }
+    function clearCardError(card) {
+      const host = card.querySelector('.vc-main') || card;
+      Feedback.clearInlineError(host, { inside: true, className: 'inline-error inline-compact' });
+    }
+
+    // Copy with visible success/failure on the button itself.
+    async function copyWithButtonFeedback(btn, text) {
+      const ok = await Feedback.copyText(text);
+      if (ok) {
+        Feedback.flashButton(btn, 'Copied!', 'copied', 1800);
+      } else {
+        Feedback.flashButton(btn, 'Couldn\u2019t copy', 'btn-failed', 2500);
+      }
+      return ok;
     }
 
     function formatBytes(b) {
@@ -51,32 +95,72 @@
       // Auth gate
       let me;
       try { me = await fetch('/api/auth/me'); }
-      catch { content.innerHTML = '<div class="empty"><div class="empty-title">Network error</div><div class="empty-sub">Please refresh.</div></div>'; return; }
-      if (me.status === 401) return redirectToLogin();
-      if (!me.ok) {
-        content.innerHTML = '<div class="empty"><div class="empty-title">Could not load account</div><div class="empty-sub">Please refresh the page.</div></div>';
+      catch {
+        showLoadError(
+          'Couldn\u2019t reach VidShare',
+          'Check your internet connection, then try again.',
+          loadAccount
+        );
         return;
       }
-      const meData = await me.json();
+      if (me.status === 401) return redirectToLogin();
+      if (!me.ok) {
+        showLoadError(
+          'Couldn\u2019t load your account',
+          'Something went wrong on our end. Please try again in a moment.',
+          loadAccount
+        );
+        return;
+      }
+      let meData;
+      try { meData = await me.json(); }
+      catch {
+        showLoadError(
+          'Couldn\u2019t load your account',
+          'We got an unexpected response from the server. Please try again.',
+          loadAccount
+        );
+        return;
+      }
       const paidBadge = meData.is_paid ? '<span class="paid-badge">Paid</span>' : '';
       emailPill.innerHTML = 'Signed in as <strong>' + escapeHtml(meData.email) + '</strong>' + paidBadge;
       window.__isPaidUser = !!meData.is_paid;
 
-      const [videosRes, foldersRes] = await Promise.all([
-        fetch('/api/my-videos'),
-        fetch('/api/my-folders')
-      ]);
+      let videosRes, foldersRes;
+      try {
+        [videosRes, foldersRes] = await Promise.all([
+          fetch('/api/my-videos'),
+          fetch('/api/my-folders')
+        ]);
+      } catch {
+        showLoadError(
+          'Couldn\u2019t load your videos',
+          'The connection dropped while loading. Check your internet and try again.',
+          loadAccount
+        );
+        return;
+      }
       // Session may have expired between the /me check and this call —
       // bounce the user to login so they can re-authenticate cleanly.
       if (videosRes.status === 401 || foldersRes.status === 401) {
         return redirectToLogin({ expired: true });
       }
       if (!videosRes.ok) {
-        content.innerHTML = '<div class="empty"><div class="empty-title">Could not load videos</div><div class="empty-sub">Please refresh the page.</div></div>';
-        headerSub.textContent = '';
+        const info = await Feedback.readApiError(videosRes, 'Something went wrong on our end. Please try again in a moment.');
+        showLoadError('Couldn\u2019t load your videos', info.message, loadAccount);
         return;
       }
-      const { videos } = await videosRes.json();
+      let videos;
+      try { ({ videos } = await videosRes.json()); }
+      catch {
+        showLoadError(
+          'Couldn\u2019t load your videos',
+          'We got an unexpected response from the server. Please try again.',
+          loadAccount
+        );
+        return;
+      }
+      videos = Array.isArray(videos) ? videos : [];
       let folders = [];
       if (foldersRes.ok) {
         try {
@@ -137,12 +221,7 @@
           const card = btn.closest('.folder-card');
           if (!card) return;
           const url = window.location.origin + '/f/' + encodeURIComponent(card.dataset.slug);
-          try {
-            await navigator.clipboard.writeText(url);
-            showToast('Folder link copied');
-          } catch (_) {
-            showToast('Could not copy link');
-          }
+          await copyWithButtonFeedback(btn, url);
         });
       });
     }
@@ -372,16 +451,7 @@
       document.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           const url = window.location.origin + btn.dataset.url;
-          try { await navigator.clipboard.writeText(url); }
-          catch {
-            const ta = document.createElement('textarea');
-            ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
-            document.body.appendChild(ta); ta.select();
-            document.execCommand('copy'); document.body.removeChild(ta);
-          }
-          const original = btn.textContent;
-          btn.textContent = 'Copied!'; btn.classList.add('copied');
-          setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1800);
+          await copyWithButtonFeedback(btn, url);
         });
       });
 
@@ -405,16 +475,20 @@
           const id = card.dataset.id;
           const title = card.querySelector('.vc-title').textContent;
           if (!confirm(`Delete "${title}"? This cannot be undone — the share link will stop working immediately.`)) return;
+          clearCardError(card);
           btn.disabled = true; btn.textContent = 'Deleting…';
           let res;
           try { res = await fetch(`/api/my-videos/${encodeURIComponent(id)}`, { method: 'DELETE' }); }
-          catch { btn.disabled = false; btn.textContent = 'Delete'; showToast('Network error.'); return; }
+          catch {
+            btn.disabled = false; btn.textContent = 'Delete';
+            showCardError(card, 'Couldn\u2019t delete — ' + Feedback.NETWORK_MESSAGE);
+            return;
+          }
           if (res.status === 401) return redirectToLogin({ expired: true });
           if (!res.ok) {
             btn.disabled = false; btn.textContent = 'Delete';
-            const data = await res.json().catch(() => ({}));
-            const msg = (data && data.error && (data.error.message || data.error)) || 'Could not delete video.';
-            showToast(typeof msg === 'string' ? msg : 'Could not delete video.');
+            const info = await Feedback.readApiError(res, 'Something went wrong on our end. Please try again.');
+            showCardError(card, 'Couldn\u2019t delete this video. ' + info.message);
             return;
           }
           card.style.transition = 'opacity 0.2s, transform 0.2s';
@@ -524,7 +598,13 @@
       if (!v) return;
 
       const newTitle = editTitleInput.value.trim();
-      if (!newTitle) { setEditError('Title cannot be empty.'); editTitleInput.focus(); return; }
+      if (!newTitle) {
+        setEditError('Please enter a title — it can\u2019t be blank.');
+        editTitleInput.setAttribute('aria-invalid', 'true');
+        editTitleInput.focus();
+        return;
+      }
+      editTitleInput.removeAttribute('aria-invalid');
 
       const body = {};
       if (newTitle !== (v.title || '').trim()) {
@@ -561,14 +641,13 @@
         });
       } catch (_) {
         editSave.disabled = false; editSave.textContent = 'Save changes';
-        setEditError('Network error. Please try again.');
+        setEditError('Your changes weren\u2019t saved. ' + Feedback.NETWORK_MESSAGE);
         return;
       }
       if (res.status === 401) { closeEditDialog(); return redirectToLogin({ expired: true }); }
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = (data && data.error && (data.error.message || data.error)) || 'Could not save changes.';
-        setEditError(typeof msg === 'string' ? msg : 'Could not save changes.');
+        const info = await Feedback.readApiError(res, 'Something went wrong on our end. Please try again.');
+        setEditError('Your changes weren\u2019t saved. ' + info.message);
         editSave.disabled = false; editSave.textContent = 'Save changes';
         return;
       }
@@ -896,13 +975,7 @@
           if (f) any = true;
           renderFrameTile(slots[idx], f, idx);
         });
-        if (!any) {
-          tpFramesTitle.textContent = 'Pick a frame';
-          slots.forEach(tile => {
-            tile.className = 'tp-frame empty';
-            tile.textContent = 'Could not load frames';
-          });
-        }
+        if (!any) showFrameLoadFailure(slots);
         return;
       }
 
@@ -915,20 +988,32 @@
 
       if (!tpState || tpState.videoId !== videoId) return;
       tpState.frames = frames;
+
+      const any = frames.some(f => !!f);
+      if (!any) {
+        // Don't cache a total failure — a slow network or transient decode
+        // error should get a fresh attempt next time the dialog opens.
+        showFrameLoadFailure(slots);
+        return;
+      }
       tpFrameCache.set(videoId, frames);
       while (tpFrameCache.size > TP_FRAME_CACHE_MAX) {
         const oldest = tpFrameCache.keys().next().value;
         tpFrameCache.delete(oldest);
       }
+    }
 
-      const any = frames.some(f => !!f);
-      if (!any) {
-        tpFramesTitle.textContent = 'Pick a frame';
-        slots.forEach(tile => {
-          tile.className = 'tp-frame empty';
-          tile.textContent = 'Could not load frames';
-        });
-      }
+    // Frame extraction failed (unsupported codec, slow network, decoder
+    // error). Say so where the frames would have been and point at the
+    // upload alternative, which still works.
+    function showFrameLoadFailure(slots) {
+      tpFramesTitle.textContent = 'Pick a frame';
+      slots.forEach((tile, idx) => {
+        tile.className = 'tp-frame empty';
+        tile.textContent = idx === 0
+          ? 'We couldn\u2019t read frames from this video. You can still upload an image below.'
+          : '\u2014';
+      });
     }
 
     let tpLastFocused = null;
@@ -968,10 +1053,11 @@
       const file = tpFileInput.files && tpFileInput.files[0];
       if (!file) return;
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        setTpError('Image must be JPEG, PNG, or WebP.');
+        setTpError(`"${file.name}" isn\u2019t a supported image. Please choose a JPEG, PNG, or WebP file.`);
         tpFileInput.value = '';
         return;
       }
+      setTpError('');
       // Read the file and downscale via canvas if needed to stay under the
       // 500 KB server cap. Re-encode as JPEG when shrinking.
       const reader = new FileReader();
@@ -980,7 +1066,7 @@
         img.onload = () => {
           processCustomImage(img, file).then(custom => {
             if (!custom) {
-              setTpError('Could not process this image. Try a smaller file.');
+              setTpError('We couldn\u2019t shrink this image under 500 KB. Try a smaller or simpler image.');
               return;
             }
             if (!tpState) return;
@@ -997,10 +1083,10 @@
             selectCustom();
           });
         };
-        img.onerror = () => setTpError('Could not read this image.');
+        img.onerror = () => setTpError('That file couldn\u2019t be opened as an image. It may be corrupted — try a different one.');
         img.src = String(reader.result || '');
       };
-      reader.onerror = () => setTpError('Could not read this image.');
+      reader.onerror = () => setTpError('We couldn\u2019t read that file from your device. Please try again or pick another image.');
       reader.readAsDataURL(file);
     });
 
@@ -1079,14 +1165,15 @@
         });
       } catch (_) {
         tpSave.disabled = false; tpSave.textContent = 'Save thumbnail';
-        setTpError('Network error. Please try again.');
+        setTpError('The thumbnail wasn\u2019t saved. ' + Feedback.NETWORK_MESSAGE);
         return;
       }
       if (res.status === 401) { closeThumbnailDialog(); return redirectToLogin({ expired: true }); }
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const msg = (data && data.error && (data.error.message || data.error)) || 'Could not save thumbnail.';
-        setTpError(typeof msg === 'string' ? msg : 'Could not save thumbnail.');
+        const info = await Feedback.readApiError(res, 'Something went wrong on our end. Please try again.');
+        setTpError('The thumbnail wasn\u2019t saved. ' + (res.status === 413
+          ? 'That image is over the 500 KB limit — try a smaller one.'
+          : info.message));
         tpSave.disabled = false; tpSave.textContent = 'Save thumbnail';
         return;
       }
@@ -1130,7 +1217,14 @@
     }
 
     logoutBtn.addEventListener('click', async () => {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      logoutBtn.disabled = true;
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (_) {
+        logoutBtn.disabled = false;
+        Feedback.flashButton(logoutBtn, 'Couldn\u2019t sign out — try again', 'btn-failed', 3000);
+        return;
+      }
       window.location.href = '/';
     });
 
