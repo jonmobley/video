@@ -75,10 +75,11 @@ describe('upload-widget: empty file rejection', () => {
     await Promise.resolve();
 
     // Empty files are rejected in setFile(), before a title is filled or
-    // the upload button is enabled.
-    const errorMsg = root.querySelector('[data-el="errorMsg"]');
-    expect(errorMsg.textContent).toMatch(/empty|unreadable|0 bytes/i);
-    expect(errorMsg.classList.contains('visible')).toBe(true);
+    // the upload button is enabled. The message is rendered directly under
+    // the drop zone the user just interacted with.
+    const dropError = root.querySelector('[data-el="dropError"]');
+    expect(dropError.textContent).toMatch(/empty|unreadable|0 bytes/i);
+    expect(dropError.classList.contains('visible')).toBe(true);
 
     const uploadBtn = root.querySelector('[data-el="uploadBtn"]');
     expect(uploadBtn.classList.contains('visible')).toBe(false);
