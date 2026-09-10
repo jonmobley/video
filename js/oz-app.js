@@ -1331,7 +1331,10 @@
                 clearSavedPageEditorToken();
                 if (isEditMode) exitEditMode();
             }
-            throw new Error(message);
+            const err = new Error(message);
+            err.status = response.status;
+            err.userFacing = true;
+            throw err;
         }
 
         const MAX_COMING_SOON_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -1784,7 +1787,10 @@
                         markUnsavedChanges();
                     } catch (error) {
                         console.error('Failed to save page title:', error);
-                        alert(error.message);
+                        const detail = window.VsFeedback
+                            ? window.VsFeedback.describeError(error, 'Something went wrong. Please try again.')
+                            : (error.message || 'Something went wrong. Please try again.');
+                        showAdminBannerMessage(`The page title wasn't saved. ${detail}`);
                     }
                 }
                 
@@ -2109,7 +2115,10 @@
                 .map(tag => ({ id: tag.dataset.category, name: tag.textContent }));
             
             if (availableCategories.length === 0) {
-                alert('Cannot delete the last tag. Create another tag first.');
+                showAdminBannerMessage(
+                    `"${categoryName}" is the only tag with videos, so it can't be deleted. Create another tag first, then move the videos to it.`,
+                    { tone: 'notice' }
+                );
                 return;
             }
             
@@ -2839,8 +2848,11 @@
                     saveBtn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                 }, 3000);
                 
-                // Show error to user
-                alert(`Failed to save changes: ${error.message}`);
+                // Explain the failure right under the Save button
+                const detail = window.VsFeedback
+                    ? window.VsFeedback.describeError(error, 'Something went wrong. Please try again.')
+                    : (error.message || 'Something went wrong. Please try again.');
+                showAdminBannerMessage(`Your changes weren't saved. ${detail}`);
             }
         }
 

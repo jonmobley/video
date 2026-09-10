@@ -32,6 +32,50 @@ function describeDialogError(err, fallback) {
     return (err && err.message) || fallback;
 }
 
+var adminBannerMessageTimer = null;
+
+/**
+ * Show a message in a strip directly under the edit-mode admin banner (next
+ * to the Save button), instead of alert(). `options.tone` is 'error'
+ * (default) or 'notice'; `options.timeout` (ms, default 8000) auto-hides it.
+ */
+function showAdminBannerMessage(message, options) {
+    options = options || {};
+    var banner = document.getElementById('adminBanner');
+    if (!banner) return null;
+    var strip = banner.querySelector('.admin-banner-message');
+    if (!message) {
+        if (strip) strip.remove();
+        return null;
+    }
+    if (!strip) {
+        strip = document.createElement('div');
+        strip.className = 'admin-banner-message';
+        strip.setAttribute('role', 'alert');
+        banner.appendChild(strip);
+    }
+    strip.classList.toggle('notice', options.tone === 'notice');
+    strip.innerHTML = '';
+    var text = document.createElement('span');
+    text.className = 'admin-banner-message-text';
+    text.textContent = message;
+    strip.appendChild(text);
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'admin-banner-message-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '\u00D7';
+    close.addEventListener('click', function() { showAdminBannerMessage(''); });
+    strip.appendChild(close);
+
+    if (adminBannerMessageTimer) clearTimeout(adminBannerMessageTimer);
+    var timeout = options.timeout === undefined ? 8000 : options.timeout;
+    if (timeout) {
+        adminBannerMessageTimer = setTimeout(function() { showAdminBannerMessage(''); }, timeout);
+    }
+    return strip;
+}
+
 function openIconPickerDialog(categoryElement, availableIcons, onSave) {
     var categoryId = categoryElement.dataset.category;
     var currentIcon = categoryElement.dataset.icon || '';

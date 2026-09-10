@@ -1211,7 +1211,10 @@
                 .map(tag => ({ id: tag.dataset.category, name: tag.textContent }));
             
             if (availableCategories.length === 0) {
-                alert('Cannot delete the last tag. Create another tag first.');
+                showAdminBannerMessage(
+                    `"${categoryName}" is the only tag with videos, so it can't be deleted. Create another tag first, then move the videos to it.`,
+                    { tone: 'notice' }
+                );
                 return;
             }
             
@@ -1775,6 +1778,21 @@
             }
         }
 
+        /** Build a user-facing Error from a failed editor save response. */
+        async function pageEditorSaveError(response, fallbackMessage) {
+            if (window.VsFeedback) {
+                const err = await window.VsFeedback.errorFromResponse(response, fallbackMessage);
+                if (response.status === 401 || response.status === 403) {
+                    err.message = 'Your editor session has expired. Close edit mode and enter the password again.';
+                }
+                return err;
+            }
+            const err = new Error(fallbackMessage);
+            err.status = response.status;
+            err.userFacing = true;
+            return err;
+        }
+
         // Save all changes functionality
         async function saveAllChanges() {
             const saveBtn = document.getElementById('adminSaveBtn');
@@ -1837,17 +1855,7 @@
                 });
                 
                 if (!videoResponse.ok) {
-                    let errorMessage = `Failed to save videos (Status: ${videoResponse.status})`;
-                    try {
-                        const videoError = await videoResponse.json();
-                        if (videoError.error) {
-                            errorMessage = `Failed to save videos: ${videoError.error}`;
-                        }
-                    } catch (e) {
-                        // Response body is not valid JSON
-                        console.error('Could not parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
+                    throw await pageEditorSaveError(videoResponse, 'The video list couldn\u2019t be saved.');
                 }
                 
                 // Save categories
@@ -1858,17 +1866,7 @@
                 });
                 
                 if (!categoryResponse.ok) {
-                    let errorMessage = `Failed to save categories (Status: ${categoryResponse.status})`;
-                    try {
-                        const categoryError = await categoryResponse.json();
-                        if (categoryError.error) {
-                            errorMessage = `Failed to save categories: ${categoryError.error}`;
-                        }
-                    } catch (e) {
-                        // Response body is not valid JSON
-                        console.error('Could not parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
+                    throw await pageEditorSaveError(categoryResponse, 'The tags couldn\u2019t be saved.');
                 }
                 
                 const videoResult = await videoResponse.json();
@@ -1922,9 +1920,6 @@
                 saveBtn.style.background = 'rgba(255, 59, 48, 0.3)';
                 saveBtn.style.borderColor = 'rgba(255, 59, 48, 0.5)';
                 
-                // Show user-friendly error message
-                showErrorMessage('Unable to save changes. Please check your connection and try again.');
-                
                 // Reset button after 3 seconds
                 setTimeout(() => {
                     saveBtn.textContent = originalText;
@@ -1934,8 +1929,11 @@
                     saveBtn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                 }, 3000);
                 
-                // Show error to user
-                alert(`Failed to save changes: ${error.message}`);
+                // Explain the failure right under the Save button
+                const detail = window.VsFeedback
+                    ? window.VsFeedback.describeError(error, 'Something went wrong. Please try again.')
+                    : (error.message || 'Something went wrong. Please try again.');
+                showAdminBannerMessage(`Your changes weren't saved. ${detail}`);
             }
         }
 
