@@ -69,6 +69,45 @@
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    const Feedback = window.VsFeedback;
+
+    // Render a list-load failure in place of the list, with a retry button,
+    // instead of a bare message the admin can only recover from by reloading.
+    function renderLoadError(container, title, message, onRetry) {
+      container.innerHTML =
+        '<div class="empty-state load-error" role="alert">' +
+          '<div class="load-error-title"></div>' +
+          '<div class="load-error-sub"></div>' +
+          '<button type="button" class="load-error-btn">Try again</button>' +
+        '</div>';
+      container.querySelector('.load-error-title').textContent = title;
+      container.querySelector('.load-error-sub').textContent = message;
+      container.querySelector('.load-error-btn').addEventListener('click', onRetry);
+    }
+
+    // Error line inside a video/user row so the admin sees exactly which
+    // item the failure concerns (replaces alert()).
+    function showRowError(row, message) {
+      const host = row.querySelector('.video-main, .user-main') || row;
+      Feedback.showInlineError(host, message, { inside: true, className: 'inline-error inline-compact' });
+    }
+    function clearRowError(row) {
+      const host = row.querySelector('.video-main, .user-main') || row;
+      Feedback.clearInlineError(host, { inside: true, className: 'inline-error inline-compact' });
+    }
+
+    // Copy a generated link; on failure select the field so a manual copy works.
+    async function copyFromInput(btn, input) {
+      const ok = await Feedback.copyText(input.value);
+      if (ok) {
+        Feedback.flashButton(btn, 'Copied', 'copied', 2000);
+      } else {
+        input.focus();
+        input.select();
+        Feedback.flashButton(btn, 'Couldn\u2019t copy \u2014 link selected, press Ctrl/Cmd+C', 'btn-failed', 4000);
+      }
+    }
+
     let isPopstateNav = false;
 
     function buildFilterUrl() {
@@ -321,9 +360,8 @@
         }
 
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load videos';
-          videoList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load videos'}</div></div>`;
+          const info = await Feedback.readApiError(res, 'Something went wrong on our end.');
+          renderLoadError(videoList, 'Couldn\u2019t load videos', info.message, loadVideos);
           videoFilterStatus.textContent = 'Loading failed';
           statsRow.innerHTML = '';
           return;
@@ -392,6 +430,7 @@
           row.querySelector('.del-btn').addEventListener('click', async function() {
             if (this.disabled) return;
             if (!confirm('Delete this video? This cannot be undone.')) return;
+            clearRowError(row);
             this.disabled = true; this.textContent = '…';
             pendingDeletes.add(v.id);
             try {
@@ -401,14 +440,15 @@
               });
               if (dr.status === 401 || dr.status === 403) { pendingDeletes.delete(v.id); logout({ expired: true }); return; }
               if (dr.ok) { pendingDeletes.delete(v.id); loadVideos(); return; }
-              else {
-                pendingDeletes.delete(v.id);
-                this.disabled = false; this.textContent = 'Delete';
-                const data = await dr.json().catch(() => ({}));
-                const msg = (data && data.error && (data.error.message || data.error)) || 'Delete failed.';
-                alert(typeof msg === 'string' ? msg : 'Delete failed.');
-              }
-            } catch { pendingDeletes.delete(v.id); this.disabled = false; this.textContent = 'Delete'; }
+              pendingDeletes.delete(v.id);
+              this.disabled = false; this.textContent = 'Delete';
+              const info = await Feedback.readApiError(dr, 'Something went wrong on our end. Please try again.');
+              showRowError(row, 'Couldn\u2019t delete this video. ' + info.message);
+            } catch {
+              pendingDeletes.delete(v.id);
+              this.disabled = false; this.textContent = 'Delete';
+              showRowError(row, 'Couldn\u2019t delete this video. ' + Feedback.NETWORK_MESSAGE);
+            }
           });
           videoList.appendChild(row);
         }
@@ -419,7 +459,12 @@
         });
       } catch (err) {
         if (err.name === 'AbortError') return;
-          videoList.innerHTML = `<div class="empty-state"><div>Failed to load videos: ${escapeHtml(err.message)}</div></div>`;
+        renderLoadError(
+          videoList,
+          'Couldn\u2019t load videos',
+          Feedback.describeError(err, 'Something went wrong while loading. Please try again.'),
+          loadVideos
+        );
         videoFilterStatus.textContent = 'Loading failed';
         statsRow.innerHTML = '';
       } finally {
@@ -465,9 +510,8 @@
         });
         if (res.status === 401 || res.status === 403) { logout({ expired: true }); return; }
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const msg = (data && data.error && (data.error.message || data.error)) || 'Failed to load users';
-          userList.innerHTML = `<div class="empty-state"><div>${typeof msg === 'string' ? msg : 'Failed to load users'}</div></div>`;
+          const info = await Feedback.readApiError(res, 'Something went wrong on our end.');
+          renderLoadError(userList, 'Couldn\u2019t load users', info.message, loadUsers);
           userFilterStatus.textContent = 'Loading failed';
           return;
         }
@@ -559,6 +603,8 @@
 
           checkbox.addEventListener('change', async () => {
             const newPaid = checkbox.checked;
+            const tierName = newPaid ? 'Paid' : 'Free';
+            clearRowError(row);
             checkbox.disabled = true;
             toggleLabel.classList.add('loading');
             pendingTierToggles.add(u.id);
@@ -574,16 +620,15 @@
               if (pr.status === 401 || pr.status === 403) { logout({ expired: true }); return; }
               if (!pr.ok) {
                 checkbox.checked = !newPaid;
-                const data = await pr.json().catch(() => ({}));
-                const msg = (data && data.error && (data.error.message || data.error)) || 'Update failed.';
-                alert(typeof msg === 'string' ? msg : 'Update failed.');
+                const info = await Feedback.readApiError(pr, 'Something went wrong on our end. Please try again.');
+                showRowError(row, `Couldn\u2019t switch this user to ${tierName}. ` + info.message);
               } else {
                 loadUsers();
                 return;
               }
             } catch {
               checkbox.checked = !newPaid;
-              alert('Network error. Could not update user tier.');
+              showRowError(row, `Couldn\u2019t switch this user to ${tierName}. ` + Feedback.NETWORK_MESSAGE);
             } finally {
               pendingTierToggles.delete(u.id);
               toggleLabel.classList.remove('loading');
@@ -600,13 +645,12 @@
         });
       } catch (err) {
         if (err.name === 'AbortError') return;
-        const errDiv = document.createElement('div');
-        errDiv.className = 'empty-state';
-        const errMsg = document.createElement('div');
-        errMsg.textContent = 'Failed to load users: ' + err.message;
-        errDiv.appendChild(errMsg);
-        userList.innerHTML = '';
-        userList.appendChild(errDiv);
+        renderLoadError(
+          userList,
+          'Couldn\u2019t load users',
+          Feedback.describeError(err, 'Something went wrong while loading. Please try again.'),
+          loadUsers
+        );
         userFilterStatus.textContent = 'Loading failed';
       } finally {
         if (!signal.aborted) {
@@ -625,6 +669,8 @@
       const token = tokenInput.value.trim();
       if (!token) return;
       loginBtn.disabled = true; loginBtn.textContent = 'Checking…';
+      loginError.classList.remove('visible');
+      tokenInput.removeAttribute('aria-invalid');
       try {
         const res = await fetch('/api/admin/videos', {
           headers: { 'Authorization': 'Bearer ' + token }
@@ -634,12 +680,22 @@
           sessionStorage.setItem('vs_admin_token', token);
           showDashboard();
         } else {
+          if (res.status === 401 || res.status === 403) {
+            loginError.textContent = 'That token isn\u2019t valid. Check for extra spaces and try again.';
+            tokenInput.setAttribute('aria-invalid', 'true');
+            tokenInput.focus();
+            tokenInput.select();
+          } else {
+            loginError.textContent = res.status === 429
+              ? 'Too many attempts. Please wait a moment and try again.'
+              : 'We couldn\u2019t verify the token right now (server error). Please try again in a moment.';
+          }
           loginError.classList.add('visible');
           loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
         }
       } catch {
         loginError.classList.add('visible');
-        loginError.textContent = 'Network error. Please try again.';
+        loginError.textContent = Feedback.NETWORK_MESSAGE;
         loginBtn.disabled = false; loginBtn.textContent = 'Sign In';
       }
     }
@@ -711,7 +767,9 @@
     createShowForm.addEventListener('submit', async event => {
       event.preventDefault();
       const submit = document.getElementById('createShowSubmit');
+      const original = submit.textContent;
       submit.disabled = true;
+      submit.textContent = 'Creating\u2026';
       createShowError.classList.remove('visible');
       try {
         const response = await fetch('/api/create-show-page', {
@@ -722,20 +780,22 @@
             page: document.getElementById('newShowSlug').value.trim().toLowerCase()
           })
         });
+        if (response.status === 401 || response.status === 403) { logout({ expired: true }); return; }
+        if (!response.ok) throw await Feedback.errorFromResponse(response, 'Could not create the show.');
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error?.message || 'Could not create show.');
         createShowLink.value = result.setup_url;
         createShowResult.classList.remove('hidden');
       } catch (error) {
-        createShowError.textContent = error.message;
+        createShowError.textContent = 'The show wasn\u2019t created. ' +
+          Feedback.describeError(error, 'Something went wrong. Please try again.');
         createShowError.classList.add('visible');
       } finally {
         submit.disabled = false;
+        submit.textContent = original;
       }
     });
-    document.getElementById('copyShowLink').addEventListener('click', async () => {
-      await navigator.clipboard.writeText(createShowLink.value);
-      document.getElementById('copyShowLink').textContent = 'Copied';
+    document.getElementById('copyShowLink').addEventListener('click', function() {
+      copyFromInput(this, createShowLink);
     });
     editorSetupBtn.addEventListener('click', () => {
       editorSetupModal.classList.remove('hidden');
@@ -747,7 +807,9 @@
     editorSetupForm.addEventListener('submit', async event => {
       event.preventDefault();
       const submit = document.getElementById('editorSetupSubmit');
+      const original = submit.textContent;
       submit.disabled = true;
+      submit.textContent = 'Creating\u2026';
       editorSetupError.classList.remove('visible');
       try {
         const response = await fetch('/api/issue-page-editor-setup', {
@@ -755,20 +817,22 @@
           headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ page: document.getElementById('editorSetupPage').value })
         });
+        if (response.status === 401 || response.status === 403) { logout({ expired: true }); return; }
+        if (!response.ok) throw await Feedback.errorFromResponse(response, 'Could not create the setup link.');
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error?.message || 'Could not create setup link.');
         editorSetupLink.value = result.setup_url;
         editorSetupResult.classList.remove('hidden');
       } catch (error) {
-        editorSetupError.textContent = error.message;
+        editorSetupError.textContent = 'No setup link was created. ' +
+          Feedback.describeError(error, 'Something went wrong. Please try again.');
         editorSetupError.classList.add('visible');
       } finally {
         submit.disabled = false;
+        submit.textContent = original;
       }
     });
-    document.getElementById('copyEditorSetupLink').addEventListener('click', async () => {
-      await navigator.clipboard.writeText(editorSetupLink.value);
-      document.getElementById('copyEditorSetupLink').textContent = 'Copied';
+    document.getElementById('copyEditorSetupLink').addEventListener('click', function() {
+      copyFromInput(this, editorSetupLink);
     });
     refreshBtn.addEventListener('click', () => {
       if (refreshBtn.disabled) return;
