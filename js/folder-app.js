@@ -5,12 +5,44 @@
 (function () {
   const main = document.getElementById('main');
   const toast = document.getElementById('toast');
+  const Feedback = window.VsFeedback;
 
   function showToast(msg, isError) {
     toast.textContent = msg;
     toast.classList.toggle('error', !!isError);
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  /** Inline error shown directly under the header action buttons. */
+  function showActionError(msg) {
+    const actions = document.querySelector('.folder-actions');
+    if (!actions) return;
+    Feedback.showInlineError(actions, msg, { inside: true, className: 'inline-error folder-action-error' });
+  }
+  function clearActionError() { showActionError(''); }
+
+  /** Inline error shown inside a video card body, next to its buttons. */
+  function showCardError(card, msg) {
+    const body = card && card.querySelector('.video-body');
+    if (!body) return;
+    Feedback.showInlineError(body, msg, { inside: true, className: 'inline-error inline-compact' });
+  }
+
+  /** Inline error shown inside a dialog, above its action buttons. */
+  function showDialogError(dialog, msg) {
+    clearDialogError(dialog);
+    const actions = dialog.querySelector('.dialog-actions');
+    if (!actions || !msg) return;
+    const el = document.createElement('div');
+    el.className = 'inline-error dialog-error';
+    el.setAttribute('role', 'alert');
+    el.textContent = msg;
+    actions.parentNode.insertBefore(el, actions);
+  }
+  function clearDialogError(dialog) {
+    const el = dialog.querySelector('.dialog-error');
+    if (el) el.remove();
   }
 
   function escapeHtml(s) {
@@ -41,12 +73,20 @@
     return (b / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
 
-  function renderError(title, sub) {
+  function renderError(title, sub, canRetry) {
     main.innerHTML =
       `<div class="error-state">
         <h1>${escapeHtml(title)}</h1>
         <p>${escapeHtml(sub || '')}</p>
+        ${canRetry ? '<button type="button" class="btn btn-secondary" id="retryLoadBtn">Try again</button>' : ''}
        </div>`;
+    const retry = document.getElementById('retryLoadBtn');
+    if (retry) {
+      retry.addEventListener('click', () => {
+        main.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+        init();
+      });
+    }
   }
 
   function renderFolder(data) {
@@ -137,6 +177,14 @@
     </div>`;
   }
 
+  function downloadFallbackFor(status) {
+    if (status === 413) {
+      return 'This folder is too large to zip in one go. Download the videos one at a time instead.';
+    }
+    if (status === 404) return 'One or more videos are no longer available.';
+    return Feedback.messageForStatus(status, 'Something went wrong. You can still download videos one at a time below.');
+  }
+
   function wireUp(data) {
     const slug = data.slug;
 
@@ -146,6 +194,7 @@
         // HEAD probe so we can show server-side errors (e.g. 413 too large)
         // before kicking off a multi-GB download in a new tab.
         dlAllBtn.disabled = true;
+        clearActionError();
         const orig = dlAllBtn.innerHTML;
         dlAllBtn.innerHTML = 'Preparing…';
         try {
@@ -154,18 +203,15 @@
           if (!probe.ok) {
             const ctrl = new AbortController();
             const r = await fetch(url, { signal: ctrl.signal }).catch(() => null);
+            let message;
             if (r && !r.ok) {
-              try {
-                const j = await r.json();
-                showToast((j.error && j.error.message) || 'Download failed', true);
-              } catch {
-                showToast('Download failed (' + probe.status + ')', true);
-              }
-              ctrl.abort();
-              return;
+              const info = await Feedback.readApiError(r, downloadFallbackFor(r.status));
+              message = info.message;
+            } else {
+              message = downloadFallbackFor(probe.status);
             }
             ctrl.abort();
-            showToast('Download failed (' + probe.status + ')', true);
+            showActionError('The zip couldn\u2019t be prepared. ' + message);
             return;
           }
           const a = document.createElement('a');
@@ -175,7 +221,8 @@
           a.click();
           a.remove();
         } catch (err) {
-          showToast('Download failed', true);
+          showActionError('The zip couldn\u2019t be prepared. ' + Feedback.describeError(err,
+            'Something went wrong. You can still download videos one at a time below.'));
         } finally {
           dlAllBtn.disabled = false;
           dlAllBtn.innerHTML = orig;
@@ -186,11 +233,11 @@
     const copyBtn = document.getElementById('copyLinkBtn');
     if (copyBtn) {
       copyBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(window.location.href);
+        const ok = await Feedback.copyText(window.location.href);
+        if (ok) {
           showToast('Link copied');
-        } catch {
-          showToast('Could not copy link', true);
+        } else {
+          Feedback.flashButton(copyBtn, 'Couldn\u2019t copy \u2014 copy the address bar instead', 'btn-failed', 3500);
         }
       });
     }
@@ -211,21 +258,19 @@
       const id = btn.dataset.id;
       if (!id) return;
       if (!confirm('Remove this video from the folder? The video itself will not be deleted.')) return;
+      const card = btn.closest('.video-card');
       btn.disabled = true;
+      showCardError(card, '');
       try {
         const res = await fetch(`/api/folders/${encodeURIComponent(slug)}/videos/${encodeURIComponent(id)}`, {
           method: 'DELETE', credentials: 'same-origin'
         });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error((j.error && j.error.message) || 'Remove failed');
-        }
-        const card = btn.closest('.video-card');
+        if (!res.ok) throw await Feedback.errorFromResponse(res, 'The video couldn\u2019t be removed.');
         if (card) card.remove();
         showToast('Removed');
       } catch (err) {
         btn.disabled = false;
-        showToast(err.message, true);
+        showCardError(card, 'Couldn\u2019t remove this video. ' + Feedback.describeError(err));
       }
     });
   }
@@ -242,12 +287,29 @@
       </div>
     </div>`;
     document.body.appendChild(overlay);
+    const dialog = overlay.querySelector('.dialog');
     const input = overlay.querySelector('#renameInput');
+    const saveBtn = overlay.querySelector('#renameSave');
+    const cancelBtn = overlay.querySelector('#renameCancel');
     input.focus(); input.select();
-    overlay.querySelector('#renameCancel').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('#renameSave').addEventListener('click', async () => {
+    input.addEventListener('input', () => {
+      input.removeAttribute('aria-invalid');
+      clearDialogError(dialog);
+    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveBtn.click(); });
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    saveBtn.addEventListener('click', async () => {
       const title = input.value.trim();
-      if (!title) return;
+      if (!title) {
+        input.setAttribute('aria-invalid', 'true');
+        showDialogError(dialog, 'Enter a name for the folder.');
+        input.focus();
+        return;
+      }
+      clearDialogError(dialog);
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
       try {
         const res = await fetch(`/api/folders/${encodeURIComponent(data.slug)}`, {
           method: 'PATCH',
@@ -255,16 +317,16 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title })
         });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error((j.error && j.error.message) || 'Rename failed');
-        }
+        if (!res.ok) throw await Feedback.errorFromResponse(res, 'The folder couldn\u2019t be renamed.');
         overlay.remove();
         document.getElementById('folderTitle').textContent = title;
         document.title = title + ' – VidShare';
         showToast('Renamed');
       } catch (err) {
-        showToast(err.message, true);
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        showDialogError(dialog, 'The name wasn\u2019t saved. ' + Feedback.describeError(err));
       }
     });
   }
@@ -281,19 +343,26 @@
       </div>
     </div>`;
     document.body.appendChild(overlay);
-    overlay.querySelector('#dCancel').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('#dConfirm').addEventListener('click', async () => {
+    const dialog = overlay.querySelector('.dialog');
+    const cancelBtn = overlay.querySelector('#dCancel');
+    const confirmBtn = overlay.querySelector('#dConfirm');
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    confirmBtn.addEventListener('click', async () => {
+      clearDialogError(dialog);
+      confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+      confirmBtn.textContent = 'Deleting…';
       try {
         const res = await fetch(`/api/folders/${encodeURIComponent(data.slug)}`, {
           method: 'DELETE', credentials: 'same-origin'
         });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error((j.error && j.error.message) || 'Delete failed');
-        }
+        if (!res.ok) throw await Feedback.errorFromResponse(res, 'The folder couldn\u2019t be deleted.');
         window.location.href = '/account';
       } catch (err) {
-        showToast(err.message, true);
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+        confirmBtn.textContent = 'Delete';
+        showDialogError(dialog, 'The folder wasn\u2019t deleted. ' + Feedback.describeError(err));
       }
     });
   }
@@ -304,12 +373,18 @@
 
     try {
       const res = await fetch(`/api/folders/${encodeURIComponent(slug)}`, { credentials: 'same-origin' });
-      if (res.status === 404) return renderError('Folder not found', 'It may have been deleted.');
-      if (!res.ok) return renderError('Could not load folder', 'Please refresh and try again.');
+      if (res.status === 404) {
+        return renderError('Folder not found', 'This folder may have been deleted, or the link may be incomplete.');
+      }
+      if (!res.ok) {
+        const info = await Feedback.readApiError(res);
+        return renderError('Couldn\u2019t load this folder', info.message, true);
+      }
       const data = await res.json();
       renderFolder(data);
     } catch (err) {
-      renderError('Could not load folder', 'Check your connection and refresh.');
+      renderError('Couldn\u2019t load this folder', Feedback.describeError(err,
+        'Something went wrong while loading. Please try again.'), true);
     }
   }
 
