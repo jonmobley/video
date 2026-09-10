@@ -873,12 +873,17 @@
                             })
                         });
                         
-                        if (response.ok) {
-                            titleElement.textContent = newTitle;
-                            showUnsavedIndicator();
+                        if (!response.ok) {
+                            throw await pageEditorSaveError(response, 'The page title couldn\u2019t be saved.');
                         }
+                        titleElement.textContent = newTitle;
+                        if (typeof showUnsavedIndicator === 'function') showUnsavedIndicator();
                     } catch (error) {
                         console.error('Failed to save page title:', error);
+                        const detail = window.VsFeedback
+                            ? window.VsFeedback.describeError(error, 'Something went wrong. Please try again.')
+                            : (error.message || 'Something went wrong. Please try again.');
+                        showAdminBannerMessage(`The page title wasn't saved. ${detail}`);
                     }
                 }
                 
@@ -1824,11 +1829,15 @@
                             })
                         });
                         
-                        if (colorResponse.ok) {
-                            console.log('Successfully saved accent color');
+                        if (!colorResponse.ok) {
+                            throw await pageEditorSaveError(colorResponse, 'The accent color couldn\u2019t be saved.');
                         }
                     } catch (colorError) {
                         console.error('Failed to save accent color:', colorError);
+                        const detail = window.VsFeedback
+                            ? window.VsFeedback.describeError(colorError, 'Something went wrong. Please try again.')
+                            : (colorError.message || 'Something went wrong. Please try again.');
+                        showAdminBannerMessage(`Videos and tags were saved, but the accent color wasn't. ${detail}`, { tone: 'notice' });
                     }
                 }
                 

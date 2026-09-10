@@ -4194,8 +4194,13 @@
                 
             } catch (error) {
                 console.error('🏷️ ERROR: Failed to save categories to server:', error);
-                // Show error to user but don't prevent the popup from closing
-                showManageCategoriesError('Failed to save categories to server: ' + error.message);
+                // The Manage Categories popup has usually closed by now, so
+                // the banner strip is the message the user will actually see.
+                const detail = window.VsFeedback
+                    ? window.VsFeedback.describeError(error, 'Something went wrong. Please try again.')
+                    : (error.message || 'Something went wrong. Please try again.');
+                showManageCategoriesError('The categories weren\u2019t saved. ' + detail);
+                showAdminBannerMessage('The categories weren\u2019t saved. ' + detail);
             }
         }
 
