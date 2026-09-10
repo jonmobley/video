@@ -1,0 +1,91 @@
+/* Inline feedback shared across VidShare pages.
+ *
+ * Errors are shown next to the control that failed (a card, a dialog, a
+ * form field) rather than as a global toast or alert(). Keep these rules
+ * self-contained — watch.html does not load common.css. */
+
+.inline-error {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 107, 107, 0.10);
+  border: 1px solid rgba(255, 107, 107, 0.30);
+  color: #ff8e8e;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  text-align: left;
+  word-break: break-word;
+}
+.inline-error.inline-notice {
+  background: rgba(255, 159, 10, 0.10);
+  border-color: rgba(255, 159, 10, 0.30);
+  color: #ffd479;
+}
+.inline-error.inline-compact {
+  padding: 0;
+  margin-top: 6px;
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+}
+.inline-error-action {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 0;
+}
+.inline-error-action:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* Field-level validation copy directly beneath an input. */
+.field-error {
+  display: none;
+  margin-top: 6px;
+  color: #ff8e8e;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+.field-error.visible { display: block; }
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #ff6b6b !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15);
+}
+
+/* Full-area load failures with a retry control. */
+.load-error {
+  text-align: center;
+  padding: 50px 24px;
+  color: #aaa;
+}
+.load-error-title { font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.load-error-sub { font-size: 0.9rem; color: #959595; margin-bottom: 18px; }
+.load-error-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: 1px solid #3a3a3c;
+  background: #1c1c1e;
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.load-error-btn:hover { background: #2c2c2e; border-color: #4ecdc4; }
+
+/* Buttons that briefly report a failed action ("Couldn\u2019t copy"). */
+.btn-failed,
+.btn.btn-failed,
+.vc-btn.btn-failed,
+.refresh-btn.btn-failed {
+  background: rgba(255, 107, 107, 0.15) !important;
+  border-color: rgba(255, 107, 107, 0.45) !important;
+  color: #ff8e8e !important;
+}
