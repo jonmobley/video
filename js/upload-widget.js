@@ -8,6 +8,39 @@
   const MAX_SIZE = 1024 * 1024 * 1024;
   let widgetCounter = 0;
 
+  // Shared friendly-error helpers. In the browser they come from
+  // shared-feedback.js (loaded before this file); under Jest we require()
+  // them so the widget can be unit-tested on its own.
+  const Feedback = (typeof window !== 'undefined' && window.VsFeedback) ||
+    (typeof require === 'function' ? require('./shared-feedback.js') : null);
+
+  const NETWORK_UPLOAD_MESSAGE = 'Connection lost while uploading. Check your internet and try again.';
+
+  /**
+   * Convert an upload-pipeline error into a short message the user can act
+   * on. Server messages (already written for end users) pass through;
+   * network drops, size limits and 5xx get specific copy instead of raw
+   * "Failed to fetch" / "Chunk 3 failed" text.
+   */
+  function describeUploadFailure(err, fallback) {
+    const def = fallback || 'Upload failed. Please try again.';
+    if (!err) return def;
+    if (Feedback && Feedback.isNetworkError(err)) return NETWORK_UPLOAD_MESSAGE;
+    if (!Feedback && /failed to fetch|networkerror|load failed/i.test(String(err.message))) {
+      return NETWORK_UPLOAD_MESSAGE;
+    }
+    const status = err.status;
+    if (status === 413) return 'That file is too large for the server. The limit is 1 GB per video.';
+    if (status >= 500) return 'Something went wrong on our end. Please try again in a moment.';
+    if (err.userFacing && err.message) return err.message;
+    if (status && err.message) return err.message;
+    if (status && Feedback) return Feedback.messageForStatus(status, def);
+    if (/^Chunk \d+ failed$/.test(err.message || '')) return def;
+    // Raw JS errors (TypeError from a missing API, etc.) mean nothing to users.
+    if (/^(TypeError|SyntaxError|RangeError|ReferenceError|AbortError|DOMException)$/.test(err.name || '')) return def;
+    return err.message || def;
+  }
+
   const TEMPLATE = `
     <div class="mode-tabs" role="tablist" data-el="modeTabs">
       <button type="button" class="mode-tab active" data-el="tabFile" role="tab" aria-selected="true">Upload a file</button>
@@ -28,6 +61,7 @@
         <div class="drop-sub">Pick one or several · Any format</div>
         <div class="size-limit">Max 1 GB per file · Up to 10 in a folder</div>
       </div>
+      <div class="zone-error" data-el="dropError" role="alert" aria-live="assertive"></div>
 
       <div class="files-list" data-el="filesList" hidden></div>
 
@@ -68,6 +102,7 @@
       <div class="field">
         <label data-el="titleLabel">Title</label>
         <input type="text" data-el="titleInput" placeholder="e.g. Practice run – June 3" maxlength="120" required>
+        <div class="field-error" data-el="titleError" role="alert"></div>
       </div>
       <div class="fields-row">
         <div class="field">
@@ -246,7 +281,9 @@
     const fileSizeTxt = $('fileSizeTxt');
     const fileRemove = $('fileRemove');
     const fieldsArea = $('fieldsArea');
+    const dropError = $('dropError');
     const titleInput = $('titleInput');
+    const titleError = $('titleError');
     const titleLabel = $('titleLabel');
     const expirySelect = $('expirySelect');
     const passwordInput = $('passwordInput');
@@ -306,6 +343,7 @@
 
     titleInput.id = wid + '_title';
     titleInput.closest('.field').querySelector('label').setAttribute('for', wid + '_title');
+    $('titleError').id = wid + '_titleError';
     expirySelect.id = wid + '_expiry';
     expirySelect.closest('.field').querySelector('label').setAttribute('for', wid + '_expiry');
     passwordInput.id = wid + '_password';
@@ -344,7 +382,20 @@
         .catch(() => {})
     ]).then(([signedIn]) => signedIn);
 
-    function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('visible'); }
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.remove('notice');
+      errorMsg.setAttribute('role', 'alert');
+      errorMsg.classList.add('visible');
+    }
+    // Non-blocking heads-up (e.g. "link saved, but the embed may be private")
+    // — same slot as errorMsg but styled as a warning, not a failure.
+    function showNotice(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('notice');
+      errorMsg.setAttribute('role', 'status');
+      errorMsg.classList.add('visible');
+    }
     // Scroll an element into view on mobile so the user actually sees the new
     // state after a tap (file picked, error shown, etc.). Wrapped in try/catch
     // because some embedded webviews don't implement scrollIntoView.
@@ -352,7 +403,30 @@
       if (!el) return;
       try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
     }
-    function hideError() { errorMsg.classList.remove('visible'); }
+    function hideError() { errorMsg.classList.remove('visible'); errorMsg.classList.remove('notice'); }
+    // File-selection problems (too big, wrong type, empty) belong right under
+    // the drop zone the user just interacted with, not at the bottom of the card.
+    function showDropError(msg) {
+      dropError.textContent = msg;
+      dropError.classList.add('visible');
+      scrollIntoViewSafe(dropError);
+    }
+    function hideDropError() { dropError.textContent = ''; dropError.classList.remove('visible'); }
+    function showTitleError(msg) {
+      titleError.textContent = msg;
+      titleError.classList.add('visible');
+      titleInput.setAttribute('aria-invalid', 'true');
+      titleInput.setAttribute('aria-describedby', titleError.id);
+      titleInput.focus();
+      scrollIntoViewSafe(titleInput);
+    }
+    function hideTitleError() {
+      if (!titleError.classList.contains('visible')) return;
+      titleError.textContent = '';
+      titleError.classList.remove('visible');
+      titleInput.removeAttribute('aria-invalid');
+      titleInput.removeAttribute('aria-describedby');
+    }
     function setProgress(pct, label) {
       progressFill.style.width = pct + '%';
       progressFill.setAttribute('aria-valuenow', String(pct));
@@ -449,22 +523,23 @@
         linkDetected.textContent = 'Dropbox/Drive links aren\u2019t supported. Upload the file directly, or paste a supported video link.';
         linkDetected.classList.add('error');
       } else {
-        linkDetected.textContent = 'Not a recognized video URL';
+        linkDetected.textContent = 'We don\u2019t recognize that link. Paste a YouTube, Vimeo, Dailymotion, Loom, or Wistia video URL.';
         linkDetected.classList.add('error');
       }
       updateUploadBtnState();
     });
 
+    // The button stays clickable when something is missing (only dimmed via
+    // aria-disabled) so a click can point at the field that needs attention
+    // instead of silently doing nothing.
     function updateUploadBtnState() {
-      if (mode === 'file') {
-        const hasFiles = isFolderMode ? selectedFiles.length > 0 : !!selectedFile;
-        const hasTitle = titleInput.value.trim().length > 0;
-        uploadBtn.disabled = !(hasFiles && hasTitle);
-      } else {
-        const hasLink = !!parsedLink;
-        const hasTitle = titleInput.value.trim().length > 0;
-        uploadBtn.disabled = !(hasLink && hasTitle);
-      }
+      const hasTitle = titleInput.value.trim().length > 0;
+      const hasSource = mode === 'file'
+        ? (isFolderMode ? selectedFiles.length > 0 : !!selectedFile)
+        : !!parsedLink;
+      const ready = hasSource && hasTitle;
+      uploadBtn.classList.toggle('is-disabled', !ready);
+      uploadBtn.setAttribute('aria-disabled', String(!ready));
     }
 
     function applyFolderMode(on) {
@@ -503,15 +578,14 @@
 
     function setFile(file) {
       if (!file || typeof file.size !== 'number' || file.size === 0) {
-        showError('That file looks empty or unreadable. Please pick a different video.');
-        scrollIntoViewSafe(errorMsg);
+        showDropError('That file looks empty or unreadable. Please pick a different video.');
         return;
       }
       if (file.size > MAX_SIZE) {
-        showError(`File is too large (${formatBytes(file.size)}). Maximum size is 1 GB.`);
-        scrollIntoViewSafe(errorMsg);
+        showDropError(`"${file.name}" is too large (${formatBytes(file.size)}). The limit is 1 GB per video — try trimming or compressing it.`);
         return;
       }
+      hideDropError();
       if (mode !== 'file') setMode('file');
       applyFolderMode(false);
       selectedFile = file;
@@ -535,21 +609,19 @@
       // Validate every file up-front so we don't get half-way through and fail.
       const oversized = files.find(f => f.size > MAX_SIZE);
       if (oversized) {
-        showError(`"${oversized.name}" is too large (${formatBytes(oversized.size)}). Maximum size is 1 GB per file.`);
-        scrollIntoViewSafe(errorMsg);
+        showDropError(`"${oversized.name}" is too large (${formatBytes(oversized.size)}). The limit is 1 GB per video — remove it or compress it, then choose the files again.`);
         return;
       }
       if (files.length > 10) {
-        showError(`Too many files (${files.length}). A folder can contain at most 10 videos.`);
-        scrollIntoViewSafe(errorMsg);
+        showDropError(`You picked ${files.length} files, but a folder can hold at most 10 videos. Please choose 10 or fewer.`);
         return;
       }
       const empty = files.find(f => !f || typeof f.size !== 'number' || f.size === 0);
       if (empty) {
-        showError(`"${empty && empty.name || 'A file'}" looks empty or unreadable. Please pick different videos.`);
-        scrollIntoViewSafe(errorMsg);
+        showDropError(`"${empty && empty.name || 'One of the files'}" looks empty or unreadable. Remove it and choose the files again.`);
         return;
       }
+      hideDropError();
       if (mode !== 'file') setMode('file');
       applyFolderMode(true);
       selectedFile = null;
@@ -581,6 +653,8 @@
       uploadBtn.classList.remove('visible');
       dropZone.style.display = '';
       hideError();
+      hideDropError();
+      hideTitleError();
     }
 
     function removeFileAt(idx) {
@@ -604,7 +678,10 @@
       const idx = parseInt(btn.dataset.idx, 10);
       if (!isNaN(idx)) removeFileAt(idx);
     });
-    titleInput.addEventListener('input', updateUploadBtnState);
+    titleInput.addEventListener('input', () => {
+      hideTitleError();
+      updateUploadBtnState();
+    });
 
     function updatePasswordNote() {
       passwordNote.hidden = passwordInput.value.length === 0;
@@ -615,10 +692,21 @@
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault(); dropZone.classList.remove('drag-over');
-      const dropped = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('video/'));
-      if (dropped.length === 0) { showError('Please drop a video file.'); return; }
+      const all = Array.from(e.dataTransfer.files || []);
+      const dropped = all.filter(f => f.type.startsWith('video/'));
+      if (dropped.length === 0) {
+        showDropError(all.length
+          ? 'That isn\u2019t a video file. Drop an MP4, MOV, or WebM video instead.'
+          : 'Nothing was dropped. Drag a video file onto this area or tap to choose one.');
+        return;
+      }
       if (dropped.length === 1) setFile(dropped[0]);
       else setFiles(dropped);
+      const accepted = selectedFile || selectedFiles.length > 0;
+      if (accepted && dropped.length < all.length) {
+        const skipped = all.length - dropped.length;
+        showDropError(`${skipped} non-video file${skipped === 1 ? ' was' : 's were'} skipped — only videos can be uploaded.`);
+      }
     });
 
     function finishSuccess(videoId, opts) {
@@ -720,8 +808,7 @@
       if (!selectedFile) return;
       const title = titleInput.value.trim();
       if (!title) {
-        showError('Please add a title for your video.');
-        titleInput.focus();
+        showTitleError('Please add a title so people know what they\u2019re watching.');
         return;
       }
       const file = selectedFile;
@@ -737,13 +824,16 @@
       progressArea.classList.add('visible');
       if (modeTabs) modeTabs.style.display = 'none';
       hideError();
+      hideDropError();
       setProgress(0, 'Preparing…');
       uploading = true;
       root.dispatchEvent(new CustomEvent('upload:start'));
 
       try {
         if (file.size === 0) {
-          throw new Error('That file is empty (0 bytes). Please pick another video.');
+          const e = new Error('That file is empty (0 bytes). Please pick another video.');
+          e.userFacing = true;
+          throw e;
         }
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK_SIZE;
@@ -766,6 +856,7 @@
               const err = await parseErrJson(res);
               const e = new Error(err.message || `Chunk ${i} failed`);
               e.status = res.status;
+              e.userFacing = !!err.message;
               throw e;
             }
           }, i);
@@ -782,6 +873,7 @@
           const err = await parseErrJson(finalRes);
           const e = new Error(err.message || 'Finalize failed');
           e.status = finalRes.status;
+          e.userFacing = !!err.message;
           throw e;
         }
 
@@ -804,7 +896,8 @@
         if (err.status === 401) {
           showAuthError();
         } else {
-          showError('Upload failed: ' + err.message);
+          showError(describeUploadFailure(err, 'Upload failed. Your file is still selected — tap Upload to try again.'));
+          scrollIntoViewSafe(errorMsg);
         }
       }
     }
@@ -820,8 +913,7 @@
 
       const title = titleInput.value.trim();
       if (!title) {
-        showError('Please add a title for your video.');
-        titleInput.focus();
+        showTitleError('Please add a title so people know what they\u2019re watching.');
         return;
       }
       const url = linkInput.value.trim();
@@ -849,6 +941,7 @@
           const err = new Error(errData.message || 'Failed to create link video');
           err._errorCode = errData.code;
           err.status = res.status;
+          err.userFacing = !!errData.message;
           throw err;
         }
         const data = await res.json();
@@ -856,7 +949,7 @@
         uploading = false;
         finishSuccess(data.videoId, { title, expiryDays, password, isLink: true, platform: data.platform });
         if (data.warning) {
-          showError(data.warning);
+          showNotice(data.warning);
         }
       } catch (err) {
         uploading = false;
@@ -871,8 +964,9 @@
         } else if (err._errorCode === 'VIDEO_UNAVAILABLE') {
           showError(err.message);
         } else {
-          showError('Submission failed: ' + err.message);
+          showError(describeUploadFailure(err, 'We couldn\u2019t create a watch link for that video. Please try again.'));
         }
+        scrollIntoViewSafe(errorMsg);
       }
     }
 
@@ -915,6 +1009,7 @@
       // catches per-file errors so other files can still proceed.
       if (file.size === 0) {
         const e = new Error('File is empty (0 bytes).');
+        e.userFacing = true;
         throw e;
       }
       const ext = getExt(file);
@@ -945,6 +1040,7 @@
               const err = await parseErrJson(res);
               const e = new Error(err.message || `Chunk ${i} failed`);
               e.status = res.status;
+              e.userFacing = !!err.message;
               throw e;
             }
           }, i);
@@ -965,6 +1061,7 @@
           const err = await parseErrJson(finalRes);
           const e = new Error(err.message || 'Finalize failed');
           e.status = finalRes.status;
+          e.userFacing = !!err.message;
           throw e;
         }
 
@@ -976,8 +1073,9 @@
         });
         if (!aRes.ok) {
           const err = await parseErrJson(aRes);
-          const e = new Error(err.message || 'Could not attach to folder');
+          const e = new Error(err.message || 'Uploaded, but it could not be added to the folder.');
           e.status = aRes.status;
+          e.userFacing = true;
           throw e;
         }
         captureAndUploadThumbnail(file, videoId);
@@ -995,8 +1093,7 @@
       // the folder is empty, we delete it server-side as cleanup.
       const folderTitle = titleInput.value.trim();
       if (!folderTitle) {
-        showError('Please add a folder title.');
-        titleInput.focus();
+        showTitleError('Please give the folder a name.');
         return;
       }
       const files = selectedFiles.slice();
@@ -1037,7 +1134,10 @@
           });
           if (!cRes.ok) {
             const err = await parseErrJson(cRes);
-            throw new Error(err.message || 'Could not create folder');
+            const e = new Error(err.message || 'Could not create folder');
+            e.status = cRes.status;
+            e.userFacing = !!err.message;
+            throw e;
           }
           const data = await cRes.json();
           slug = data.slug;
@@ -1052,7 +1152,12 @@
           fieldsArea.style.display = 'flex';
           if (modeTabs) modeTabs.style.display = '';
           root.dispatchEvent(new CustomEvent('upload:reset'));
-          showError('Could not create folder: ' + err.message);
+          if (err.status === 401) {
+            showAuthError();
+          } else {
+            showError(describeUploadFailure(err, 'We couldn\u2019t create the folder. Nothing was uploaded — please try again.'));
+          }
+          scrollIntoViewSafe(errorMsg);
           return;
         }
       }
@@ -1091,7 +1196,7 @@
             folderState[f].status = 'cancelled';
           } else {
             folderState[f].status = 'failed';
-            folderState[f].error = err.message || 'Upload failed';
+            folderState[f].error = describeUploadFailure(err, 'Upload failed');
             failedCount++;
           }
         }
@@ -1274,18 +1379,42 @@
       }, 400);
     }
 
-    copyBtn.addEventListener('click', async () => {
+    async function copyShareLink() {
       const url = shareLink.textContent;
-      try { await navigator.clipboard.writeText(url); }
-      catch {
-        const ta = document.createElement('textarea');
-        ta.value = url; ta.style.cssText = 'position:fixed;opacity:0';
-        document.body.appendChild(ta); ta.focus(); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
+      let ok = false;
+      if (Feedback) {
+        ok = await Feedback.copyText(url);
+      } else {
+        try { await navigator.clipboard.writeText(url); ok = true; } catch { ok = false; }
       }
-      copyBtn.textContent = 'Copied!';
-      copyBtn.classList.add('copied');
-      setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 2500);
+      return ok;
+    }
+
+    function selectShareLinkText() {
+      // Clipboard access can be blocked (insecure context, embedded webview,
+      // permissions). Highlight the link so a manual copy is one gesture away.
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(shareLink);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch {}
+    }
+
+    copyBtn.addEventListener('click', async () => {
+      const ok = await copyShareLink();
+      if (ok) {
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        copyBtn.classList.remove('copy-failed');
+        setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copied'); }, 2500);
+        return;
+      }
+      selectShareLinkText();
+      copyBtn.textContent = 'Couldn\u2019t copy — link is selected above';
+      copyBtn.classList.add('copy-failed');
+      setTimeout(() => { copyBtn.textContent = 'Copy Link'; copyBtn.classList.remove('copy-failed'); }, 3500);
     });
 
     function reset() {

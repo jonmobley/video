@@ -215,5 +215,12 @@ main {
 .dialog p {
   color: #aaa; font-size: 0.9rem; margin-bottom: 16px; line-height: 1.5;
 }
+.dialog input[aria-invalid="true"] { border-color: #ff6b6b; }
+.dialog .dialog-error { margin: -6px 0 14px; }
+
+/* Inline errors (see feedback.css for base styles) */
+.folder-actions .folder-action-error { flex-basis: 100%; margin-top: 2px; }
+.video-body .inline-error { margin-top: 10px; }
+.error-state .btn { margin-top: 18px; }
 
 :focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }

@@ -133,6 +133,10 @@
   box-shadow: 0 12px 30px rgba(78,205,196,0.32);
 }
 .upload-card button.btn.upload-btn:active { transform: translateY(0); filter: brightness(0.96); }
+.upload-card button.btn.upload-btn.is-disabled,
+.upload-card button.btn.upload-btn.is-disabled:hover {
+  opacity: 0.6; transform: none; filter: none; box-shadow: none; cursor: pointer;
+}
 
 /* Copy button */
 .upload-card button.btn.copy-btn,
@@ -233,8 +237,41 @@
   display: none; margin-top: 14px; padding: 12px 14px;
   background: rgba(255,59,48,0.12); border: 1px solid rgba(255,59,48,0.3);
   border-radius: 10px; color: #ff6b6b; font-size: 0.88rem; text-align: center;
+  line-height: 1.45;
 }
 .upload-card .error-msg.visible { display: block; }
+.upload-card .error-msg.notice {
+  background: rgba(255,159,10,0.10); border-color: rgba(255,159,10,0.30);
+  color: #ffd479;
+}
+
+/* File-selection problems shown directly beneath the drop zone. */
+.upload-card .zone-error {
+  display: none; margin-top: 10px; padding: 10px 12px;
+  background: rgba(255,59,48,0.12); border: 1px solid rgba(255,59,48,0.3);
+  border-radius: 10px; color: #ff6b6b; font-size: 0.84rem; text-align: left;
+  line-height: 1.45; word-break: break-word;
+}
+.upload-card .zone-error.visible { display: block; }
+
+/* Field-level validation copy under an input. */
+.upload-card .field-error {
+  display: none; margin-top: 6px; color: #ff8e8e;
+  font-size: 0.8rem; line-height: 1.35; text-transform: none; letter-spacing: 0;
+}
+.upload-card .field-error.visible { display: block; }
+.upload-card .field input[aria-invalid="true"] {
+  border-color: #ff6b6b; box-shadow: 0 0 0 3px rgba(255,107,107,0.15);
+}
+
+.upload-card button.btn.copy-btn.copy-failed,
+.upload-card button.btn.copy-btn.copy-failed:hover {
+  background: rgba(255,107,107,0.18); color: #ff8e8e;
+  border: 1px solid rgba(255,107,107,0.45); filter: none; transform: none;
+  font-size: 0.88rem;
+}
+.upload-card .share-link-box::selection,
+.upload-card .share-link-box *::selection { background: rgba(78,205,196,0.45); color: #fff; }
 
 /* ============ Modal shell (used on home page) ============ */
 .upload-modal {

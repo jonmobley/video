@@ -210,6 +210,17 @@ main {
     border-color: #ff6b6b;
     animation: shake 0.4s ease;
 }
+.hero-drop-error {
+    position: relative;
+    z-index: 1;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #ff6b6b;
+    line-height: 1.45;
+}
+.hero-drop-error:empty {
+    display: none;
+}
 @keyframes shake {
     0%,100% { transform: translateX(0); }
     25% { transform: translateX(-6px); }

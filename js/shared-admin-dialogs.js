@@ -7,6 +7,75 @@ function createAdminDialogOverlay(zIndex) {
     return overlay;
 }
 
+/**
+ * Show (or clear, when message is empty) an inline error inside a dialog,
+ * placed just above its action buttons. `anchor` is the actions container.
+ */
+function setDialogError(anchor, message) {
+    if (!anchor || !anchor.parentNode) return;
+    var existing = anchor.parentNode.querySelector('.oz-dialog-error');
+    if (!message) {
+        if (existing) existing.remove();
+        return;
+    }
+    if (!existing) {
+        existing = document.createElement('div');
+        existing.className = 'oz-dialog-error';
+        existing.setAttribute('role', 'alert');
+        anchor.parentNode.insertBefore(existing, anchor);
+    }
+    existing.textContent = message;
+}
+
+function describeDialogError(err, fallback) {
+    if (window.VsFeedback) return window.VsFeedback.describeError(err, fallback);
+    return (err && err.message) || fallback;
+}
+
+var adminBannerMessageTimer = null;
+
+/**
+ * Show a message in a strip directly under the edit-mode admin banner (next
+ * to the Save button), instead of alert(). `options.tone` is 'error'
+ * (default) or 'notice'; `options.timeout` (ms, default 8000) auto-hides it.
+ */
+function showAdminBannerMessage(message, options) {
+    options = options || {};
+    var banner = document.getElementById('adminBanner');
+    if (!banner) return null;
+    var strip = banner.querySelector('.admin-banner-message');
+    if (!message) {
+        if (strip) strip.remove();
+        return null;
+    }
+    if (!strip) {
+        strip = document.createElement('div');
+        strip.className = 'admin-banner-message';
+        strip.setAttribute('role', 'alert');
+        banner.appendChild(strip);
+    }
+    strip.classList.toggle('notice', options.tone === 'notice');
+    strip.innerHTML = '';
+    var text = document.createElement('span');
+    text.className = 'admin-banner-message-text';
+    text.textContent = message;
+    strip.appendChild(text);
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'admin-banner-message-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '\u00D7';
+    close.addEventListener('click', function() { showAdminBannerMessage(''); });
+    strip.appendChild(close);
+
+    if (adminBannerMessageTimer) clearTimeout(adminBannerMessageTimer);
+    var timeout = options.timeout === undefined ? 8000 : options.timeout;
+    if (timeout) {
+        adminBannerMessageTimer = setTimeout(function() { showAdminBannerMessage(''); }, timeout);
+    }
+    return strip;
+}
+
 function openIconPickerDialog(categoryElement, availableIcons, onSave) {
     var categoryId = categoryElement.dataset.category;
     var currentIcon = categoryElement.dataset.icon || '';
@@ -100,10 +169,20 @@ function openDeleteTagDialog(categoryName, videoCount, reassignmentOptionsHtml, 
 
     document.body.appendChild(dialog);
 
+    var reassignSelect = dialog.querySelector('#reassignSelect');
+    var actions = dialog.querySelector('.oz-dialog-actions');
+
+    reassignSelect.addEventListener('change', function() {
+        reassignSelect.removeAttribute('aria-invalid');
+        setDialogError(actions, '');
+    });
+
     dialog.querySelector('#confirmDelete').addEventListener('click', function() {
-        var newCategoryId = dialog.querySelector('#reassignSelect').value;
+        var newCategoryId = reassignSelect.value;
         if (!newCategoryId) {
-            alert(validationMessage);
+            reassignSelect.setAttribute('aria-invalid', 'true');
+            setDialogError(actions, validationMessage);
+            reassignSelect.focus();
             return;
         }
         onConfirm(newCategoryId);
@@ -170,9 +249,24 @@ function openDeleteVideoDialog(videoTitle, onConfirm) {
     cancelBtn.onmouseover = function() { cancelBtn.style.background = '#444'; };
     cancelBtn.onmouseout = function() { cancelBtn.style.background = '#333'; };
 
+    var actions = dialog.querySelector('.oz-dialog-actions-center');
+
     confirmBtn.addEventListener('click', async function() {
-        await onConfirm();
-        document.body.removeChild(dialog);
+        setDialogError(actions, '');
+        confirmBtn.disabled = true;
+        cancelBtn.disabled = true;
+        var originalLabel = confirmBtn.textContent;
+        confirmBtn.textContent = 'Deleting\u2026';
+        try {
+            await onConfirm();
+            document.body.removeChild(dialog);
+        } catch (err) {
+            confirmBtn.disabled = false;
+            cancelBtn.disabled = false;
+            confirmBtn.textContent = originalLabel;
+            setDialogError(actions, 'The video wasn\u2019t deleted. ' +
+                describeDialogError(err, 'Something went wrong. Please try again.'));
+        }
     });
 
     cancelBtn.addEventListener('click', function() {
@@ -260,19 +354,51 @@ function openFeaturedContentDialog(featuredContent, callbacks) {
         });
     });
 
-    dialog.querySelector('#setFeaturedConfirm').addEventListener('click', function() {
-        var type = dialog.querySelector('input[name="featuredType"]:checked').value;
+    var featuredActions = dialog.querySelector('.oz-featured-actions');
+    var imageInput = dialog.querySelector('#featuredImageUrl');
 
-        if (type === 'video') {
+    function clearFeaturedError() {
+        setDialogError(featuredActions, '');
+        videoSelect.removeAttribute('aria-invalid');
+        imageInput.removeAttribute('aria-invalid');
+    }
+    videoSelect.addEventListener('change', clearFeaturedError);
+    imageInput.addEventListener('input', clearFeaturedError);
+    dialog.querySelectorAll('input[name="featuredType"]').forEach(function(radio) {
+        radio.addEventListener('change', clearFeaturedError);
+    });
+
+    dialog.querySelector('#setFeaturedConfirm').addEventListener('click', function() {
+        var checked = dialog.querySelector('input[name="featuredType"]:checked');
+        if (!checked) {
+            setDialogError(featuredActions, 'Choose whether to feature a video or an image.');
+            return;
+        }
+
+        if (checked.value === 'video') {
             var selectedVideoId = videoSelect.value;
-            if (selectedVideoId) {
-                onSetVideo(selectedVideoId);
+            if (!selectedVideoId) {
+                videoSelect.setAttribute('aria-invalid', 'true');
+                setDialogError(featuredActions, 'Choose a video to feature first.');
+                videoSelect.focus();
+                return;
             }
+            onSetVideo(selectedVideoId);
         } else {
-            var imageUrl = dialog.querySelector('#featuredImageUrl').value.trim();
-            if (imageUrl) {
-                onSetImage(imageUrl);
+            var imageUrl = imageInput.value.trim();
+            if (!imageUrl) {
+                imageInput.setAttribute('aria-invalid', 'true');
+                setDialogError(featuredActions, 'Enter an image URL first.');
+                imageInput.focus();
+                return;
             }
+            if (!/^https?:\/\/\S+/i.test(imageUrl)) {
+                imageInput.setAttribute('aria-invalid', 'true');
+                setDialogError(featuredActions, 'That doesn\u2019t look like a web address. It should start with https://');
+                imageInput.focus();
+                return;
+            }
+            onSetImage(imageUrl);
         }
 
         document.body.removeChild(dialog);

@@ -169,6 +169,26 @@ video {
   background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
   color: #fff; text-decoration: none; font-size: 0.9rem; font-weight: 600;
 }
+.state-retry-btn {
+  padding: 10px 18px; border-radius: 10px; border: 1px solid #3a3a3c;
+  background: #1c1c1e; color: #fff; font-size: 0.9rem; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.state-retry-btn:hover { border-color: #4ecdc4; background: #232325; }
+
+/* Inline playback failure shown directly under the <video> element */
+.video-error {
+  margin-top: 10px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(255, 107, 107, 0.12); border: 1px solid rgba(255, 107, 107, 0.35);
+  color: #ffb3b3; font-size: 0.88rem; line-height: 1.45;
+}
+.video-error[hidden] { display: none; }
+.video-error-retry {
+  margin-left: 6px; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid rgba(255, 179, 179, 0.5); background: transparent;
+  color: #fff; font-size: 0.82rem; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.video-error-retry:hover { background: rgba(255, 255, 255, 0.08); }
 
 .pw-card {
   background: #111; border: 1px solid #1f1f1f; border-radius: 20px;
@@ -184,6 +204,8 @@ video {
   margin-bottom: 14px; text-align: center; letter-spacing: 0.1em;
 }
 .pw-input:focus { border-color: #4ecdc4; outline: none; }
+.pw-input[aria-invalid="true"] { border-color: #ff6b6b; }
+.pw-btn:disabled { opacity: 0.6; cursor: wait; }
 .pw-input:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }
 .pw-btn {
   width: 100%; padding: 14px; border: none; border-radius: 12px;
