@@ -627,6 +627,15 @@
                 console.error('Cache write error:', error);
             }
         }
+
+        /** Drop a cached API response so the next load hits the server. */
+        function clearCachedData(key) {
+            try {
+                localStorage.removeItem(`cache_${key}`);
+            } catch (error) {
+                console.error('Cache clear error:', error);
+            }
+        }
         
         /**
          * Loads videos from the server/database
@@ -3009,8 +3018,8 @@
                 clearUnsavedChanges();
                 
                 // Clear localStorage cache to ensure changes are visible immediately
-                localStorage.removeItem(pageCacheKey('videos'));
-                localStorage.removeItem(pageCacheKey('categories'));
+                clearCachedData(pageCacheKey('videos'));
+                clearCachedData(pageCacheKey('categories'));
                 console.log('🗑️ Cleared localStorage cache - changes will be visible on next load');
                 
                 // Reset button after 2 seconds

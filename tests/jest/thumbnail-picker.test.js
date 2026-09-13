@@ -219,3 +219,16 @@ describe('page wiring', () => {
     }
   });
 });
+
+describe('show page save invalidates the cached video list', () => {
+  const app = fs.readFileSync(path.join(__dirname, '../../js/oz-app.js'), 'utf8');
+
+  test('cache entries are written and cleared under the same cache_ prefix', () => {
+    expect(app).toMatch(/localStorage\.setItem\(`cache_\$\{key\}`/);
+    expect(app).toMatch(/function clearCachedData\(key\)[\s\S]*?localStorage\.removeItem\(`cache_\$\{key\}`\)/);
+    expect(app).toMatch(/clearCachedData\(pageCacheKey\('videos'\)\)/);
+    expect(app).toMatch(/clearCachedData\(pageCacheKey\('categories'\)\)/);
+    // The old form removed a key that was never written, so saves looked lost on reload.
+    expect(app).not.toMatch(/localStorage\.removeItem\(pageCacheKey\('videos'\)\)/);
+  });
+});
