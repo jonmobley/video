@@ -7,7 +7,8 @@
  * Query Parameters: page (string), videoId (Bunny GUID)
  * Auth: page-editor credential for `page`
  *
- * Response: { videoId, status, encodeProgress, length, thumbnailUrl, previewUrl, ready }
+ * Response: { videoId, status, encodeProgress, length, thumbnailUrl, thumbnailFileName,
+ *             hasCustomThumbnail, candidateThumbnails, previewUrl, ready }
  */
 
 const { requirePageAuth, getSecuredCorsHeaders } = require('./utils/auth');
@@ -54,6 +55,7 @@ exports.handler = async (event) => {
 
   try {
     const video = await bunny.getVideo(params.videoId);
+    const ready = READY_STATUSES.has(video.status);
     return respond(200, headers, {
       videoId: video.videoId,
       status: video.status,
@@ -62,8 +64,12 @@ exports.handler = async (event) => {
       width: video.width,
       height: video.height,
       thumbnailUrl: bunny.thumbnailUrl(video.videoId, process.env, video.thumbnailFileName),
+      thumbnailFileName: video.thumbnailFileName,
+      hasCustomThumbnail: video.hasCustomThumbnail,
+      // Bunny's auto-generated frames only exist once encoding has finished.
+      candidateThumbnails: ready ? bunny.candidateThumbnailUrls(video.videoId) : [],
       previewUrl: bunny.previewUrl(video.videoId),
-      ready: READY_STATUSES.has(video.status)
+      ready
     });
   } catch (error) {
     console.error('bunny-video-status failed:', error.message);

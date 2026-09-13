@@ -435,7 +435,8 @@ function cmsHandlerAdapter(functionName) {
   'redeem-page-editor-setup',
   'bunny-create-upload',
   'bunny-video-status',
-  'bunny-discard-upload'
+  'bunny-discard-upload',
+  'bunny-set-thumbnail'
 ].forEach((functionName) => {
   const run = cmsHandlerAdapter(functionName);
   app.all(`/api/${functionName}`, run);
