@@ -490,10 +490,14 @@
 
     if (Array.isArray(source.imageUrls)) {
       const frames = source.imageUrls.slice(0, count).map(url => ({ url }));
-      while (frames.length < count) frames.push(null);
+      if (!frames.length) {
+        showEmptyGrid(slots, options.emptyFramesMessage || 'Could not load frames');
+        return;
+      }
+      // A fixed list (e.g. Bunny's five generated frames) needs no filler tiles.
+      slots.splice(frames.length).forEach(tile => tile.remove());
       state.frames = frames;
       frames.forEach((f, idx) => renderFrameTile(slots[idx], f, idx));
-      if (!frames.some(Boolean)) showEmptyGrid(slots, options.emptyFramesMessage || 'Could not load frames');
       return;
     }
 

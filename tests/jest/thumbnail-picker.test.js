@@ -55,8 +55,9 @@ describe('ThumbnailPicker dialog', () => {
     await flush();
 
     const tiles = Array.from(document.querySelectorAll('#tpGrid .tp-frame'));
-    expect(tiles).toHaveLength(ThumbnailPicker.TP_FRAME_COUNT);
-    expect(tiles.filter(t => !t.classList.contains('empty'))).toHaveLength(3);
+    // Fixed URL lists render exactly that many tiles — no empty filler slots.
+    expect(tiles).toHaveLength(3);
+    expect(tiles.filter(t => t.classList.contains('empty'))).toHaveLength(0);
     expect(tiles[1].querySelector('img').getAttribute('src')).toBe(urls[1]);
 
     const save = document.getElementById('tpSave');
