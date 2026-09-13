@@ -3553,9 +3553,10 @@
                 onSave: async (selection) => {
                     const result = await setBunnyThumbnail(videoId, selection);
                     // The latest pick is the one to re-apply if Bunny replaces the
-                    // poster when encoding finishes; once ready there is nothing to redo.
-                    if (status && !status.ready) chosenThumbnails.set(videoId, selection);
-                    else chosenThumbnails.delete(videoId);
+                    // poster when encoding finishes. Only a confirmed "ready" means
+                    // there is nothing to redo; an unknown status keeps the pick.
+                    if (status && status.ready) chosenThumbnails.delete(videoId);
+                    else chosenThumbnails.set(videoId, selection);
                     applyThumbnailToVideo(videoId, result.thumbnailUrl);
                     renderEditThumbnailGroup(videoId);
                 }

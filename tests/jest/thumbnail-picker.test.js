@@ -229,8 +229,9 @@ describe('page wiring', () => {
     const app = read('js/oz-app.js');
     const start = app.indexOf("getElementById('editVideoThumbnailBtn')");
     const body = app.slice(start, app.indexOf('// Add Video Popup Functions', start));
-    expect(body).toMatch(/if \(status && !status\.ready\) chosenThumbnails\.set\(videoId, selection\);/);
-    expect(body).toMatch(/else chosenThumbnails\.delete\(videoId\);/);
+    // Only a confirmed ready status skips the re-apply; unknown status keeps the pick.
+    expect(body).toMatch(/if \(status && status\.ready\) chosenThumbnails\.delete\(videoId\);/);
+    expect(body).toMatch(/else chosenThumbnails\.set\(videoId, selection\);/);
   });
 
   test('picker script is loaded before the app scripts that use it', () => {
