@@ -231,4 +231,10 @@ describe('show page save invalidates the cached video list', () => {
     // The old form removed a key that was never written, so saves looked lost on reload.
     expect(app).not.toMatch(/localStorage\.removeItem\(pageCacheKey\('videos'\)\)/);
   });
+
+  test('editors bypass the 5-minute video cache so saves show on reload', () => {
+    expect(app).toMatch(/const wantsFresh = hasSavedPageEditorToken\(\)/);
+    expect(app).toMatch(/wantsFresh \? null : getCachedData\(pageCacheKey\('videos'\)\)/);
+    expect(app).toMatch(/fetch\(pageApiUrl\('get-videos'\), wantsFresh \? \{ cache: 'no-cache' \} : undefined\)/);
+  });
 });

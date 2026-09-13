@@ -645,8 +645,13 @@
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
 
+                // Editors must see their own saves on the next reload; viewers
+                // can take the 5-minute localStorage/HTTP cache. `no-cache`
+                // still revalidates with the ETag, so unchanged lists are 304s.
+                const wantsFresh = hasSavedPageEditorToken();
+
                 // Check cache first
-                const cachedVideos = getCachedData(pageCacheKey('videos'));
+                const cachedVideos = wantsFresh ? null : getCachedData(pageCacheKey('videos'));
                 if (cachedVideos) {
                     videos = cachedVideos;
                     console.log('✅ Videos loaded from cache:', videos.length, 'videos');
@@ -655,7 +660,7 @@
                 }
                 
                 console.log(`🎬 Making API call to: ${pageApiUrl('get-videos')}`);
-                const response = await fetch(pageApiUrl('get-videos'));
+                const response = await fetch(pageApiUrl('get-videos'), wantsFresh ? { cache: 'no-cache' } : undefined);
                 if (response.ok) {
                     videos = await response.json();
                     console.log('✅ Videos loaded successfully:', videos.length, 'videos');
@@ -1430,6 +1435,15 @@
 
         function pageEditorStorageKey() {
             return `vidshare-page-editor-token:${pageKey}`;
+        }
+
+        /** True when this browser has a remembered editor credential for the page. */
+        function hasSavedPageEditorToken() {
+            try {
+                return !!localStorage.getItem(pageEditorStorageKey());
+            } catch (_) {
+                return false;
+            }
         }
 
         function savePageEditorToken(token) {
