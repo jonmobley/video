@@ -28,6 +28,9 @@
   const TP_FRAME_COUNT = 6;
   const TP_FRAME_CACHE_MAX = 20;
   const EXTRACT_TIMEOUT_MS = 30000;
+  // How long after 'seeked' (+2 animation frames) to capture if
+  // requestVideoFrameCallback has not fired.
+  const PAINT_FALLBACK_MS = 150;
 
   const TEMPLATE = `
     <div class="tp-dialog">
@@ -158,13 +161,22 @@
       function afterPaint(cb) {
         // Wait until a decoded frame is available at the seeked time —
         // capturing immediately on 'seeked' often reuses the prior frame.
+        // requestVideoFrameCallback is the precise signal, but it only fires
+        // when the element is actually composited, and this hidden 1px video
+        // is not in some renderers (software GL, background tabs). Race it
+        // against a short rAF-based delay so extraction never stalls until
+        // the overall timeout; drawImage reads the decoder's current frame
+        // either way.
+        let done = false;
+        const fire = () => {
+          if (done) return;
+          done = true;
+          cb();
+        };
         if (typeof video.requestVideoFrameCallback === 'function') {
-          try {
-            video.requestVideoFrameCallback(() => cb());
-            return;
-          } catch (_) { /* fall through */ }
+          try { video.requestVideoFrameCallback(() => fire()); } catch (_) { /* fall back to rAF */ }
         }
-        requestAnimationFrame(() => requestAnimationFrame(cb));
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(fire, PAINT_FALLBACK_MS)));
       }
 
       function seekNext() {
@@ -501,7 +513,11 @@
     };
     let frames;
     if (source.frames) {
-      // Pre-extracted (e.g. computed while an upload was in flight).
+      // Pre-extracted (e.g. computed while an upload was in flight). A
+      // `partial` array lets tiles that already landed show immediately.
+      if (Array.isArray(source.partial)) {
+        source.partial.forEach((f, idx) => { if (f && idx < count) onFrame(idx, f); });
+      }
       frames = await Promise.resolve(source.frames);
       if (state !== token) return;
       frames = Array.from({ length: count }, (_, idx) => (frames && frames[idx]) || null);

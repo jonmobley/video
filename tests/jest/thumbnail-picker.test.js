@@ -92,6 +92,35 @@ describe('ThumbnailPicker dialog', () => {
     });
   });
 
+  test('renders already-landed partial frames before the batch promise resolves', async () => {
+    let resolveFrames;
+    const frames = new Promise(resolve => { resolveFrames = resolve; });
+    const partial = [FRAME(1), undefined, FRAME(3)];
+    ThumbnailPicker.open({ source: { frames, partial }, onSave: jest.fn() });
+    await flush();
+    let tiles = Array.from(document.querySelectorAll('#tpGrid .tp-frame'));
+    expect(tiles[0].querySelector('img')).not.toBeNull();
+    expect(tiles[1].classList.contains('loading')).toBe(true);
+    expect(tiles[2].querySelector('img')).not.toBeNull();
+
+    resolveFrames([FRAME(1), FRAME(2), FRAME(3), null, null, null]);
+    await flush();
+    tiles = Array.from(document.querySelectorAll('#tpGrid .tp-frame'));
+    expect(tiles[1].querySelector('img')).not.toBeNull();
+    expect(tiles[3].classList.contains('empty')).toBe(true);
+  });
+
+  test('extractor does not depend solely on requestVideoFrameCallback firing', () => {
+    const src = fs.readFileSync(path.join(__dirname, '../../js/thumbnail-picker.js'), 'utf8');
+    const start = src.indexOf('function afterPaint');
+    const body = src.slice(start, src.indexOf('function seekNext', start));
+    expect(body).toMatch(/requestVideoFrameCallback/);
+    expect(body).toMatch(/requestAnimationFrame\(\(\) => requestAnimationFrame/);
+    expect(body).toMatch(/PAINT_FALLBACK_MS/);
+    // The rVFC branch must not return early and skip the fallback.
+    expect(body).not.toMatch(/requestVideoFrameCallback\([^)]*\);\s*return;/);
+  });
+
   test('shows the unavailable message when there is no frame source', async () => {
     ThumbnailPicker.open({ source: null, framesUnavailableMessage: 'Still processing', onSave: jest.fn() });
     await flush();
@@ -179,7 +208,7 @@ describe('page wiring', () => {
     }
     const app = read('js/oz-app.js');
     expect(app).toMatch(/\/api\/bunny-set-thumbnail/);
-    expect(app).toMatch(/offerThumbnailPicker\(videoId, file, framesPromise\)/);
+    expect(app).toMatch(/offerThumbnailPicker\(videoId, file, frameSource\)/);
     expect(app).toMatch(/reassertChosenThumbnail/);
   });
 

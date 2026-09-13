@@ -3794,16 +3794,21 @@
                 pendingFrameExtraction = null;
                 return;
             }
+            const partial = [];
             pendingFrameExtraction = {
                 file,
-                promise: picker.extractFramesFromFile(file, picker.TP_FRAME_COUNT).catch(() => null)
+                partial,
+                promise: picker.extractFramesFromFile(file, picker.TP_FRAME_COUNT, (idx, frame) => {
+                    partial[idx] = frame;
+                }).catch(() => null)
             };
         }
 
+        /** Hand the in-flight extraction for `file` to the picker as a { frames, partial } source. */
         function takeFrameExtraction(file) {
             const pending = pendingFrameExtraction;
             pendingFrameExtraction = null;
-            return pending && pending.file === file ? pending.promise : null;
+            return pending && pending.file === file ? { frames: pending.promise, partial: pending.partial } : null;
         }
 
         /** Send the editor's choice to Bunny via the server. Resolves with { thumbnailUrl }. */
@@ -3865,13 +3870,13 @@
         }
 
         /** After a successful upload, let the editor pick a frame or keep Bunny's default. */
-        function offerThumbnailPicker(videoId, file, framesPromise) {
+        function offerThumbnailPicker(videoId, file, frameSource) {
             const picker = window.ThumbnailPicker;
             if (!picker) return;
             picker.open({
                 title: 'Choose a thumbnail',
                 subtitle: 'Pick a frame from the video you just uploaded, or upload your own image.',
-                source: framesPromise ? { frames: framesPromise } : { file },
+                source: frameSource || { file },
                 skipLabel: 'Keep auto thumbnail',
                 saveLabel: 'Use this thumbnail',
                 onSave: async (selection) => {
@@ -3987,7 +3992,7 @@
                 // Frames normally start extracting on file selection; cover the
                 // case where the file was set without a change event.
                 if (!pendingFrameExtraction || pendingFrameExtraction.file !== file) startFrameExtraction(file);
-                const framesPromise = takeFrameExtraction(file);
+                const frameSource = takeFrameExtraction(file);
                 const [credentials, duration] = await Promise.all([
                     requestBunnyUpload(title),
                     window.BunnyUpload.readVideoDuration(file)
@@ -4035,7 +4040,7 @@
                 if (hint) hint.textContent = '';
 
                 // Let the editor choose a poster frame while the file is still in memory.
-                offerThumbnailPicker(videoId, file, framesPromise);
+                offerThumbnailPicker(videoId, file, frameSource);
                 
             } catch (error) {
                 activeUploadController = null;
