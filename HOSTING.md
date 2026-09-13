@@ -107,6 +107,9 @@ Add these repository secrets (Settings → Secrets and variables → Actions):
 | `ALLOW_ANONYMOUS_UPLOADS` | Optional |
 | `WISTIA_API_PASSWORD` | Optional |
 | `SEUSSICAL_EDITOR_TOKEN` | Seussical footer Login password |
+| `BUNNY_STREAM_LIBRARY_ID` | Show-page video uploads (Bunny Stream library id) |
+| `BUNNY_STREAM_API_KEY` | Show-page video uploads (that library's Stream API key) |
+| `BUNNY_STREAM_CDN_HOSTNAME` | Bunny pull zone for thumbnails, e.g. `vz-abc123-def.b-cdn.net` |
 
 After the secrets exist, either push to `main` or run **Actions → CI → Run workflow**. Empty optional secrets are skipped; missing required Worker secrets fail that step.
 
@@ -133,3 +136,12 @@ This repo no longer includes a Netlify site. After the Cloudflare Worker hostnam
 | `ALLOWED_ORIGIN` | CORS for editor writes |
 | `PUBLIC_ORIGIN` | Page-editor setup links |
 | `COOKIE_SECURE` | Override Secure cookie flag (`true`/`false`) |
+| `BUNNY_STREAM_LIBRARY_ID` | Bunny Stream library that show-page uploads land in |
+| `BUNNY_STREAM_API_KEY` | Stream API key for that library (signs browser uploads; never sent to clients) |
+| `BUNNY_STREAM_CDN_HOSTNAME` | Pull zone hostname for thumbnails / previews |
+
+## Bunny Stream (show-page videos)
+
+Show pages (`/seussical`, `/oz`, `/show/<slug>`) no longer take Wistia links. In edit mode, **Add Video** picks a file and streams it straight from the browser to Bunny Stream over TUS; the server only creates the video object and signs the upload, then stores the Bunny video id, embed URL, thumbnail URL and clip length on save. Videos removed from a page are deleted from the Bunny library when the page is saved.
+
+Setup in the Bunny dashboard: Stream → your video library → **API** gives the library id and API key; **Embed**/**Player** shows the pull zone hostname (`vz-….b-cdn.net`). Existing rows that still hold Wistia ids keep playing through Wistia until they are replaced.

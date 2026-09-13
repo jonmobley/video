@@ -95,6 +95,9 @@ jobs:
           ALLOW_ANONYMOUS_UPLOADS: ${{ secrets.ALLOW_ANONYMOUS_UPLOADS }}
           WISTIA_API_PASSWORD: ${{ secrets.WISTIA_API_PASSWORD }}
           SEUSSICAL_EDITOR_TOKEN: ${{ secrets.SEUSSICAL_EDITOR_TOKEN }}
+          BUNNY_STREAM_LIBRARY_ID: ${{ secrets.BUNNY_STREAM_LIBRARY_ID }}
+          BUNNY_STREAM_API_KEY: ${{ secrets.BUNNY_STREAM_API_KEY }}
+          BUNNY_STREAM_CDN_HOSTNAME: ${{ secrets.BUNNY_STREAM_CDN_HOSTNAME }}
         run: node scripts/push-worker-secrets.js --write "${{ runner.temp }}/worker-secrets.json"
       - name: Deploy Worker and container
         if: steps.cf.outputs.ready == 'true'

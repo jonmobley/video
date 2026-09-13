@@ -138,6 +138,24 @@ describe('Wistia CSP coverage', () => {
   });
 });
 
+describe('Bunny Stream CSP coverage', () => {
+  test('frame-src allows the Bunny player embed', () => {
+    expect(cspAllows(csp['frame-src'], 'https://player.mediadelivery.net/embed/12345/3f1c2a9e-7b4d-4c8e-9a1b-2d3e4f5a6b7c')).toBe(true);
+  });
+
+  test('frame-src allows the legacy Bunny iframe host', () => {
+    expect(cspAllows(csp['frame-src'], 'https://iframe.mediadelivery.net/embed/12345/abc')).toBe(true);
+  });
+
+  test('connect-src allows direct TUS uploads to Bunny', () => {
+    expect(cspAllows(csp['connect-src'], 'https://video.bunnycdn.com/tusupload')).toBe(true);
+  });
+
+  test('img-src allows pull-zone thumbnails', () => {
+    expect(csp['img-src']).toContain('https:');
+  });
+});
+
 describe('Dropbox CSP coverage', () => {
   test('media-src allows dl.dropboxusercontent.com video streaming', () => {
     expect(cspAllows(csp['media-src'], 'https://dl.dropboxusercontent.com/s/abc123/video.mp4')).toBe(true);

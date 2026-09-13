@@ -1,6 +1,6 @@
 # VidShare Dance Hub
 
-Mobile-first video sharing for theater groups: Wistia/YouTube/Vimeo show pages plus native uploads, watch links, and folders.
+Mobile-first video sharing for theater groups: show pages backed by Bunny Stream uploads, plus native uploads, watch links, and folders.
 
 ## Run locally
 
@@ -17,7 +17,8 @@ Open `http://localhost:5000`. Production is [https://vidshare.link](https://vids
 
 - Mobile-optimized show pages with landscape fullscreen
 - Dance-focused categories (Ballet, Jazz, Contemporary, Tap, etc.)
-- Wistia, YouTube, Vimeo, and native uploaded video
+- Show-page editors upload videos straight to your Bunny Stream library (set `BUNNY_STREAM_*`; see [HOSTING.md](HOSTING.md))
+- YouTube, Vimeo, and native uploaded video for watch links; legacy Wistia rows still play
 - Page editors per production (oz, seussical, disc, vertical)
 - Chunked uploads, watch pages, folders, magic-code accounts
 

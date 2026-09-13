@@ -31,6 +31,8 @@ ALTER TABLE videos ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'wistia';
 -- Optional thumbnail URL captured from a video frame (e.g. for Dropbox).
 -- Falls back to the platform default when null.
 ALTER TABLE videos ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+-- Bunny Stream uploads store the clip length at upload time (no oEmbed lookup).
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;
 
 -- Update existing videos to have platform set to 'wistia' if null
 UPDATE videos SET platform = 'wistia' WHERE platform IS NULL;

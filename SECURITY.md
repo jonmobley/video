@@ -68,7 +68,8 @@ Restricts what resources browsers are allowed to load, providing the primary def
 - `style-src 'self' 'unsafe-inline'` — allows inline styles
 - `img-src 'self' data: https: blob:` — allows images from any HTTPS source (thumbnails from Wistia, YouTube, Vimeo, etc.)
 - `connect-src 'self' https://*.supabase.co https://fast.wistia.com https://vimeo.com` — controls fetch/XHR destinations
-- `frame-src` — allows embedding video players from YouTube, Vimeo, Dailymotion, Loom, and Wistia
+- `frame-src` — allows embedding video players from Bunny Stream (`player.mediadelivery.net`), YouTube, Vimeo, Dailymotion, Loom, and Wistia
+- `connect-src` also allows `https://video.bunnycdn.com` so page editors can stream uploads straight to Bunny with a short-lived, server-signed TUS signature (the Stream API key never reaches the browser)
 - `media-src 'self' blob:` — allows video playback from same origin and blob URLs
 - `frame-ancestors 'none'` — prevents this site from being embedded in iframes elsewhere
 
