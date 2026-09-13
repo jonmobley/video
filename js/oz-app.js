@@ -627,6 +627,15 @@
                 console.error('Cache write error:', error);
             }
         }
+
+        /** Drop a cached API response so the next load hits the server. */
+        function clearCachedData(key) {
+            try {
+                localStorage.removeItem(`cache_${key}`);
+            } catch (error) {
+                console.error('Cache clear error:', error);
+            }
+        }
         
         /**
          * Loads videos from the server/database
@@ -636,8 +645,13 @@
             try {
                 console.log('🎬 === LOADING VIDEOS FROM SERVER ===');
 
+                // Editors must see their own saves on the next reload; viewers
+                // can take the 5-minute localStorage/HTTP cache. `no-cache`
+                // still revalidates with the ETag, so unchanged lists are 304s.
+                const wantsFresh = hasSavedPageEditorToken();
+
                 // Check cache first
-                const cachedVideos = getCachedData(pageCacheKey('videos'));
+                const cachedVideos = wantsFresh ? null : getCachedData(pageCacheKey('videos'));
                 if (cachedVideos) {
                     videos = cachedVideos;
                     console.log('✅ Videos loaded from cache:', videos.length, 'videos');
@@ -646,7 +660,7 @@
                 }
                 
                 console.log(`🎬 Making API call to: ${pageApiUrl('get-videos')}`);
-                const response = await fetch(pageApiUrl('get-videos'));
+                const response = await fetch(pageApiUrl('get-videos'), wantsFresh ? { cache: 'no-cache' } : undefined);
                 if (response.ok) {
                     videos = await response.json();
                     console.log('✅ Videos loaded successfully:', videos.length, 'videos');
@@ -1421,6 +1435,15 @@
 
         function pageEditorStorageKey() {
             return `vidshare-page-editor-token:${pageKey}`;
+        }
+
+        /** True when this browser has a remembered editor credential for the page. */
+        function hasSavedPageEditorToken() {
+            try {
+                return !!localStorage.getItem(pageEditorStorageKey());
+            } catch (_) {
+                return false;
+            }
         }
 
         function savePageEditorToken(token) {
@@ -3009,8 +3032,8 @@
                 clearUnsavedChanges();
                 
                 // Clear localStorage cache to ensure changes are visible immediately
-                localStorage.removeItem(pageCacheKey('videos'));
-                localStorage.removeItem(pageCacheKey('categories'));
+                clearCachedData(pageCacheKey('videos'));
+                clearCachedData(pageCacheKey('categories'));
                 console.log('🗑️ Cleared localStorage cache - changes will be visible on next load');
                 
                 // Reset button after 2 seconds
@@ -3206,6 +3229,7 @@
             document.getElementById('editVideoTitle').value = title;
             document.getElementById('editVideoCategory').value = category;
             document.getElementById('editVideoId').value = wistiaId;
+            renderEditThumbnailGroup(wistiaId);
             
             // Populate category dropdown
             populateEditCategoryDropdown();
@@ -3481,6 +3505,64 @@
             }
         });
 
+        /** Show the current thumbnail + "Change thumbnail" in the edit popup for Bunny videos. */
+        function renderEditThumbnailGroup(videoId) {
+            const group = document.getElementById('editThumbnailGroup');
+            const preview = document.getElementById('editThumbnailPreview');
+            if (!group || !preview) return;
+            const meta = getVideoMeta(videoId);
+            const supported = meta.platform === 'bunny' && !!window.ThumbnailPicker;
+            group.classList.toggle('hidden', !supported);
+            preview.innerHTML = '';
+            if (!supported) return;
+            if (meta.thumbnailUrl) {
+                const img = document.createElement('img');
+                img.alt = '';
+                img.src = meta.thumbnailUrl;
+                img.addEventListener('error', () => img.remove(), { once: true });
+                preview.appendChild(img);
+            }
+        }
+
+        document.getElementById('editVideoThumbnailBtn').addEventListener('click', async function() {
+            const videoId = currentEditingVideoId;
+            const button = this;
+            if (!videoId || !window.ThumbnailPicker) return;
+            button.disabled = true;
+            let status = null;
+            try {
+                status = await fetchBunnyStatus(videoId);
+            } catch (error) {
+                console.warn('Could not read Bunny status before choosing a thumbnail:', error);
+            } finally {
+                button.disabled = false;
+            }
+            if (currentEditingVideoId !== videoId) return;
+            const candidates = status && status.ready && Array.isArray(status.candidateThumbnails)
+                ? status.candidateThumbnails
+                : [];
+            window.ThumbnailPicker.open({
+                title: 'Change thumbnail',
+                subtitle: candidates.length
+                    ? 'Pick one of the frames Bunny generated, or upload your own image.'
+                    : 'Upload your own image for this video.',
+                source: candidates.length ? { imageUrls: candidates } : null,
+                framesUnavailableMessage: status && !status.ready
+                    ? 'Still processing \u2014 upload an image instead'
+                    : 'No frames available \u2014 upload an image instead',
+                onSave: async (selection) => {
+                    const result = await setBunnyThumbnail(videoId, selection);
+                    // The latest pick is the one to re-apply if Bunny replaces the
+                    // poster when encoding finishes. Only a confirmed "ready" means
+                    // there is nothing to redo; an unknown status keeps the pick.
+                    if (status && status.ready) chosenThumbnails.delete(videoId);
+                    else chosenThumbnails.set(videoId, selection);
+                    applyThumbnailToVideo(videoId, result.thumbnailUrl);
+                    renderEditThumbnailGroup(videoId);
+                }
+            });
+        });
+
         // Add Video Popup Functions
         function openAddVideoPopup() {
             console.log('🎬 DEBUG: === OPENING ADD VIDEO POPUP ===');
@@ -3690,6 +3772,14 @@
             }).catch(error => console.warn('Could not discard Bunny upload:', error));
         }
 
+        /** Current Bunny processing state for a video (throws on network/HTTP errors). */
+        async function fetchBunnyStatus(videoId) {
+            const url = `/api/bunny-video-status?page=${encodeURIComponent(pageKey)}&videoId=${encodeURIComponent(videoId)}`;
+            const response = await fetch(url, { headers: pageEditorHeaders() });
+            if (!response.ok) throw new Error(`Bunny status request failed (${response.status})`);
+            return response.json();
+        }
+
         /**
          * Poll Bunny until encoding finishes, then swap in the real thumbnail
          * and fill any missing duration. Runs in the background after upload.
@@ -3697,10 +3787,8 @@
         function watchBunnyProcessing(videoId, attempt = 0) {
             const item = document.querySelector(`.video-item[data-wistia="${CSS.escape(videoId)}"]`);
             if (!item || attempt > 120) return; // ~10 minutes at 5s
-            const url = `/api/bunny-video-status?page=${encodeURIComponent(pageKey)}&videoId=${encodeURIComponent(videoId)}`;
-            fetch(url, { headers: pageEditorHeaders() })
-                .then(response => (response.ok ? response.json() : null))
-                .then(status => {
+            fetchBunnyStatus(videoId)
+                .then(async status => {
                     if (!status) return;
                     if (status.length && !item.dataset.duration) {
                         item.dataset.duration = String(status.length);
@@ -3711,12 +3799,121 @@
                         }
                     }
                     if (status.ready) {
-                        refreshBunnyThumbnail(item, videoId, status.thumbnailUrl);
+                        const thumbnailUrl = await reassertChosenThumbnail(videoId, status);
+                        refreshBunnyThumbnail(item, videoId, thumbnailUrl);
                         return;
                     }
                     setTimeout(() => watchBunnyProcessing(videoId, attempt + 1), 5000);
                 })
                 .catch(() => setTimeout(() => watchBunnyProcessing(videoId, attempt + 1), 10000));
+        }
+
+        // ===== THUMBNAIL PICKER (Bunny videos) =====
+        // Frames are pulled from the local file while the upload is in flight
+        // so the picker is ready the moment the progress bar finishes.
+        let pendingFrameExtraction = null; // { file, promise }
+        // Choices made before encoding finished; Bunny may regenerate the
+        // default thumbnail when it completes, so these are re-applied once.
+        const chosenThumbnails = new Map();
+
+        function startFrameExtraction(file) {
+            const picker = window.ThumbnailPicker;
+            if (!picker || !file) {
+                pendingFrameExtraction = null;
+                return;
+            }
+            const partial = [];
+            pendingFrameExtraction = {
+                file,
+                partial,
+                promise: picker.extractFramesFromFile(file, picker.TP_FRAME_COUNT, (idx, frame) => {
+                    partial[idx] = frame;
+                }).catch(() => null)
+            };
+        }
+
+        /** Hand the in-flight extraction for `file` to the picker as a { frames, partial } source. */
+        function takeFrameExtraction(file) {
+            const pending = pendingFrameExtraction;
+            pendingFrameExtraction = null;
+            return pending && pending.file === file ? { frames: pending.promise, partial: pending.partial } : null;
+        }
+
+        /** Send the editor's choice to Bunny via the server. Resolves with { thumbnailUrl }. */
+        async function setBunnyThumbnail(videoId, selection) {
+            const body = { page: pageKey, videoId };
+            if (selection.kind === 'url') {
+                body.thumbnailUrl = selection.url;
+            } else {
+                body.data = selection.base64;
+                body.contentType = selection.contentType;
+            }
+            const response = await fetch('/api/bunny-set-thumbnail', {
+                method: 'POST',
+                headers: pageEditorHeaders(),
+                body: JSON.stringify(body)
+            });
+            let payload = null;
+            try { payload = await response.json(); } catch { payload = null; }
+            if (!response.ok) {
+                const message = payload && payload.error && payload.error.message;
+                if (response.status === 413) throw new Error('That image is over the 500 KB limit \u2014 try a smaller one.');
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error(message || 'Your editor session has expired. Log in again to change thumbnails.');
+                }
+                throw new Error(message || `Could not update the thumbnail (${response.status}).`);
+            }
+            return payload;
+        }
+
+        /** Update the grid card, dataset and in-memory record with a new thumbnail URL. */
+        function applyThumbnailToVideo(videoId, thumbnailUrl) {
+            if (!thumbnailUrl) return;
+            const item = document.querySelector(`.video-item[data-wistia="${CSS.escape(videoId)}"]`);
+            if (item) {
+                item.dataset.thumbnailUrl = thumbnailUrl;
+                refreshBunnyThumbnail(item, videoId, thumbnailUrl);
+            }
+            const record = videos.find(v => v.wistiaId === videoId);
+            if (record) record.thumbnailUrl = thumbnailUrl;
+        }
+
+        /**
+         * Once encoding is done, re-send a thumbnail picked during processing if
+         * Bunny replaced it with an auto-generated one. Returns the URL to show.
+         */
+        async function reassertChosenThumbnail(videoId, status) {
+            const selection = chosenThumbnails.get(videoId);
+            if (!selection) return status.thumbnailUrl;
+            chosenThumbnails.delete(videoId);
+            if (status.hasCustomThumbnail) return status.thumbnailUrl;
+            try {
+                const result = await setBunnyThumbnail(videoId, selection);
+                applyThumbnailToVideo(videoId, result.thumbnailUrl);
+                return result.thumbnailUrl || status.thumbnailUrl;
+            } catch (error) {
+                console.warn('Could not re-apply the chosen thumbnail after encoding:', error);
+                return status.thumbnailUrl;
+            }
+        }
+
+        /** After a successful upload, let the editor pick a frame or keep Bunny's default. */
+        function offerThumbnailPicker(videoId, file, frameSource) {
+            const picker = window.ThumbnailPicker;
+            if (!picker) return;
+            picker.open({
+                title: 'Choose a thumbnail',
+                subtitle: 'Pick a frame from the video you just uploaded, or upload your own image.',
+                source: frameSource || { file },
+                skipLabel: 'Keep auto thumbnail',
+                saveLabel: 'Use this thumbnail',
+                onSave: async (selection) => {
+                    const result = await setBunnyThumbnail(videoId, selection);
+                    chosenThumbnails.set(videoId, selection);
+                    applyThumbnailToVideo(videoId, result.thumbnailUrl);
+                    markUnsavedChanges();
+                }
+            });
         }
 
         function refreshBunnyThumbnail(item, videoId, thumbnailUrl) {
@@ -3757,6 +3954,7 @@
             if (!titleInput.value.trim() && window.BunnyUpload) {
                 titleInput.value = window.BunnyUpload.titleFromFileName(file.name);
             }
+            startFrameExtraction(file);
         });
 
         // Add Video Form Handlers
@@ -3765,6 +3963,7 @@
                 activeUploadController.abort();
                 activeUploadController = null;
             }
+            pendingFrameExtraction = null;
             document.getElementById('addVideoOverlay').style.display = 'none';
             document.getElementById('addVideoError').style.display = 'none';
             resetUploadProgress();
@@ -3818,6 +4017,10 @@
                     .map(tag => tag.dataset.tagId);
 
                 showUploadProgress(0, file.size, 'Preparing upload…');
+                // Frames normally start extracting on file selection; cover the
+                // case where the file was set without a change event.
+                if (!pendingFrameExtraction || pendingFrameExtraction.file !== file) startFrameExtraction(file);
+                const frameSource = takeFrameExtraction(file);
                 const [credentials, duration] = await Promise.all([
                     requestBunnyUpload(title),
                     window.BunnyUpload.readVideoDuration(file)
@@ -3863,6 +4066,9 @@
                 resetUploadProgress();
                 const hint = document.getElementById('videoFileHint');
                 if (hint) hint.textContent = '';
+
+                // Let the editor choose a poster frame while the file is still in memory.
+                offerThumbnailPicker(videoId, file, frameSource);
                 
             } catch (error) {
                 activeUploadController = null;

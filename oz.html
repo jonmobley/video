@@ -65,6 +65,7 @@ Last Updated: 2024
     <link rel="stylesheet" href="/styles/common.css">
     <link rel="stylesheet" href="/styles/oz-page.css">
     <link rel="stylesheet" href="/styles/page-template.css">
+    <link rel="stylesheet" href="/styles/thumbnail-picker.css">
 </head>
 
 <!-- 
@@ -265,6 +266,14 @@ Main page structure with:
                     </div>
                 </div>
                 
+                <div class="form-group hidden" id="editThumbnailGroup">
+                    <label>Thumbnail</label>
+                    <div class="edit-thumbnail-row">
+                        <div class="edit-thumbnail-preview" id="editThumbnailPreview"></div>
+                        <button type="button" class="btn-change-thumbnail" id="editVideoThumbnailBtn">Change thumbnail…</button>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label>Video ID</label>
                     <input type="text" id="editVideoId" readonly class="readonly-input">
@@ -363,6 +372,7 @@ Main page structure with:
     ======================================================================== 
     -->
     <script src="/js/bunny-upload.js"></script>
+    <script src="/js/thumbnail-picker.js"></script>
     <script src="/js/oz-app.js"></script>
     
     <!-- End of Oz Dance Videos Page -->

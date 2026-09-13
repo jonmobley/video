@@ -5,6 +5,10 @@ const captureSrc = fs.readFileSync(
   path.join(__dirname, '../../js/thumbnail-capture.js'),
   'utf8'
 );
+const pickerSrc = fs.readFileSync(
+  path.join(__dirname, '../../js/thumbnail-picker.js'),
+  'utf8'
+);
 const accountSrc = fs.readFileSync(
   path.join(__dirname, '../../js/account-app.js'),
   'utf8'
@@ -43,12 +47,18 @@ describe('thumbnail capture CORS handling', () => {
     expect(captureSrc).not.toMatch(/video\.crossOrigin = 'anonymous';\s*\n\s*video\.style/);
   });
 
-  test('account thumbnail picker does not set crossOrigin on same-origin video', () => {
-    const start = accountSrc.indexOf('function extractCandidateFrames');
+  test('shared thumbnail picker does not set crossOrigin on same-origin video', () => {
+    const start = pickerSrc.indexOf('function extractCandidateFrames');
     expect(start).toBeGreaterThan(-1);
-    const end = accountSrc.indexOf('\n    async function openThumbnailDialog', start);
-    const body = accountSrc.slice(start, end > start ? end : start + 4000);
+    const end = pickerSrc.indexOf('\n  async function extractFramesFromFile', start);
+    const body = pickerSrc.slice(start, end > start ? end : start + 4000);
     expect(body).not.toMatch(/video\.crossOrigin\s*=/);
     expect(body).toMatch(/Leave crossOrigin unset for same-origin/);
+  });
+
+  test('account page feeds the same-origin /api/video URL into the shared picker', () => {
+    expect(accountSrc).toMatch(/ThumbnailPicker\.open\(/);
+    expect(accountSrc).toMatch(/videoUrl: `\/api\/video\/\$\{encodeURIComponent\(videoId\)\}`/);
+    expect(accountSrc).not.toMatch(/function extractCandidateFrames/);
   });
 });

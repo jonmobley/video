@@ -683,531 +683,71 @@
     });
 
     // ── Thumbnail picker dialog ─────────────────────────────────────────────
-    const tpOverlay = document.getElementById('tpOverlay');
-    const tpClose   = document.getElementById('tpClose');
-    const tpCancel  = document.getElementById('tpCancel');
-    const tpSave    = document.getElementById('tpSave');
-    const tpGrid    = document.getElementById('tpGrid');
-    const tpError   = document.getElementById('tpError');
-    const tpSub     = document.getElementById('tpSub');
-    const tpFramesTitle  = document.getElementById('tpFramesTitle');
-    const tpFileInput    = document.getElementById('tpFileInput');
-    const tpFileBtn      = document.getElementById('tpFileBtn');
-    const tpUploadPreview = document.getElementById('tpUploadPreview');
-
-    // Server-side cap is 500 KB; mirror it here so users get an immediate
-    // error instead of a cryptic 413 after the round-trip.
-    const TP_MAX_BYTES = 500 * 1024;
-    // Evenly spaced interior samples — avoids the black first/last frames and
-    // keeps picks visually distinct when the clip has any motion.
-    const TP_FRAME_COUNT = 6;
-
-    let tpState = null; // { videoId, selection, frames: [{base64,contentType,timeSec}], custom }
-    const tpFrameCache = new Map();
-    const TP_FRAME_CACHE_MAX = 20;
-
-    function setTpError(msg) { tpError.textContent = msg || ''; }
-
-    function formatTimecode(seconds) {
-      const total = Math.max(0, Math.floor(Number(seconds) || 0));
-      const m = Math.floor(total / 60);
-      const s = total % 60;
-      return m + ':' + String(s).padStart(2, '0');
-    }
-
-    /** Build seek targets spread across a known duration. */
-    function frameSeekTimes(duration, count) {
-      const n = Math.max(1, count | 0);
-      const dur = Number(duration);
-      if (!isFinite(dur) || dur <= 0) return [];
-      // Very short clips: still return unique-ish times within the range.
-      if (dur < 0.6) {
-        const mid = Math.max(0, dur / 2);
-        return Array.from({ length: n }, () => mid);
-      }
-      const times = [];
-      for (let i = 0; i < n; i++) {
-        // (i+1)/(n+1) keeps samples away from 0 and EOF.
-        const t = dur * ((i + 1) / (n + 1));
-        times.push(Math.min(Math.max(0.05, t), Math.max(0.05, dur - 0.05)));
-      }
-      return times;
-    }
-
-    function renderFrameTile(tile, f, idx) {
-      if (!f) {
-        tile.className = 'tp-frame empty';
-        tile.textContent = '\u2014';
-        return;
-      }
-      tile.className = 'tp-frame';
-      tile.innerHTML = '';
-      tile.tabIndex = 0;
-      tile.setAttribute('role', 'option');
-      tile.setAttribute('aria-selected', 'false');
-      const label = f.timeSec != null
-        ? ('Frame at ' + formatTimecode(f.timeSec))
-        : ('Frame ' + (idx + 1));
-      tile.setAttribute('aria-label', label);
-      const img = document.createElement('img');
-      img.src = f.dataUrl;
-      img.alt = label;
-      tile.appendChild(img);
-      if (f.timeSec != null) {
-        const badge = document.createElement('span');
-        badge.className = 'tp-frame-time';
-        badge.textContent = formatTimecode(f.timeSec);
-        tile.appendChild(badge);
-      }
-      tile.addEventListener('click', () => selectFrame(idx));
-      tile.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          selectFrame(idx);
-        }
-      });
-    }
-
-    function closeThumbnailDialog() {
-      tpOverlay.classList.remove('show');
-      tpOverlay.setAttribute('aria-hidden', 'true');
-      tpGrid.innerHTML = '';
-      setTpError('');
-      tpFileInput.value = '';
-      tpUploadPreview.innerHTML = 'No file';
-      tpUploadPreview.classList.remove('selected');
-      tpSave.disabled = true;
-      tpState = null;
-      if (tpLastFocused && typeof tpLastFocused.focus === 'function') {
-        tpLastFocused.focus();
-      }
-    }
-
-    function selectFrame(index) {
-      if (!tpState) return;
-      tpState.selection = { kind: 'frame', index };
-      Array.from(tpGrid.children).forEach((el, i) => {
-        el.classList.toggle('selected', i === index);
-        el.setAttribute('aria-selected', String(i === index));
-      });
-      tpUploadPreview.classList.remove('selected');
-      tpUploadPreview.setAttribute('aria-selected', 'false');
-      tpSave.disabled = false;
-      setTpError('');
-    }
-
-    function selectCustom() {
-      if (!tpState || !tpState.custom) return;
-      tpState.selection = { kind: 'custom' };
-      Array.from(tpGrid.children).forEach(el => {
-        el.classList.remove('selected');
-        el.setAttribute('aria-selected', 'false');
-      });
-      tpUploadPreview.classList.add('selected');
-      tpUploadPreview.setAttribute('aria-selected', 'true');
-      tpSave.disabled = false;
-      setTpError('');
-    }
-
-    function extractCandidateFrames(videoUrl, count, onFrame) {
-      return new Promise((resolve) => {
-        const n = Math.max(1, count | 0);
-        const out = Array.from({ length: n }, () => null);
-        let i = 0;
-        let settled = false;
-        let seekTimes = [];
-        const video = document.createElement('video');
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = 'auto';
-        // Same-origin /api/video/:id does not send CORS headers. Setting
-        // crossOrigin=anonymous here makes the <video> fail to load (or
-        // taints the canvas), which is why the picker showed
-        // "Could not load frames". Leave crossOrigin unset for same-origin.
-        video.style.cssText = 'position:fixed;left:-99999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
-
-        const TIMEOUT_MS = 30000;
-        const timer = setTimeout(() => finish(), TIMEOUT_MS);
-
-        function cleanup() {
-          try { video.pause(); } catch (_) {}
-          try { video.removeAttribute('src'); video.load(); } catch (_) {}
-          try { video.remove(); } catch (_) {}
-        }
-        function finish() {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          cleanup();
-          resolve(out);
-        }
-
-        function captureCurrent() {
-          try {
-            const vw = video.videoWidth, vh = video.videoHeight;
-            if (!vw || !vh) return null;
-            const maxW = 480, maxH = 270;
-            const ratio = vw / vh;
-            let cw = maxW, ch = maxH;
-            if (ratio > cw / ch) ch = Math.max(1, Math.round(cw / ratio));
-            else cw = Math.max(1, Math.round(ch * ratio));
-            const canvas = document.createElement('canvas');
-            canvas.width = cw; canvas.height = ch;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return null;
-            ctx.drawImage(video, 0, 0, cw, ch);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
-            const comma = dataUrl.indexOf(',');
-            if (comma < 0) return null;
-            return {
-              dataUrl,
-              base64: dataUrl.slice(comma + 1),
-              contentType: 'image/jpeg',
-              // Record the time we actually landed on (keyframe snap may
-              // differ from the requested seek).
-              timeSec: isFinite(video.currentTime) ? video.currentTime : null
-            };
-          } catch (_) {
-            return null;
-          }
-        }
-
-        function afterPaint(cb) {
-          // Wait until a decoded frame is available at the seeked time —
-          // capturing immediately on 'seeked' often reuses the prior frame.
-          if (typeof video.requestVideoFrameCallback === 'function') {
-            try {
-              video.requestVideoFrameCallback(() => cb());
-              return;
-            } catch (_) { /* fall through */ }
-          }
-          requestAnimationFrame(() => requestAnimationFrame(cb));
-        }
-
-        function seekNext() {
-          if (i >= seekTimes.length) return finish();
-          const t = seekTimes[i];
-          try { video.currentTime = t; }
-          catch (_) { i++; seekNext(); }
-        }
-
-        let seekingStarted = false;
-        function startSeeking() {
-          if (seekingStarted || settled) return;
-          const dur = video.duration;
-          if (!isFinite(dur) || dur <= 0) return;
-          seekingStarted = true;
-          seekTimes = frameSeekTimes(dur, n);
-          if (!seekTimes.length) return finish();
-          i = 0;
-          seekNext();
-        }
-
-        // Duration is often Infinity/0 on first loadedmetadata for ranged
-        // MP4s. Wait until we have a real length before spreading seeks —
-        // otherwise every sample collapses to t=0 and all tiles look alike.
-        video.addEventListener('loadedmetadata', startSeeking);
-        video.addEventListener('durationchange', startSeeking);
-        video.addEventListener('seeked', () => {
-          const idx = i;
-          afterPaint(() => {
-            if (settled) return;
-            out[idx] = captureCurrent();
-            if (typeof onFrame === 'function') onFrame(idx, out[idx]);
-            i++;
-            seekNext();
-          });
-        });
-        video.addEventListener('error', () => finish());
-
-        try {
-          video.src = videoUrl;
-          document.body.appendChild(video);
-          video.load();
-        } catch (_) { finish(); }
-      });
-    }
-
-    async function openThumbnailDialog(videoId) {
+    // The dialog itself lives in js/thumbnail-picker.js (shared with the
+    // show-page editors); this only wires the account-specific save path.
+    function openThumbnailDialog(videoId) {
       const v = videosById[videoId];
-      if (!v) return;
-      tpLastFocused = document.activeElement;
-      tpState = { videoId, selection: null, frames: [], custom: null };
-      tpOverlay.classList.add('show');
-      tpOverlay.setAttribute('aria-hidden', 'false');
-      setTpError('');
-      tpSave.disabled = true;
-      tpUploadPreview.innerHTML = 'No file';
-      tpUploadPreview.classList.remove('selected');
-      tpFileInput.value = '';
+      if (!v || !window.ThumbnailPicker) return;
+      const ThumbnailPicker = window.ThumbnailPicker;
 
-      tpGrid.innerHTML = '';
-      const slots = [];
-      for (let n = 0; n < TP_FRAME_COUNT; n++) {
-        const tile = document.createElement('div');
-        tile.className = 'tp-frame loading';
-        tile.setAttribute('aria-label', 'Loading frame');
-        tpGrid.appendChild(tile);
-        slots.push(tile);
-      }
-
-      setTimeout(() => {
-        const first = tpOverlay.querySelector('button:not([disabled]), input:not([disabled])');
-        if (first) first.focus();
-      }, 0);
-
-      if (v.has_password) {
-        tpFramesTitle.textContent = 'Pick a frame';
-        slots.forEach(tile => {
-          tile.className = 'tp-frame empty';
-          tile.textContent = 'Password-protected \u2014 upload an image instead';
-        });
-        return;
-      }
-
-      const cached = tpFrameCache.get(videoId);
-      if (cached) {
-        tpFrameCache.delete(videoId);
-        tpFrameCache.set(videoId, cached);
-        tpState.frames = cached;
-        let any = false;
-        cached.forEach((f, idx) => {
-          if (f) any = true;
-          renderFrameTile(slots[idx], f, idx);
-        });
-        if (!any) showFrameLoadFailure(slots);
-        return;
-      }
-
-      const videoUrl = `/api/video/${encodeURIComponent(videoId)}`;
-      const frames = await extractCandidateFrames(videoUrl, TP_FRAME_COUNT, (idx, f) => {
-        if (!tpState || tpState.videoId !== videoId) return;
-        tpState.frames[idx] = f;
-        renderFrameTile(slots[idx], f, idx);
-      });
-
-      if (!tpState || tpState.videoId !== videoId) return;
-      tpState.frames = frames;
-
-      const any = frames.some(f => !!f);
-      if (!any) {
-        // Don't cache a total failure — a slow network or transient decode
-        // error should get a fresh attempt next time the dialog opens.
-        showFrameLoadFailure(slots);
-        return;
-      }
-      tpFrameCache.set(videoId, frames);
-      while (tpFrameCache.size > TP_FRAME_CACHE_MAX) {
-        const oldest = tpFrameCache.keys().next().value;
-        tpFrameCache.delete(oldest);
-      }
-    }
-
-    // Frame extraction failed (unsupported codec, slow network, decoder
-    // error). Say so where the frames would have been and point at the
-    // upload alternative, which still works.
-    function showFrameLoadFailure(slots) {
-      tpFramesTitle.textContent = 'Pick a frame';
-      slots.forEach((tile, idx) => {
-        tile.className = 'tp-frame empty';
-        tile.textContent = idx === 0
-          ? 'We couldn\u2019t read frames from this video. You can still upload an image below.'
-          : '\u2014';
-      });
-    }
-
-    let tpLastFocused = null;
-
-    tpClose.addEventListener('click', closeThumbnailDialog);
-    tpCancel.addEventListener('click', closeThumbnailDialog);
-    tpOverlay.addEventListener('click', (e) => {
-      if (e.target === tpOverlay) closeThumbnailDialog();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (!tpOverlay.classList.contains('show')) return;
-      if (e.key === 'Escape') { closeThumbnailDialog(); return; }
-      if (e.key === 'Tab') {
-        const focusable = Array.from(tpOverlay.querySelectorAll(
-          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"]), .tp-frame:not(.empty):not(.loading)'
-        ));
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault(); last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault(); first.focus();
-        }
-      }
-    });
-
-    tpFileBtn.addEventListener('click', () => tpFileInput.click());
-    tpUploadPreview.addEventListener('click', () => { if (tpState && tpState.custom) selectCustom(); });
-    tpUploadPreview.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && tpState && tpState.custom) {
-        e.preventDefault();
-        selectCustom();
-      }
-    });
-    tpFileInput.addEventListener('change', () => {
-      const file = tpFileInput.files && tpFileInput.files[0];
-      if (!file) return;
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        setTpError(`"${file.name}" isn\u2019t a supported image. Please choose a JPEG, PNG, or WebP file.`);
-        tpFileInput.value = '';
-        return;
-      }
-      setTpError('');
-      // Read the file and downscale via canvas if needed to stay under the
-      // 500 KB server cap. Re-encode as JPEG when shrinking.
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          processCustomImage(img, file).then(custom => {
-            if (!custom) {
-              setTpError('We couldn\u2019t shrink this image under 500 KB. Try a smaller or simpler image.');
-              return;
-            }
-            if (!tpState) return;
-            tpState.custom = custom;
-            tpUploadPreview.tabIndex = 0;
-            tpUploadPreview.setAttribute('role', 'option');
-            tpUploadPreview.setAttribute('aria-selected', 'false');
-            tpUploadPreview.setAttribute('aria-label', 'Custom uploaded image');
-            tpUploadPreview.innerHTML = '';
-            const preview = document.createElement('img');
-            preview.src = custom.dataUrl;
-            preview.alt = '';
-            tpUploadPreview.appendChild(preview);
-            selectCustom();
-          });
-        };
-        img.onerror = () => setTpError('That file couldn\u2019t be opened as an image. It may be corrupted — try a different one.');
-        img.src = String(reader.result || '');
-      };
-      reader.onerror = () => setTpError('We couldn\u2019t read that file from your device. Please try again or pick another image.');
-      reader.readAsDataURL(file);
-    });
-
-    // If the file is already small enough and a supported type, send it as-is.
-    // Otherwise downscale to a 16:9-ish thumbnail and re-encode JPEG until
-    // it fits under TP_MAX_BYTES.
-    function processCustomImage(img, file) {
-      return new Promise((resolve) => {
-        try {
-          // Fast path: small original PNG/JPEG/WebP → just base64 it.
-          if (file.size <= TP_MAX_BYTES) {
-            const fr = new FileReader();
-            fr.onload = () => {
-              const dataUrl = String(fr.result || '');
-              const comma = dataUrl.indexOf(',');
-              if (comma < 0) return resolve(null);
-              resolve({
-                dataUrl,
-                base64: dataUrl.slice(comma + 1),
-                contentType: file.type
-              });
-            };
-            fr.onerror = () => resolve(null);
-            fr.readAsDataURL(file);
+      ThumbnailPicker.open({
+        // Same-origin /api/video/:id does not send CORS headers; the picker
+        // leaves crossOrigin unset so the canvas capture is not tainted.
+        source: v.has_password ? null : { videoUrl: `/api/video/${encodeURIComponent(videoId)}` },
+        cacheKey: videoId,
+        framesUnavailableMessage: 'Password-protected \u2014 upload an image instead',
+        onSave: async (selection) => {
+          const payload = { data: selection.base64, contentType: selection.contentType };
+          let res;
+          try {
+            res = await fetch(`/api/my-videos/${encodeURIComponent(videoId)}/thumbnail`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } catch (_) {
+            throw new Error('The thumbnail wasn\u2019t saved. ' + Feedback.NETWORK_MESSAGE);
+          }
+          if (res.status === 401) {
+            ThumbnailPicker.close();
+            redirectToLogin({ expired: true });
             return;
           }
-          // Re-encode path. Walk down quality until we fit.
-          const maxW = 1280, maxH = 720;
-          const ratio = img.width / img.height;
-          let cw = maxW, ch = maxH;
-          if (ratio > cw / ch) ch = Math.max(1, Math.round(cw / ratio));
-          else cw = Math.max(1, Math.round(ch * ratio));
-          const canvas = document.createElement('canvas');
-          canvas.width = cw; canvas.height = ch;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return resolve(null);
-          ctx.drawImage(img, 0, 0, cw, ch);
-          const qualities = [0.82, 0.7, 0.55, 0.4, 0.25];
-          for (const q of qualities) {
-            const dataUrl = canvas.toDataURL('image/jpeg', q);
-            const comma = dataUrl.indexOf(',');
-            if (comma < 0) continue;
-            const base64 = dataUrl.slice(comma + 1);
-            // base64 length * 3/4 ≈ decoded bytes.
-            const approxBytes = Math.floor(base64.length * 0.75);
-            if (approxBytes <= TP_MAX_BYTES) {
-              return resolve({ dataUrl, base64, contentType: 'image/jpeg' });
+          if (!res.ok) {
+            const info = await Feedback.readApiError(res, 'Something went wrong on our end. Please try again.');
+            throw new Error('The thumbnail wasn\u2019t saved. ' + (res.status === 413
+              ? 'That image is over the 500 KB limit \u2014 try a smaller one.'
+              : info.message));
+          }
+          const out = await res.json().catch(() => ({}));
+          const version = out.version || Date.now();
+          ThumbnailPicker.invalidateCache(videoId);
+
+          // Update the card thumbnail in place + flag has_thumbnail so the
+          // next list re-render keeps showing the real frame.
+          const card = document.querySelector(`.video-card[data-id="${cssEscape(videoId)}"]`);
+          if (card) {
+            const wrap = card.querySelector('.vc-thumb');
+            if (wrap) {
+              // Wipe the old <img> or placeholder and drop in a fresh one.
+              const placeholder = wrap.querySelector('.vc-thumb-placeholder');
+              if (placeholder) placeholder.remove();
+              let img = wrap.querySelector('img');
+              if (!img) {
+                img = document.createElement('img');
+                img.alt = '';
+                img.loading = 'lazy';
+                img.dataset.thumbErrorFallback = 'true';
+                wrap.insertBefore(img, wrap.firstChild);
+              }
+              img.src = `/api/video-thumbnail/${encodeURIComponent(videoId)}?v=${encodeURIComponent(version)}`;
             }
           }
-          resolve(null);
-        } catch (_) { resolve(null); }
+          if (v) v.has_thumbnail = true;
+          showToast('Thumbnail updated');
+        }
       });
     }
-
-    tpSave.addEventListener('click', async () => {
-      if (!tpState || !tpState.selection) return;
-      let payload;
-      if (tpState.selection.kind === 'frame') {
-        const f = tpState.frames[tpState.selection.index];
-        if (!f) return;
-        payload = { data: f.base64, contentType: f.contentType };
-      } else if (tpState.selection.kind === 'custom') {
-        if (!tpState.custom) return;
-        payload = { data: tpState.custom.base64, contentType: tpState.custom.contentType };
-      } else { return; }
-
-      const videoId = tpState.videoId;
-      tpSave.disabled = true; tpSave.textContent = 'Saving…';
-      setTpError('');
-      let res;
-      try {
-        res = await fetch(`/api/my-videos/${encodeURIComponent(videoId)}/thumbnail`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } catch (_) {
-        tpSave.disabled = false; tpSave.textContent = 'Save thumbnail';
-        setTpError('The thumbnail wasn\u2019t saved. ' + Feedback.NETWORK_MESSAGE);
-        return;
-      }
-      if (res.status === 401) { closeThumbnailDialog(); return redirectToLogin({ expired: true }); }
-      if (!res.ok) {
-        const info = await Feedback.readApiError(res, 'Something went wrong on our end. Please try again.');
-        setTpError('The thumbnail wasn\u2019t saved. ' + (res.status === 413
-          ? 'That image is over the 500 KB limit — try a smaller one.'
-          : info.message));
-        tpSave.disabled = false; tpSave.textContent = 'Save thumbnail';
-        return;
-      }
-      const out = await res.json().catch(() => ({}));
-      const version = out.version || Date.now();
-      tpFrameCache.delete(videoId);
-
-      // Update the card thumbnail in place + flag has_thumbnail so the
-      // next list re-render keeps showing the real frame.
-      const card = document.querySelector(`.video-card[data-id="${cssEscape(videoId)}"]`);
-      if (card) {
-        const wrap = card.querySelector('.vc-thumb');
-        if (wrap) {
-          // Wipe the old <img> or placeholder and drop in a fresh one.
-          const placeholder = wrap.querySelector('.vc-thumb-placeholder');
-          if (placeholder) placeholder.remove();
-          let img = wrap.querySelector('img');
-          if (!img) {
-            img = document.createElement('img');
-            img.alt = '';
-            img.loading = 'lazy';
-            img.dataset.thumbErrorFallback = 'true';
-            wrap.insertBefore(img, wrap.firstChild);
-          }
-          img.src = `/api/video-thumbnail/${encodeURIComponent(videoId)}?v=${encodeURIComponent(version)}`;
-        }
-      }
-      const v = videosById[videoId];
-      if (v) v.has_thumbnail = true;
-
-      tpSave.disabled = false; tpSave.textContent = 'Save thumbnail';
-      closeThumbnailDialog();
-      showToast('Thumbnail updated');
-    });
 
     // Tiny CSS.escape polyfill for older browsers; only used to look up a
     // card by data-id, which is always a known-safe video id.
