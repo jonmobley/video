@@ -99,6 +99,24 @@ exports.handler = async (event) => {
     source = { buffer: decoded.buffer, contentType: body.contentType };
   }
 
+  // Editor credentials are scoped to one page, and Bunny GUIDs of saved videos
+  // are public via get-videos, so refuse to touch a video another page owns.
+  // Videos with no saved row yet are in-flight uploads whose ids only the
+  // uploading editor has seen.
+  try {
+    const owners = await query(
+      'SELECT DISTINCT page FROM videos WHERE wistia_id = $1 AND platform = \'bunny\'',
+      [videoId]
+    );
+    const foreign = owners.rows.some(row => row.page !== page);
+    if (foreign) {
+      return fail(headers, 403, 'PAGE_FORBIDDEN', 'That video belongs to a different page.');
+    }
+  } catch (error) {
+    console.error('bunny-set-thumbnail: ownership lookup failed:', error.message);
+    return fail(headers, 500, 'DB_ERROR', 'Could not verify the video\u2019s page.');
+  }
+
   let result;
   try {
     result = await bunny.setThumbnail(videoId, source);
@@ -115,8 +133,8 @@ exports.handler = async (event) => {
   if (result.thumbnailUrl) {
     try {
       await query(
-        'UPDATE videos SET thumbnail_url = $1 WHERE wistia_id = $2 AND platform = \'bunny\'',
-        [result.thumbnailUrl, videoId]
+        'UPDATE videos SET thumbnail_url = $1 WHERE wistia_id = $2 AND page = $3 AND platform = \'bunny\'',
+        [result.thumbnailUrl, videoId, page]
       );
     } catch (error) {
       console.warn('bunny-set-thumbnail: could not update videos.thumbnail_url:', error.message);

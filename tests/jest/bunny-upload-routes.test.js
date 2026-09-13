@@ -208,8 +208,9 @@ describe('Bunny Stream upload routes', () => {
 
     test('uploads the image to Bunny and updates saved rows with the new URL', async () => {
       configureBunny();
-      pgMock.enqueue({ rows: [] });          // auth
-      pgMock.enqueue({ rowCount: 1, rows: [] }); // UPDATE videos
+      pgMock.enqueue({ rows: [] });                        // auth
+      pgMock.enqueue({ rows: [{ page: 'seussical' }] });   // ownership: saved on this page
+      pgMock.enqueue({ rowCount: 1, rows: [] });           // UPDATE videos
       global.fetch = jest.fn()
         .mockResolvedValueOnce(jsonResponse(200, { success: true }))
         .mockResolvedValueOnce(jsonResponse(200, {
@@ -234,13 +235,46 @@ describe('Bunny Stream upload routes', () => {
 
       const update = pgMock.calls().find(c => /UPDATE videos SET thumbnail_url/.test(c.sql));
       expect(update).toBeTruthy();
-      expect(update.params).toEqual([`https://vz-abc.b-cdn.net/${GUID}/thumbnail_9f8e.jpg`, GUID]);
+      expect(update.sql).toMatch(/AND page = \$3/);
+      expect(update.params).toEqual([`https://vz-abc.b-cdn.net/${GUID}/thumbnail_9f8e.jpg`, GUID, 'seussical']);
+    });
+
+    test('refuses a video that a different page owns', async () => {
+      configureBunny();
+      pgMock.enqueue({ rows: [] });                  // auth
+      pgMock.enqueue({ rows: [{ page: 'oz' }] });    // ownership: saved on another page
+      global.fetch = jest.fn();
+      const res = await request(app)
+        .post('/api/bunny-set-thumbnail')
+        .set('Authorization', `Bearer ${EDITOR}`)
+        .send({ page: 'seussical', videoId: GUID, data: PNG_BASE64, contentType: 'image/png' });
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('PAGE_FORBIDDEN');
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(pgMock.calls().some(c => /UPDATE videos/.test(c.sql))).toBe(false);
+    });
+
+    test('allows an in-flight upload that has no saved row yet', async () => {
+      configureBunny();
+      pgMock.enqueue({ rows: [] });          // auth
+      pgMock.enqueue({ rows: [] });          // ownership: nothing saved yet
+      pgMock.enqueue({ rowCount: 0, rows: [] });
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce(jsonResponse(200, { success: true }))
+        .mockResolvedValueOnce(jsonResponse(200, { guid: GUID, status: 1, thumbnailFileName: 'thumbnail_a1.jpg' }));
+      const res = await request(app)
+        .post('/api/bunny-set-thumbnail')
+        .set('Authorization', `Bearer ${EDITOR}`)
+        .send({ page: 'seussical', videoId: GUID, data: PNG_BASE64, contentType: 'image/png' });
+      expect(res.status).toBe(200);
+      expect(res.body.thumbnailUrl).toBe(`https://vz-abc.b-cdn.net/${GUID}/thumbnail_a1.jpg`);
     });
 
     test('passes a candidate frame URL through to Bunny as thumbnailUrl', async () => {
       configureBunny();
-      pgMock.enqueue({ rows: [] });
-      pgMock.enqueue({ rowCount: 0, rows: [] });
+      pgMock.enqueue({ rows: [] });                       // auth
+      pgMock.enqueue({ rows: [{ page: 'seussical' }] });  // ownership
+      pgMock.enqueue({ rowCount: 1, rows: [] });          // UPDATE
       const candidate = `https://vz-abc.b-cdn.net/${GUID}/thumbnail_3.jpg`;
       global.fetch = jest.fn()
         .mockResolvedValueOnce(jsonResponse(200, { success: true }))
@@ -262,6 +296,7 @@ describe('Bunny Stream upload routes', () => {
 
     test('maps Bunny failures to 502', async () => {
       configureBunny();
+      pgMock.enqueue({ rows: [] });
       pgMock.enqueue({ rows: [] });
       global.fetch = jest.fn(async () => jsonResponse(500, { Message: 'boom' }));
       const res = await request(app)

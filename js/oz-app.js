@@ -3552,6 +3552,10 @@
                     : 'No frames available \u2014 upload an image instead',
                 onSave: async (selection) => {
                     const result = await setBunnyThumbnail(videoId, selection);
+                    // The latest pick is the one to re-apply if Bunny replaces the
+                    // poster when encoding finishes; once ready there is nothing to redo.
+                    if (status && !status.ready) chosenThumbnails.set(videoId, selection);
+                    else chosenThumbnails.delete(videoId);
                     applyThumbnailToVideo(videoId, result.thumbnailUrl);
                     renderEditThumbnailGroup(videoId);
                 }

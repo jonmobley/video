@@ -122,6 +122,18 @@ describe('ThumbnailPicker dialog', () => {
     expect(body).not.toMatch(/requestVideoFrameCallback\([^)]*\);\s*return;/);
   });
 
+  test('a total extraction miss is not cached, so the next open retries', async () => {
+    ThumbnailPicker.open({ source: { frames: Promise.resolve([null, null]) }, cacheKey: 'v9', onSave: jest.fn() });
+    await flush();
+    expect(document.querySelector('#tpGrid .tp-frame').textContent).toBe('Could not load frames');
+    ThumbnailPicker.close();
+    // Same key, frames now available: must render them rather than a cached failure.
+    ThumbnailPicker.open({ source: { frames: Promise.resolve([FRAME(1)]) }, cacheKey: 'v9', onSave: jest.fn() });
+    await flush();
+    expect(document.querySelector('#tpGrid .tp-frame img')).not.toBeNull();
+    ThumbnailPicker.close();
+  });
+
   test('shows the unavailable message when there is no frame source', async () => {
     ThumbnailPicker.open({ source: null, framesUnavailableMessage: 'Still processing', onSave: jest.fn() });
     await flush();
@@ -211,6 +223,14 @@ describe('page wiring', () => {
     expect(app).toMatch(/\/api\/bunny-set-thumbnail/);
     expect(app).toMatch(/offerThumbnailPicker\(videoId, file, frameSource\)/);
     expect(app).toMatch(/reassertChosenThumbnail/);
+  });
+
+  test('edit-popup picks made while encoding are recorded for the post-encode re-apply', () => {
+    const app = read('js/oz-app.js');
+    const start = app.indexOf("getElementById('editVideoThumbnailBtn')");
+    const body = app.slice(start, app.indexOf('// Add Video Popup Functions', start));
+    expect(body).toMatch(/if \(status && !status\.ready\) chosenThumbnails\.set\(videoId, selection\);/);
+    expect(body).toMatch(/else chosenThumbnails\.delete\(videoId\);/);
   });
 
   test('picker script is loaded before the app scripts that use it', () => {

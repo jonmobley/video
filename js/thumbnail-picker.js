@@ -535,8 +535,13 @@
     }
     if (state !== token) return;
     state.frames = frames;
-    rememberFrames(options.cacheKey, frames);
-    if (!frames.some(Boolean)) showEmptyGrid(slots, options.emptyFramesMessage || 'Could not load frames');
+    if (frames.some(Boolean)) {
+      rememberFrames(options.cacheKey, frames);
+    } else {
+      // A total miss is usually transient (decode hiccup, network); leave it
+      // uncached so the next open retries instead of pinning the failure.
+      showEmptyGrid(slots, options.emptyFramesMessage || 'Could not load frames');
+    }
   }
 
   function open(options) {
