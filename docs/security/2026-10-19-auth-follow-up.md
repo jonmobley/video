@@ -50,11 +50,17 @@ After the owner entered the emailed code privately, the legacy account page disp
 
 The normal Test Login in the vidshare vault and the Moxie testing profile were updated and read back. The password is intentionally blank for email-code authentication. No authentication code or session cookie was exported or saved to the vault or audit artifacts. The Gmail connector withholds authentication codes, so this verifies an owner-assisted flow, not unattended agent readiness. OTP expiry/reuse, server-side session replay/revocation, cross-owner authorization and actual browser-extension autofill remain unverified.
 
+## Verified older Stripe API key revocation
+
+After the owner generated a replacement and expired the matched exposed key, read-only checks at 2026-10-19T21:40:07.207Z returned HTTP 401 with api_key_expired for the exact committed old key and HTTP 200 for the distinct replacement on older account acct_19CCMzALuMmc4nzV. The replacement is saved in Classy / Legacy getclassy credential rotation / REPLACEMENT_STRIPE_SECRET_KEY and read back. No live payment, webhook resend or application configuration write was used to validate it.
+
+Current Render configuration inspection covered all six Classy Studio services and the production environment group, with no exposed-key match. Current Classy production, staging and Nexus Stripe credentials identify the different account acct_1TcQUFRAlfV4bC7z and were not overwritten or redeployed. This is not exhaustive verification of external or rarely used consumers, process memory, or webhook signing secrets. The older account's two enabled classy.rsvp destinations remain separate incident work; do not disable them blindly or restore the exposed API key.
+
 ## Unfinished and blocked
 
 1. Private local/staging email capture is still needed for unattended testing. The approved Vidshare account and owner-assisted login are verified as described above; do not ask the owner to repeat that completed test. The unrelated Studio Showtime preview credential did not authenticate to Showtime Cloud staging; it was not reset or copied into a new valid Login item.
-2. The exposed Stripe live key belongs to older account acct_19CCMzALuMmc4nzV, absent from the connected Stripe session. It still authenticates. Two enabled webhook endpoints on that account target classy.rsvp; do not assume the old account is unused or disable them blindly.
-3. Owner Dashboard handoff is required for standard Stripe secret-key/webhook-secret changes. Store older-account replacements in a clearly labeled legacy item in the Classy vault, never over the current Classy/Nexus account's secret. Current account acct_1TcQUFRAlfV4bC7z was not changed.
+2. The older Stripe API-key rotation is verified and needs no repeat owner action. Two enabled webhook endpoints on that account target classy.rsvp; their signing-secret/consumer review remains unfinished. Do not assume the old account is unused or disable endpoints blindly.
+3. Any remaining browser webhook-credential changes require owner handoff. Store older-account replacements in the legacy-scoped Classy vault item, never over the current Classy/Nexus account's secret. Current account acct_1TcQUFRAlfV4bC7z was not changed.
 4. Legacy Resend, Google OAuth, admin/bootstrap/session credentials and the inaccessible legacy Supabase project's service-role credential still need provider-specific consumer/revocation confirmation. A different current vault value does not prove an exposed legacy value is revoked.
 5. Follow up on editor/setup credential replacement, remaining defaults, log/integrity review, authorization/cross-owner tests and private email/SMS capture.
 
