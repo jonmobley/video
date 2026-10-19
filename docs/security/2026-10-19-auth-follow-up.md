@@ -2,7 +2,7 @@
 
 ## Scope and current status
 
-The owner explicitly requested verification of login, containment of the seven remaining exposed tables, and credential rotations with replacement values saved in associated 1Password vaults. No live payments or real email/SMS tests were authorized or performed.
+The owner explicitly requested verification of login, containment of the seven remaining exposed tables, and credential rotations with replacement values saved in associated 1Password vaults. The owner subsequently approved one separate Vidshare test email alias, its code email, account creation and a normal Login item in the vidshare vault. No live payments, SMS or uploads were performed.
 
 The actual legacy Vidshare backend is https://old.vidshare.link, on Cloudflare Worker vidshare. The primary vidshare.link and www.vidshare.link domains now belong to the newer showtime-cloud Worker. Earlier HTTP 200 page/health checks at the primary domain did not prove the legacy backend was healthy. The checked-in Wrangler domain routes are stale and must not be deployed over this current routing.
 
@@ -44,9 +44,15 @@ Classy production and staging deploy the same already-live commit 71c58d3731cf16
 
 This is not a successful link-creation test: the existing Classy helper posts snake_case fields to the root URL, whereas QRGo accepts camelCase fields at /api/links. An empty root POST returned HTTP 405. Review that pre-existing integration mismatch separately; do not claim a credential rotation fixes it.
 
+## Verified owner-assisted login
+
+After the owner entered the emailed code privately, the legacy account page displayed the exact approved test alias and zero videos. Reloading the page preserved the same signed-in identity. Signing out returned the anonymous home page; following My videos then redirected to /login?next=%2Faccount. Only this synthetic test session was signed out; no personal account was used.
+
+The normal Test Login in the vidshare vault and the Moxie testing profile were updated and read back. The password is intentionally blank for email-code authentication. No authentication code or session cookie was exported or saved to the vault or audit artifacts. The Gmail connector withholds authentication codes, so this verifies an owner-assisted flow, not unattended agent readiness. OTP expiry/reuse, server-side session replay/revocation, cross-owner authorization and actual browser-extension autofill remain unverified.
+
 ## Unfinished and blocked
 
-1. Full legacy login needs an approved private receiving inbox. No dedicated Vidshare/Showtime Cloud Login item exists. The unrelated Studio Showtime preview credential did not authenticate to Showtime Cloud staging; it was not reset or copied into a new valid Login item. No owner account was used.
+1. Private local/staging email capture is still needed for unattended testing. The approved Vidshare account and owner-assisted login are verified as described above; do not ask the owner to repeat that completed test. The unrelated Studio Showtime preview credential did not authenticate to Showtime Cloud staging; it was not reset or copied into a new valid Login item.
 2. The exposed Stripe live key belongs to older account acct_19CCMzALuMmc4nzV, absent from the connected Stripe session. It still authenticates. Two enabled webhook endpoints on that account target classy.rsvp; do not assume the old account is unused or disable them blindly.
 3. Owner Dashboard handoff is required for standard Stripe secret-key/webhook-secret changes. Store older-account replacements in a clearly labeled legacy item in the Classy vault, never over the current Classy/Nexus account's secret. Current account acct_1TcQUFRAlfV4bC7z was not changed.
 4. Legacy Resend, Google OAuth, admin/bootstrap/session credentials and the inaccessible legacy Supabase project's service-role credential still need provider-specific consumer/revocation confirmation. A different current vault value does not prove an exposed legacy value is revoked.
