@@ -22,6 +22,14 @@ describe('lib/video-password', () => {
     expect(passwordsMatch('nope', legacy)).toBe(false);
   });
 
+  test('signing-key replacement invalidates existing video access passes', () => {
+    const oldToken = signAccessToken('synthetic-video', 'old-test-key', 60_000);
+    const newToken = signAccessToken('synthetic-video', 'replacement-test-key', 60_000);
+    expect(verifyAccessToken('synthetic-video', oldToken, 'replacement-test-key')).toBe(false);
+    expect(verifyAccessToken('synthetic-video', newToken, 'replacement-test-key')).toBe(true);
+    expect(verifyAccessToken('other-video', newToken, 'replacement-test-key')).toBe(false);
+  });
+
   test('access tokens bind to video id and expire', () => {
     const secret = 'test-secret-key';
     const token = signAccessToken('vid123.mp4', secret, 60_000);
